@@ -13,6 +13,8 @@ import { App } from "./App";
 import { connect } from "./stdb";
 import "./styles.css";
 import "./overview.css";
+import "./office.css";
+import "./office-inspectors.css";
 
 const disconnect = connect();
 import.meta.hot?.dispose(disconnect);

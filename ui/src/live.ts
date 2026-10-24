@@ -129,7 +129,7 @@ export function startLive(
   bindings: Bindings,
   host: string,
   database: string,
-  session?: { getToken(): string | undefined },
+  session?: { getToken(): string | undefined | Promise<string | undefined> },
 ): () => void {
   let disposed = false;
   let generation = 0;
@@ -137,7 +137,7 @@ export function startLive(
   let retry: ReturnType<typeof setTimeout> | undefined;
   let deadline: ReturnType<typeof setTimeout> | undefined;
   let release: (() => void) | undefined;
-  function connect(): void {
+  async function connect(): Promise<void> {
     if (disposed) return;
     const current = ++generation;
     let connection: Connection | undefined;
@@ -216,16 +216,18 @@ export function startLive(
         // Resolve again on each reconnect; never retain credentials in the store.
         let token: string | undefined;
         try {
-          token = session.getToken();
+          token = await session.getToken();
         } catch {
           // Authentication errors can contain credentials; do not surface them.
         }
+        if (!alive()) return;
         if (!token?.trim()) {
           if (deadline) clearTimeout(deadline);
           replaceTables(emptyTables());
           setConnection({
             phase: "error",
-            detail: "Sign in with an approved reader account, then reconnect.",
+            detail:
+              "Run spacetime login on this laptop, ask the database owner to approve your public identity, then retry. Open the dashboard through its local Vite server.",
           });
           return;
         }

@@ -1,0 +1,1337 @@
+/* WHAT IT'S FOR: milestone 1 warm shared-observer office; live HTML overlays, no 3D engine. */
+:root {
+  --bg: #756958;
+  --surface: #4c4842;
+  --line: #ffffff30;
+  --muted: #d2cdc5;
+  --cyan: #d4e0e0;
+  --violet: #d4d4dd;
+  --red: #f1aaa3;
+  --green: #b7d8c0;
+  --amber: #e5cca3;
+  color: #f6f3ee;
+  background: #756958;
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+.office-shell {
+  --nav-width: 216px;
+  --inspector-width: min(680px, 46vw);
+  --header-height: 78px;
+  height: 100dvh;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: var(--header-height) minmax(0, 1fr);
+  overflow: hidden;
+  background:
+    linear-gradient(#24201a12, #24201a16),
+    url("/office/shared-desk.png") center center / cover fixed;
+}
+.office-shell.nav-collapsed {
+  --nav-width: 70px;
+}
+.office-shell .app-header {
+  height: var(--header-height);
+  padding: 0 25px;
+  gap: 24px;
+  background: #3b383264;
+  border-bottom: 1px solid #ffffff30;
+  backdrop-filter: blur(22px) saturate(0.65);
+  z-index: 35;
+}
+.office-shell .brand {
+  width: 166px;
+  flex-shrink: 0;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.office-shell .brand-symbol {
+  color: #fff;
+  transform: none;
+  background: none;
+  box-shadow: none;
+  border-color: #ffffff70;
+  border-radius: 10px;
+}
+.office-shell .brand-sub {
+  color: #e0dcd4;
+}
+.office-shell .workspace-breadcrumb {
+  border-color: #ffffff30;
+  font-size: 1rem;
+}
+.office-shell .header-actions {
+  gap: 22px;
+}
+.office-shell .connection-pill {
+  color: #f3eee6;
+  font-size: 1rem;
+}
+.office-shell .connection-pill .dot {
+  box-shadow: none;
+}
+.office-shell .button,
+.office-shell select {
+  background: #ffffff12;
+  color: #fbf8f2;
+  border-color: #ffffff40;
+  border-radius: 10px;
+}
+.office-shell select option {
+  background: #4b463e;
+  color: #fff;
+}
+.office-shell .button:hover {
+  background: #ffffff25;
+}
+.office-shell .workspace-layout {
+  display: block;
+  padding-left: 70px;
+  min-height: 0;
+}
+.office-shell .side-rail {
+  display: flex;
+  position: fixed;
+  left: 0;
+  top: var(--header-height);
+  bottom: 0;
+  height: auto;
+  width: var(--nav-width);
+  align-items: stretch;
+  padding: 22px 14px;
+  gap: 9px;
+  background: #47433e87;
+  border-right: 1px solid #ffffff40;
+  backdrop-filter: blur(25px) saturate(0.65);
+  z-index: 25;
+}
+.office-shell .side-rail button {
+  width: 100%;
+  height: 52px;
+  padding: 0 14px;
+  display: flex;
+  gap: 17px;
+  justify-content: flex-start;
+  color: #f5f0e9;
+  border-radius: 12px;
+  font-size: 0.98rem;
+}
+.office-shell .side-rail .rail-active {
+  background: #ffffff22;
+  color: #fff;
+  border: 1px solid #ffffff30;
+  box-shadow: none;
+}
+.office-shell .side-rail button:hover {
+  background: #ffffff1c;
+}
+.office-shell .side-rail .nav-toggle {
+  height: 32px;
+  margin: 0 0 13px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #e4dcd1;
+  padding: 0 10px;
+}
+.office-shell .nav-toggle > svg:last-child {
+  margin-left: auto;
+  transform: rotate(180deg);
+}
+.office-shell.nav-collapsed .nav-toggle > svg:last-child {
+  display: none;
+}
+.office-shell.nav-collapsed .nav-label {
+  display: none;
+}
+.office-shell.nav-collapsed .side-rail button {
+  justify-content: center;
+  padding: 0;
+}
+.office-shell .rail-bottom {
+  padding: 16px 14px;
+  color: #e3ddd3;
+}
+.office-shell .overview-workspace,
+.office-shell.inspecting .overview-workspace {
+  width: 100%;
+  max-width: none;
+  padding: 16px 22px 0;
+  margin: 0;
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.office-shell .demo-controls,
+.office-shell.inspecting .demo-controls {
+  display: flex;
+  min-height: 55px;
+  margin: 0 0 15px;
+  padding: 9px 14px;
+  background: #4c473c60;
+  border: 1px solid #ffffff35;
+  border-radius: 13px;
+  backdrop-filter: blur(20px) saturate(0.55);
+  box-shadow: 0 7px 24px #30200a0c;
+}
+.office-shell .demo-label {
+  color: #fff7eb;
+}
+.office-shell .demo-label > span {
+  color: #f1e7d8;
+}
+.office-shell .demo-label strong {
+  color: #fff;
+  background: #292723b8;
+  border: 1px solid #ffffff24;
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 0.69rem;
+}
+.office-shell .demo-actions select {
+  min-height: 36px;
+}
+.office-shell .demo-actions .text-button {
+  color: #fff;
+}
+.office-shell .overview-heading,
+.office-shell.inspecting .overview-heading {
+  margin: 6px 0 0;
+  align-items: center;
+}
+.office-shell .overview-heading h1,
+.office-shell.inspecting .overview-heading h1 {
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: #fff9ef;
+  text-shadow: 0 1px 10px #1b140aa0;
+}
+.office-shell .overview-heading > span,
+.office-shell.inspecting .overview-heading > span {
+  display: flex;
+  font-size: 1rem;
+  color: #fff8ed;
+  text-shadow: 0 1px 7px #1b140ac0;
+}
+.office-shell .visual-overview,
+.office-shell.inspecting .visual-overview {
+  width: min(1100px, 100%);
+  margin-inline: auto;
+  min-height: 0;
+  height: auto;
+  flex: 1;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.office-shell .visual-overview::before {
+  display: none;
+}
+.office-shell .map-caption,
+.office-shell.inspecting .map-caption {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  font-size: 1rem;
+  color: #f4eee6;
+  text-shadow: 0 1px 6px #21170ccb;
+}
+.office-shell .map-caption > span:last-child,
+.office-shell.inspecting .map-caption > span:last-child {
+  display: inline;
+}
+.office-shell .map-halo,
+.office-shell .constellation-links {
+  display: none;
+}
+.office-shell .constellation,
+.office-shell.inspecting .constellation {
+  position: absolute;
+  inset: 30px 0 90px;
+  height: auto;
+  margin: 0;
+  max-width: none;
+  perspective: 1400px;
+}
+.office-shell .map-agents,
+.office-shell.inspecting .map-agents {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.office-shell .map-agent,
+.office-shell.inspecting .map-agent {
+  position: absolute;
+  width: 230px;
+  height: 174px;
+  padding: 0;
+  gap: 0;
+  z-index: 3;
+  display: block;
+  transform: translate(-50%, -50%);
+  border-radius: 18px;
+}
+.office-shell .map-agent.seat-0 {
+  left: 23%;
+  top: 29%;
+  --screen-angle: 13deg;
+  --screen-z: -5deg;
+}
+.office-shell .map-agent.seat-1 {
+  left: 77%;
+  top: 29%;
+  --screen-angle: -13deg;
+  --screen-z: 5deg;
+}
+.office-shell .map-agent.seat-2 {
+  left: 20%;
+  top: 76%;
+  --screen-angle: -18deg;
+  --screen-z: 6deg;
+}
+.office-shell .map-agent.seat-3 {
+  left: 77%;
+  top: 76%;
+  --screen-angle: 18deg;
+  --screen-z: -6deg;
+}
+.office-shell .map-agent-symbol,
+.office-shell.inspecting .map-agent-symbol {
+  position: absolute;
+  inset: 0 0 17px;
+  width: 100%;
+  height: auto;
+  border: 1px solid #ffffffa3;
+  border-top-color: #ffffffe0;
+  border-radius: 12px;
+  background: linear-gradient(125deg, #f4f0e05c, #4c4a454d 65%, #e1e1d431);
+  box-shadow:
+    inset 2px 2px 0 #ffffff35,
+    0 15px 25px #26190b30;
+  backdrop-filter: blur(15px) saturate(0.35);
+  transform: rotateY(var(--screen-angle)) rotateZ(var(--screen-z));
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 23px 17px;
+  transition:
+    border-color 0.18s,
+    background 0.18s;
+}
+.office-shell .map-agent.tone-red .map-agent-symbol,
+.office-shell .map-agent.tone-green .map-agent-symbol {
+  background: linear-gradient(125deg, #f4f0e05c, #4c4a454d 65%, #e1e1d431);
+  border-color: #ffffffa3;
+}
+.office-shell .map-agent:hover .map-agent-symbol,
+.office-shell .map-agent:focus-visible .map-agent-symbol {
+  transform: rotateY(var(--screen-angle)) rotateZ(var(--screen-z));
+  border-color: #fff;
+  box-shadow:
+    inset 0 0 0 1px #ffffff50,
+    0 15px 25px #26190b35;
+  background-color: #ffffff15;
+}
+.office-shell .map-agent-symbol > svg,
+.office-shell.inspecting .map-agent-symbol > svg {
+  width: 31px;
+  height: 31px;
+  color: #f6f3eb;
+  flex-shrink: 0;
+}
+.office-shell .screen-face-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 12px;
+  text-align: left;
+  min-width: 0;
+  color: #fffdf8;
+  text-shadow: 0 1px 4px #30271a45;
+}
+.office-shell .screen-front .map-agent-symbol {
+  background: linear-gradient(125deg, #c6beb276, #4b494179 65%, #bbb6ab54);
+}
+.office-shell .screen-face-content strong {
+  font-size: 1rem;
+  font-weight: 550;
+}
+.office-shell .screen-face-content > span {
+  font-size: 0.69rem;
+  color: #eee9e1;
+}
+.office-shell .screen-face-content .screen-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 150px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.65rem;
+}
+.office-shell .map-status-mark,
+.office-shell.inspecting .map-status-mark {
+  width: 21px;
+  height: 21px;
+  top: 25px;
+  left: 10px;
+  bottom: auto;
+  right: auto;
+  background: #393934ac;
+  border-color: #ffffff50;
+  border-radius: 6px;
+}
+.office-shell .screen-base {
+  position: absolute;
+  left: 1%;
+  right: -3%;
+  bottom: 10px;
+  height: 24px;
+  background: linear-gradient(#e7e4dc7a, #a7a69e8c);
+  border: 1px solid #f8f7ef9c;
+  border-radius: 6px 6px 12px 12px;
+  transform: skewX(-15deg) rotateZ(var(--screen-z));
+  box-shadow: 0 12px 18px #21180e2b;
+  z-index: -1;
+}
+.office-shell .screen-back .map-agent-symbol {
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(115deg, #eeeadc99, #aaa99c70 40%, #e9e5dc77);
+}
+.office-shell .screen-back .map-agent-symbol > svg {
+  width: 37px;
+  height: 37px;
+  opacity: 0.65;
+}
+.office-shell .screen-back .screen-face-content,
+.office-shell .screen-back .map-status-mark {
+  display: none;
+}
+.office-shell .map-agent-name,
+.office-shell.inspecting .map-agent-name {
+  position: absolute;
+  left: 50%;
+  bottom: -30px;
+  transform: translateX(-50%);
+  width: max-content;
+  min-width: 105px;
+  max-width: 200px;
+  padding: 8px 14px;
+  border: 1px solid #ffffff55;
+  border-radius: 9px;
+  background: #3c3830c7;
+  color: #fff9ef;
+  font-size: 0.8rem;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 10px #2b1e0c12;
+}
+.office-shell .map-agent-name small {
+  display: block;
+  color: #dfd7cb;
+  font-size: 0.65rem;
+  margin-top: 3px;
+}
+.office-shell .screen-front .map-agent-name {
+  display: none;
+}
+.office-shell .map-center,
+.office-shell.inspecting .map-center {
+  top: 48%;
+  left: 50%;
+  min-width: 180px;
+  gap: 8px;
+  z-index: 5;
+}
+.office-shell .health-orb,
+.office-shell.inspecting .health-orb {
+  height: 108px;
+  width: 108px;
+  border: 1px solid #ffffffce;
+  background: radial-gradient(
+    circle at 30% 23%,
+    #ffffffad,
+    #d1d2c82b 36%,
+    #c5c8bd38 68%,
+    #ffffffe0
+  );
+  backdrop-filter: blur(8px) saturate(0.4);
+  box-shadow:
+    inset -5px -9px 14px #ffffff6b,
+    inset 4px 4px 12px #ffffffb5,
+    0 14px 20px #2019092b;
+}
+.office-shell .map-center.tone-red .health-orb,
+.office-shell .map-center.tone-green .health-orb {
+  background: radial-gradient(
+    circle at 30% 23%,
+    #ffffffad,
+    #d1d2c82b 36%,
+    #c5c8bd38 68%,
+    #ffffffe0
+  );
+  box-shadow:
+    inset -5px -9px 14px #ffffff6b,
+    inset 4px 4px 12px #ffffffb5,
+    0 14px 20px #2019092b;
+}
+.office-shell .health-orb > svg,
+.office-shell.inspecting .health-orb > svg {
+  width: 39px;
+  height: 39px;
+  filter: drop-shadow(0 1px 2px #ffffffb0);
+}
+.office-shell .health-orb:hover {
+  transform: scale(1.025);
+}
+.office-shell .map-center.tone-red .health-orb > svg {
+  color: #ae544b;
+}
+.office-shell .map-center.tone-green .health-orb > svg {
+  color: #477558;
+}
+.office-shell .orb-ring {
+  display: none;
+}
+.office-shell .orb-count {
+  background: #6d4840db;
+  border-color: #f9e7d8a0;
+  color: #fff8f1;
+}
+.office-shell .map-center h2,
+.office-shell.inspecting .map-center h2 {
+  color: #fff9ed;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-shadow: 0 2px 9px #3a2415ba;
+}
+.office-shell .orb-caption,
+.office-shell.inspecting .orb-caption {
+  color: #fff4e2;
+  font-size: 0.95rem;
+  text-shadow: 0 1px 7px #3a2415d0;
+}
+.office-shell .overview-shortcuts,
+.office-shell.inspecting .overview-shortcuts {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(470px, 85%);
+  gap: 0;
+  margin: 0;
+  padding: 9px;
+  border: 1px solid #ffffff66;
+  border-radius: 16px;
+  background: #7a72665e;
+  backdrop-filter: blur(23px) saturate(0.5);
+  box-shadow: 0 10px 24px #20170d15;
+}
+.office-shell .overview-shortcuts > button,
+.office-shell.inspecting .overview-shortcuts > button {
+  padding: 10px 8px;
+  gap: 5px;
+  border-radius: 10px;
+}
+.office-shell .overview-shortcuts > button + button {
+  border-left: 1px solid #ffffff26;
+}
+.office-shell .overview-shortcuts > button:hover {
+  background: #ffffff1c;
+}
+.office-shell .shortcut-symbol,
+.office-shell.inspecting .shortcut-symbol {
+  height: 35px;
+  width: 35px;
+  border-radius: 50%;
+  background: #ffffff0c;
+  border: 1px solid currentColor;
+}
+.office-shell .shortcut-symbol svg,
+.office-shell.inspecting .shortcut-symbol svg {
+  width: 20px;
+  height: 20px;
+}
+.office-shell .overview-shortcuts > button > span:nth-child(2),
+.office-shell.inspecting .overview-shortcuts > button > span:nth-child(2) {
+  font-size: 0.9rem;
+  color: #fffaf1;
+}
+.office-shell .shortcut-value,
+.office-shell.inspecting .shortcut-value {
+  font-size: 0.72rem;
+  color: #f3e9d9;
+}
+.office-shell .map-legend,
+.office-shell.inspecting .map-legend {
+  position: absolute;
+  bottom: -11px;
+  left: 0;
+  right: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  gap: 18px;
+  font-size: 0.9rem;
+  color: #fff4e0;
+  text-shadow: 0 1px 5px #261c12;
+}
+.office-shell .workspace-footer {
+  margin: 15px 0 0;
+  padding: 10px 0;
+  border: 0;
+  color: #fff1da;
+  text-shadow: 0 1px 7px #24150dd0;
+  font-size: 0.9rem;
+}
+.office-shell .inspector-drawer {
+  top: calc(var(--header-height) + 16px);
+  bottom: 18px;
+  right: 18px;
+  height: auto;
+  max-height: calc(100dvh - var(--header-height) - 34px);
+  max-width: calc(100vw - var(--nav-width) - 36px);
+  width: var(--inspector-width);
+  margin: 0;
+  background: linear-gradient(145deg, #68635cbb, #393732e8);
+  color: #fcf9f2;
+  border: 1px solid #ffffff85;
+  border-radius: 20px;
+  box-shadow:
+    0 18px 65px #1d150d35,
+    inset 0 1px #ffffff3b;
+  backdrop-filter: blur(28px) saturate(0.5);
+  z-index: 30;
+}
+.office-shell .inspector-header {
+  padding: 22px 24px;
+  background: #ffffff05;
+  border-color: #ffffff30;
+}
+.office-shell .inspector-header h2 {
+  font-size: 1.45rem;
+  font-weight: 550;
+  color: #fffaf3;
+}
+.office-shell .eyebrow {
+  color: #e2dacf;
+}
+.office-shell .drawer-close {
+  background: #ffffff0c;
+  border: 1px solid #ffffff3d;
+  color: #fff9ee;
+  border-radius: 11px;
+}
+.office-shell .inspector-demo-label {
+  color: #e0d8ca;
+  font-size: 0.57rem;
+}
+.office-shell .inspector-body {
+  padding: 18px 22px;
+}
+.office-shell .inspector-footer {
+  padding: 12px 22px;
+  border-color: #ffffff25;
+  background: #28282320;
+  color: #e9e2d7;
+}
+.office-shell .inspector-tabs {
+  border-color: #ffffff25;
+  padding-bottom: 16px;
+  gap: 10px;
+}
+.office-shell .inspector-tabs button {
+  border: 1px solid #ffffff32;
+  border-radius: 9px;
+  padding: 10px 15px;
+  color: #faf4ea;
+  background: #ffffff05;
+}
+.office-shell .inspector-tabs button[aria-pressed="true"] {
+  background: #d9e0e236;
+  border-color: #e9f2f88c;
+  color: #fff;
+}
+.office-shell .panel {
+  border: 1px solid #ffffff29;
+  border-radius: 13px;
+  background: #29282348;
+  box-shadow: none;
+}
+.office-shell .panel::before {
+  display: none;
+}
+.office-shell .inspector-summary {
+  background: #2c2b2540;
+  border: 1px solid #ffffff35;
+  border-radius: 13px;
+}
+.office-shell .explanation-block {
+  background: #ffffff08;
+  border-color: #ffffff26;
+}
+.office-shell .fixer-row {
+  border-color: #ffffff26;
+}
+.office-shell .fixer-avatar {
+  background: #ffffff15;
+  border-color: #ffffff3b;
+  color: #fff8ed;
+}
+.office-shell .pill {
+  background: #ffffff05;
+  border-color: currentColor;
+}
+.office-shell .section-heading,
+.office-shell .conflict-content,
+.office-shell .diagnosis-content,
+.office-shell .memory-content {
+  border-color: #ffffff25;
+}
+.office-shell .conflict-content {
+  background: none;
+}
+.office-shell .conflict-title-row h3 {
+  color: #fff8ed;
+}
+.office-shell .kind-chip,
+.office-shell .count-badge,
+.office-shell .status-chip {
+  background: #ffffff0a;
+  border-color: #ffffff35;
+}
+.office-shell .inspect-evidence-button {
+  background: #dce4e31c;
+  border-color: #e7efeb60;
+  color: #fffaf0;
+  border-radius: 11px;
+}
+.office-shell .human-callout {
+  background: #98665f25;
+  border-color: #eaa59c65;
+}
+.office-shell .source-card,
+.office-shell .diff-card,
+.office-shell .failure-output,
+.office-shell .diagnosis-step {
+  background: #27282460;
+  border-color: #ffffff25;
+}
+.office-shell .diff-code,
+.office-shell .failure-output pre,
+.office-shell .check-log-disclosure pre {
+  background: #22252275;
+  color: #f3eee3;
+}
+.office-shell .inspector-evidence .conflict-content {
+  grid-template-columns: 1fr;
+}
+.office-shell .inspector-evidence .source-pair {
+  grid-template-columns: 1fr;
+}
+.office-shell .inspector-evidence .diagnosis-content {
+  border-left: 0;
+  border-top: 1px solid #ffffff25;
+}
+.office-shell .inspector-evidence {
+  grid-template-columns: 1fr;
+}
+.office-shell .inspector-summary .conflict-subtitle,
+.office-shell .conflict-subtitle,
+.office-shell .explanation-block p {
+  color: #eee5d8;
+}
+.office-shell .inspector-restore {
+  position: fixed;
+  right: 20px;
+  top: 169px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #ffffff6b;
+  border-radius: 12px;
+  padding: 15px 20px;
+  background: #48453fce;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 25px #271c1126;
+  color: #fff7e9;
+}
+.office-shell .inspector-restore > svg:last-child {
+  transform: rotate(180deg);
+}
+.office-shell .empty-team-announcement {
+  position: absolute;
+  top: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: 95%;
+  padding: 12px 18px;
+  border: 1px solid #ffffff55;
+  border-radius: 12px;
+  background: #4b463bbd;
+  backdrop-filter: blur(14px);
+  color: #fff8ed;
+  font-size: 1rem;
+  box-shadow: 0 5px 18px #281c1017;
+}
+.office-shell .empty-team-announcement strong {
+  font-weight: 600;
+}
+.office-shell .empty-team-announcement > span {
+  color: #ede3d5;
+}
+.office-shell .inspector-drawer[open] {
+  animation: office-inspector-enter 0.18s ease-out;
+}
+.office-shell .inspector-drawer[open].inspector-exiting {
+  animation: office-inspector-exit 0.16s ease-in forwards;
+  pointer-events: none;
+}
+@keyframes office-inspector-enter {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes office-inspector-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+.office-shell .many-agents .map-agents {
+  position: static;
+  display: grid;
+  gap: 25px;
+}
+.office-shell .many-agents .map-agent {
+  position: relative;
+  inset: auto;
+  transform: none;
+  width: 100%;
+}
+.office-shell .many-agents .map-center {
+  top: auto;
+  bottom: 0;
+}
+@media (min-width: 1800px) {
+  .office-shell {
+    --inspector-width: min(780px, 44vw);
+  }
+  .office-shell .visual-overview {
+    width: min(1350px, 100%);
+  }
+}
+@media (max-height: 950px) {
+  .office-shell .map-agent.seat-2,
+  .office-shell .map-agent.seat-3 {
+    top: 66%;
+  }
+}
+@media (max-width: 1100px) {
+  .office-shell {
+    --nav-width: 170px;
+    --inspector-width: 49vw;
+  }
+  .office-shell .brand {
+    width: 130px;
+  }
+  .office-shell .workspace-breadcrumb {
+    display: none;
+  }
+  .office-shell .map-agent,
+  .office-shell.inspecting .map-agent {
+    width: 190px;
+    height: 145px;
+  }
+  .office-shell .map-agent-symbol {
+    padding: 17px 12px;
+  }
+  .office-shell .screen-face-content {
+    padding-left: 7px;
+  }
+  .office-shell .screen-face-content .screen-file {
+    max-width: 117px;
+  }
+  .office-shell .inspector-header {
+    padding: 18px;
+  }
+  .office-shell .inspector-body {
+    padding: 15px;
+  }
+  .office-shell .inspector-demo-label {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .office-shell,
+  .office-shell.nav-expanded {
+    --nav-width: 216px;
+    --header-height: 67px;
+  }
+  .office-shell .app-header {
+    height: var(--header-height);
+    padding: 0 13px;
+    gap: 12px;
+  }
+  .office-shell .brand {
+    width: auto;
+    font-size: 1.2rem;
+  }
+  .office-shell .brand-sub {
+    font-size: 0.4rem;
+  }
+  .office-shell .header-actions {
+    gap: 10px;
+  }
+  .office-shell .side-rail {
+    top: var(--header-height);
+    padding: 16px 8px;
+  }
+  .office-shell.nav-expanded .nav-label {
+    display: inline;
+  }
+  .office-shell .side-rail button {
+    justify-content: center;
+    padding: 0;
+  }
+  .office-shell .overview-workspace,
+  .office-shell.inspecting .overview-workspace {
+    padding: 12px 12px 0;
+  }
+  .office-shell .demo-controls,
+  .office-shell.inspecting .demo-controls {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .office-shell .demo-label > span {
+    display: none;
+  }
+  .office-shell .visual-overview {
+    height: auto;
+    min-height: 0;
+  }
+  .office-shell .map-caption {
+    font-size: 0.85rem;
+  }
+  .office-shell .map-caption > span:last-child {
+    display: none;
+  }
+  .office-shell .map-agent,
+  .office-shell.inspecting .map-agent {
+    width: 110px;
+    height: 110px;
+  }
+  .office-shell .map-agent-symbol,
+  .office-shell.inspecting .map-agent-symbol {
+    padding: 12px 8px;
+  }
+  .office-shell .screen-face-content {
+    padding-left: 5px;
+  }
+  .office-shell .screen-face-content strong {
+    font-size: 0.75rem;
+  }
+  .office-shell .screen-face-content > span {
+    font-size: 0.58rem;
+  }
+  .office-shell .screen-face-content .screen-file {
+    display: none;
+  }
+  .office-shell .map-agent-symbol > svg {
+    width: 19px;
+    height: 19px;
+  }
+  .office-shell .map-status-mark {
+    top: 36px;
+    left: 8px;
+    width: 17px;
+    height: 17px;
+  }
+  .office-shell .map-agent-name {
+    min-width: 90px;
+    font-size: 0.7rem;
+  }
+  .office-shell .map-agent.seat-0,
+  .office-shell .map-agent.seat-2 {
+    left: 24%;
+  }
+  .office-shell .map-agent.seat-1,
+  .office-shell .map-agent.seat-3 {
+    left: 77%;
+  }
+  .office-shell .health-orb {
+    width: 83px;
+    height: 83px;
+  }
+  .office-shell .map-center {
+    top: 45%;
+  }
+  .office-shell .overview-shortcuts {
+    width: 100%;
+  }
+  .office-shell .shortcut-value {
+    font-size: 0.6rem;
+  }
+  .office-shell .map-legend {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .office-shell .empty-team-announcement {
+    flex-direction: column;
+    gap: 5px;
+    text-align: center;
+    font-size: 0.9rem;
+    top: 48px;
+    width: 95%;
+  }
+  .office-shell .header-actions .simulation-link {
+    padding: 9px;
+    font-size: 0.75rem;
+  }
+  .office-shell .inspector-drawer {
+    top: calc(var(--header-height) + 12px);
+    right: 8px;
+    bottom: 8px;
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - var(--header-height) - 20px);
+    border-radius: 15px;
+  }
+  .office-shell .inspector-header h2 {
+    font-size: 1.2rem;
+  }
+  .office-shell .inspector-tabs button {
+    padding: 8px 9px;
+    font-size: 0.75rem;
+  }
+  .office-shell .inspector-restore {
+    top: 90px;
+    right: 10px;
+    padding: 12px;
+    font-size: 0.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .office-shell *,
+  .office-shell *::before,
+  .office-shell *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Viewport shell: only evidence panels scroll; navigation overlays a stable stage. */
+.office-shell .mobile-nav-toggle {
+  display: none;
+}
+.office-shell .overview-heading,
+.office-shell .demo-controls,
+.office-shell .workspace-footer {
+  flex-shrink: 0;
+}
+.office-shell .map-legend {
+  bottom: 0;
+}
+.office-shell .overview-shortcuts {
+  bottom: 28px;
+}
+.office-shell .workspace-footer {
+  margin-top: 0;
+}
+.office-shell .side-rail {
+  overflow-y: auto;
+}
+@media (max-height: 740px) {
+  .office-shell .map-agent,
+  .office-shell.inspecting .map-agent {
+    width: 170px;
+    height: 115px;
+  }
+  .office-shell .map-agent-symbol {
+    padding: 12px;
+  }
+  .office-shell .screen-file {
+    display: none;
+  }
+  .office-shell .health-orb,
+  .office-shell.inspecting .health-orb {
+    width: 76px;
+    height: 76px;
+  }
+  .office-shell .map-center,
+  .office-shell.inspecting .map-center {
+    top: 35%;
+  }
+  .office-shell .map-agent.seat-2,
+  .office-shell .map-agent.seat-3 {
+    top: 70%;
+  }
+  .office-shell .overview-shortcuts > button {
+    padding: 6px;
+  }
+  .office-shell .shortcut-symbol {
+    width: 26px;
+    height: 26px;
+  }
+  .office-shell .demo-controls {
+    margin-bottom: 6px;
+    min-height: 45px;
+    padding-block: 5px;
+  }
+}
+@media (max-width: 760px) {
+  .office-shell .workspace-layout {
+    padding-left: 0;
+  }
+  .office-shell .mobile-nav-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+    padding: 9px;
+  }
+  .office-shell .side-rail {
+    width: 216px;
+    transition:
+      transform 180ms ease,
+      visibility 180ms;
+  }
+  .office-shell.nav-collapsed .side-rail {
+    transform: translateX(-100%);
+    visibility: hidden;
+  }
+  .office-shell.nav-expanded .side-rail button {
+    justify-content: flex-start;
+    padding-inline: 12px;
+  }
+  .office-shell.nav-expanded .inspector-drawer {
+    right: 12px;
+    width: calc(100vw - 240px);
+    max-width: calc(100vw - 240px);
+  }
+  .office-shell .map-agent,
+  .office-shell.inspecting .map-agent {
+    width: 110px;
+    height: 110px;
+  }
+  .office-shell .workspace-footer > span:nth-child(2) {
+    display: none;
+  }
+  .office-shell .demo-actions {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 480px) {
+  .office-shell,
+  .office-shell.nav-expanded {
+    --header-height: 112px;
+  }
+  .office-shell .app-header {
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 8px 12px;
+  }
+  .office-shell .header-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .office-shell .header-actions .button {
+    padding: 7px;
+    font-size: 0.72rem;
+  }
+  .office-shell .connection-pill {
+    font-size: 0.8rem;
+  }
+  /* One transient surface at a time on phones; keep the inspector mounted. */
+  .office-shell.nav-expanded .inspector-drawer,
+  .office-shell.nav-expanded .inspector-restore {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .office-shell .map-center,
+  .office-shell.inspecting .map-center {
+    min-width: 120px;
+  }
+  .office-shell .map-center h2 {
+    font-size: 1rem;
+  }
+  .office-shell .map-legend {
+    font-size: 0.68rem;
+    gap: 8px;
+  }
+  .office-shell .demo-label {
+    display: none;
+  }
+  .office-shell .demo-controls {
+    min-height: 0;
+    padding: 6px;
+  }
+  .office-shell .demo-actions {
+    width: 100%;
+    gap: 6px;
+  }
+  .office-shell .demo-actions select {
+    max-width: 142px;
+  }
+}
+
+/* Compact status dock; inspector visibility never changes the workspace layout. */
+.office-shell .overview-shortcuts {
+  width: min(420px, 95%);
+  padding: 5px;
+  border-radius: 13px;
+}
+.office-shell .overview-shortcuts > button {
+  display: grid;
+  grid-template-columns: 28px auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  column-gap: 9px;
+  row-gap: 2px;
+  min-height: 44px;
+  padding: 5px 8px;
+  text-align: left;
+}
+.office-shell .overview-shortcuts .shortcut-symbol {
+  grid-row: 1 / 3;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+}
+.office-shell .overview-shortcuts .shortcut-symbol svg {
+  width: 17px;
+  height: 17px;
+}
+.office-shell .overview-shortcuts .shortcut-value {
+  font-size: 0.72rem;
+}
+@media (max-width: 480px) {
+  .office-shell .overview-shortcuts > button {
+    column-gap: 6px;
+    padding-inline: 4px;
+  }
+  .office-shell .overview-shortcuts > button > span:nth-child(2) {
+    font-size: 0.8rem;
+  }
+}
+
+/* Workspace context lives in the app header, leaving the desk free of floating labels. */
+.office-shell .header-context {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+.office-shell .header-context-title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+}
+.office-shell .header-context h1 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.office-shell .header-project {
+  color: #e0d8cc;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.office-shell .header-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #eee5d8;
+  font-size: 0.8rem;
+}
+.office-shell .header-context-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.78rem;
+  color: #e3dbcf;
+  line-height: 1.4;
+}
+.office-shell .header-context-status > span + span {
+  border-left: 1px solid #ffffff35;
+  padding-left: 14px;
+}
+.office-shell .empty-team-announcement {
+  top: 16px;
+}
+@media (min-width: 1101px) {
+  .office-shell .header-actions {
+    margin-left: auto;
+  }
+}
+@media (max-width: 1100px) {
+  .office-shell,
+  .office-shell.nav-expanded {
+    --header-height: 124px;
+  }
+  .office-shell .app-header {
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 8px 16px;
+  }
+  .office-shell .header-context {
+    order: 3;
+    width: 100%;
+    padding-bottom: 6px;
+  }
+  .office-shell .header-actions {
+    margin-left: auto;
+  }
+}
+@media (max-width: 480px) {
+  .office-shell,
+  .office-shell.nav-expanded {
+    --header-height: 176px;
+  }
+  .office-shell .header-context {
+    gap: 4px;
+  }
+  .office-shell .header-context-title {
+    gap: 10px;
+  }
+  .office-shell .header-context h1 {
+    font-size: 0.95rem;
+  }
+  .office-shell .header-project,
+  .office-shell .header-branch {
+    font-size: 0.72rem;
+  }
+  .office-shell .header-context-status {
+    font-size: 0.72rem;
+    gap: 4px 9px;
+  }
+  .office-shell .header-context-status > span + span {
+    padding-left: 9px;
+  }
+}

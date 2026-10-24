@@ -1,6 +1,7 @@
 # Work D — dashboard and presentation
 
-Owner: D. Branch: `codex/work-d-dashboard-pitch`.
+Owner: D. Initial branch: `codex/work-d-dashboard-pitch`. Remaining core integration:
+`codex/work-d-live-integration`, based on integrated commit `8092c4e`.
 
 This checklist tracks implementation and evidence. Unchecked items remain open;
 interviews, measured results, recordings, and submissions require real evidence.
@@ -21,7 +22,9 @@ interviews, measured results, recordings, and submissions require real evidence.
 ## Dashboard
 
 - [x] Implement connection state, subscriptions, reconnect behavior, and cleanup; validate lifecycle with an injected transport.
-- [ ] Coordinate the live adapter with C's actual generated SpacetimeDB bindings.
+- [x] Coordinate the live adapter with C's actual generated SpacetimeDB bindings (real 2.13 module, seven views synchronized).
+- [x] Wire the dashboard to this laptop's own CLI sign-in, refreshed on reconnect, without persistent browser credentials.
+- [x] Reject remote/cross-origin credential-bridge requests and late session responses after teardown.
 - [x] Provide an explicitly labeled local demo mode for independent UI development.
 - [x] Show agent presence, intent, files, check state, snapshot age, and new activity.
 - [x] Show conflicts, locations, matching diff snippets, fixer, and diagnosis.
@@ -30,10 +33,12 @@ interviews, measured results, recordings, and submissions require real evidence.
 - [x] Show verified facts, recent plans, and highlight new facts.
 - [x] Show a unified timeline with relative timestamps and check result labels.
 - [x] Implement big-screen, responsive, keyboard-accessible controls, and reduced-motion styles.
-- [x] Verify keyboard focus trapping, Escape dismissal/restoration, diagnosis-follow controls, and automatic local story playback.
+- [x] Verify nonmodal keyboard navigation, Escape dismissal/restoration, diagnosis-follow controls, and automatic local story playback.
 - [x] Avoid reporting healthy checks while disconnected, loading, or without a check covering all contributing agents.
 - [x] Typecheck seed reducer calls, validate fixture rows, and verify conflict/resolved dry runs.
-- [ ] Exercise seed writes against C's actual development module.
+- [x] Exercise conflict/resolved/needs_human seed writes against C's real module on an isolated temporary database.
+- [x] Verify real four-identity presence, disconnect updates, three synchronized clients, updates/deletes, resubscription, and revocation.
+- [x] Inspect real subscribed conflict/evidence, resolved memory, and human-review state in the browser (seeded content, real transport).
 
 ## Pitch and demo
 
@@ -54,7 +59,8 @@ interviews, measured results, recordings, and submissions require real evidence.
 - [x] Install only the dependencies needed for D's workspace.
 - [x] Pass dashboard typecheck, automated tests, formatting check, and production build (rerun after final changes).
 - [x] Inspect working, conflict, fixing, resolved, escalated, and human-review scenes in the browser; verify filtering, big-screen toggle, and mobile page width.
-- [ ] Verify live integration against the actual database when available.
+- [x] Verify the dashboard against the real module on a temporary local server: 11/11 checks.
+- [ ] Verify the dashboard against the team Maincloud database after sign-in, owner approval, and deployment confirmation.
 - [ ] Verify the same live state updates on three presentation screens, as required by plan.md.
 - [ ] Rehearse on the actual venue network and verify offline backup playback on presentation hardware.
 - [x] Document commands, external dependencies, and remaining team-owned prerequisites in ui/README.md and pitch/submission-checklist.md.
@@ -62,17 +68,23 @@ interviews, measured results, recordings, and submissions require real evidence.
 
 ## Current dependencies
 
-User confirmed browser authentication is not configured. The user will obtain
+The user selected one CLI sign-in per laptop for rehearsal; D's local session
+bridge is implemented. This laptop is signed in, but its authenticated read-only
+query to shared `agent-cowork` returned HTTP 403. C owns publishing the shared
+database module and granting each public identity Reader/Editor access. The
+dashboard needs Reader access; an agent laptop needs Editor access. No external
+OIDC client is needed for this local flow. Maincloud and the physical four-laptop
+rehearsal remain unverified. See checklists/D-live.md for evidence and handoff.
+
+The user will obtain
 missing presentation inputs from teammates later. The local checkout and fetched
 A/B/C branch documentation contain no actual interview notes, final team names,
 demo repository URL, or recording URL; these remain pending rather than inferred
 from GitHub usernames. The phone-panel question remains open.
 
-The current checkout has no database implementation or generated client bindings yet.
-C's `catherine_part_c` branch contains an implementation and generated bindings,
-but the user reports integration is not ready. Publication, reader access, and an
-authenticated browser connection still need team confirmation before live testing.
-Live integration and a genuine end-to-end video depend on A/B/C's working services.
+The integrated checkout includes C's implementation and generated bindings, A's
+hooks/MCP, B's watcher, and D's dashboard. The local real-server tests do not prove
+paid diagnosis calls, autonomous agent repair, or real multi-laptop rehearsal.
 No interview quotes, performance measurements, or submission status will be invented.
 
 The preview server is running outside the sandbox at http://127.0.0.1:5173/?demo.
@@ -81,5 +93,5 @@ the diagnosis-follow toggle, and keyboard focus into the diagnosis feed were ver
 The user selected a quieter connected-agent map with side drawers. It is implemented,
 with summary-to-evidence disclosure and refreshed screenshots. Final visual review
 and remaining external inputs are pending. Automated checks do not establish live
-integration. Remote main still has C's module stub and blank database settings;
-C's separate branch must not be mistaken for a verified live connection.
+integration on the team database or venue hardware. Interviews and pitch work
+are excluded from the user's current core-dashboard request.

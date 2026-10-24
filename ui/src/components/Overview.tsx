@@ -1,12 +1,6 @@
 /** WHAT IT'S FOR: symbolic team status; inspect a node to progressively reveal details. Owner: D. */
 import type { AgentRow } from "../../../shared/src/schema.ts";
-import {
-  isActiveConflict,
-  latestCombinedCheck,
-  sortAgents,
-  teamHealth,
-  timelineEvents,
-} from "../dashboard";
+import { isActiveConflict, sortAgents, teamHealth } from "../dashboard";
 import { useDashboard } from "../stdb";
 import { Icon } from "./Icon";
 
@@ -35,8 +29,6 @@ export function Overview({
   const agents = sortAgents(tables.agent);
   const health = teamHealth(tables, connection);
   const active = tables.conflict.filter(isActiveConflict);
-  const check = latestCombinedCheck(tables);
-  const facts = tables.intent.filter((i) => i.verified);
   const ready = connection.phase === "live" || connection.phase === "demo";
   const hubLabel = !ready
     ? "Not connected"
@@ -66,21 +58,12 @@ export function Overview({
     );
   return (
     <section className="visual-overview" aria-label="Connected agent map">
-      <div className="map-caption">
-        <span>
-          <span className={`dot ${ready ? "tone-cyan" : "muted"}`} />
-          {ready
-            ? `${agents.filter((a) => a.online).length} agents online`
-            : tables.agent.length
-              ? "Cached state · connection unavailable"
-              : "Awaiting connection"}
-        </span>
-        <span>
-          {connection.phase === "demo"
-            ? "Simulated workspace"
-            : "Shared integration state"}
-        </span>
-      </div>
+      {!agents.length && (
+        <div className="empty-team-announcement" role="status">
+          <strong>No agents yet</strong>
+          <span>Connected agents will appear at the desk.</span>
+        </div>
+      )}
       <div
         className={`constellation${agents.length > 4 ? " many-agents" : ""}`}
       >
@@ -122,11 +105,11 @@ export function Overview({
             gridTemplateColumns: `repeat(${Math.min(Math.max(agents.length, 1), 6)}, minmax(0, 1fr))`,
           }}
         >
-          {agents.map((agent) => (
+          {agents.map((agent, index) => (
             <button
               key={agent.name}
               type="button"
-              className={`map-agent tone-${ready ? agentTone(agent) : "neutral"}`}
+              className={`map-agent seat-${index} ${index === 2 || index === 3 ? "screen-back" : "screen-front"} tone-${ready ? agentTone(agent) : "neutral"}`}
               onClick={() => inspect({ kind: "agent", name: agent.name })}
               aria-label={`Inspect agent ${agent.name.toUpperCase()}, ${!ready ? "cached state" : agent.online ? (agent.status === "red" ? "check failed" : agent.status === "green" ? "check passed" : "working") : "offline"}`}
               title={`Agent ${agent.name.toUpperCase()} · ${agent.intent || "No intent yet"}`}
@@ -147,20 +130,44 @@ export function Overview({
                     size={11}
                   />
                 </span>
+                <span className="screen-face-content" aria-hidden="true">
+                  <strong>Agent {agent.name.toUpperCase()}</strong>
+                  <span>
+                    {!ready
+                      ? "Cached state"
+                      : !agent.online
+                        ? "Offline"
+                        : agent.status === "red"
+                          ? "Check failed"
+                          : agent.status === "green"
+                            ? "Check passed"
+                            : "Working"}
+                  </span>
+                  {agent.files.slice(0, 2).map((file) => (
+                    <span className="screen-file" key={file}>
+                      <Icon name="code" size={11} />
+                      {file}
+                    </span>
+                  ))}
+                </span>
               </span>
+              <span className="screen-base" aria-hidden="true" />
               <span className="map-agent-name">
                 Agent {agent.name.toUpperCase()}
+                <small>
+                  {!ready
+                    ? "Cached state"
+                    : !agent.online
+                      ? "Offline"
+                      : agent.status === "red"
+                        ? "Check failed"
+                        : agent.status === "green"
+                          ? "Check passed"
+                          : "Working"}
+                </small>
               </span>
             </button>
           ))}
-          {!agents.length && (
-            <div className="map-no-agents">
-              <span className="empty-agent">
-                <Icon name="agent" size={27} />
-              </span>
-              <span>No agents yet</span>
-            </div>
-          )}
         </div>
         <div className={`map-center tone-${health.tone}`}>
           <button
@@ -187,52 +194,6 @@ export function Overview({
               : "Team health"}
           </span>
         </div>
-      </div>
-      <div className="overview-shortcuts">
-        <button type="button" onClick={() => inspect({ kind: "checks" })}>
-          <span
-            className={`shortcut-symbol ${!ready || !check ? "muted" : health.tone === "amber" ? "tone-amber" : check.result === "green" ? "tone-green" : "tone-red"}`}
-          >
-            <Icon
-              name={
-                !ready || !check || health.tone === "amber"
-                  ? "clock"
-                  : check.result === "green"
-                    ? "check"
-                    : "alert"
-              }
-              size={21}
-            />
-          </span>
-          <span>Checks</span>
-          <span className="shortcut-value">
-            {!ready
-              ? "Offline"
-              : !check || health.tone === "amber"
-                ? "Pending"
-                : check.result === "green"
-                  ? "Passing"
-                  : "Failed"}
-          </span>
-        </button>
-        <button type="button" onClick={() => inspect({ kind: "memory" })}>
-          <span className="shortcut-symbol tone-violet">
-            <Icon name="memory" size={21} />
-          </span>
-          <span>Memory</span>
-          <span className="shortcut-value">
-            {facts.length} fact{facts.length === 1 ? "" : "s"}
-          </span>
-        </button>
-        <button type="button" onClick={() => inspect({ kind: "activity" })}>
-          <span className="shortcut-symbol tone-cyan">
-            <Icon name="activity" size={21} />
-          </span>
-          <span>Activity</span>
-          <span className="shortcut-value">
-            {timelineEvents(tables).length} events
-          </span>
-        </button>
       </div>
       <div className="map-legend" aria-label="Status symbol legend">
         <span>
