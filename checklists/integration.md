@@ -37,6 +37,8 @@ Done Oct 24, about 5:30 AM, by A (with Claude Code).
 | Mock database follows C's rules | So A's test, and B or D working without a server, behave like the real module. | `scripts/mock-stdb.ts`, `hooks/test/e2e.ts`, `scripts/seed-fake.ts` |
 | `npm run doctor` | The hooks fail open, so an unapproved laptop would silently do nothing. | `scripts/doctor.ts` (new) |
 | C's test runners pass `file://` URLs to `--import` | A plain `c:\...` path fails on Windows. | `module/tests/run-part-c.mjs`, `module/tests/admin-cli.unit.test.mjs` |
+| C's network test links `node_modules` as a junction | A plain symlink needs admin rights on Windows; the type is ignored on Mac and Linux. | `module/tests/access-network.mjs` |
+| `npm run test:live` | The whole system on a real SpacetimeDB server, so the hand-offs between A, B and C are tested, not just each part. | `scripts/live-e2e.ts` (new) |
 
 ## Test results (Oct 24, Windows, Node 24.15)
 
@@ -46,7 +48,10 @@ Done Oct 24, about 5:30 AM, by A (with Claude Code).
 | A's end-to-end test (`npm run test:a`, mock database) | 49 / 49 |
 | C's vitest suite (`npm run test:part-c`, part 1) | 87 / 87 |
 | C's Node test suite (part 2) | 74 / 90. **Exactly the same 16 fail on C's own branch on this laptop**, so the merge added none. They assume Mac or Linux (fake CLI shell scripts, symlinks). |
-| Live run with a real SpacetimeDB (hooks + watcher + module together) | **Not run yet**: this laptop has no SpacetimeDB CLI or server. |
+| C's network test (`npm run test:part-c:integration`, real 2.13 server) | Passes: Reader/Editor/Owner guards, revocation, current-run guards |
+| **Live run, all parts together** (`npm run test:live`, temporary local 2.13 server) | **19 / 19, twice in a row.** b is woken **3.5 s** after a's edit; C's module records `src/users/user.ts:14 x src/sessions/idle.ts:4`, fixer b; the diagnosis bridge runs C's runner; the MCP server shows b online over a WebSocket and offline after; `pull_teammate` brings a's change over; the conflict resolves **2.1 s** after b's fix. No processes or temp files left behind. |
+
+The live run uses the real code of every part: A's hooks and MCP server, B's watcher and fixture repos, C's module published with its access rules. It never touches the team database or anyone's login: identities and keys are throwaway, and the server lives in memory.
 
 ## Still to do
 
@@ -67,7 +72,7 @@ Done Oct 24, about 5:30 AM, by A (with Claude Code).
 - `ui/src/stdb.ts` `connect()`: the bindings exist now. The open question is how the browser gets a token under C's rules (no token in `.env`); one option is a dev-server endpoint on the dashboard laptop that reads the local `spacetime login` session.
 
 **A**
-- Run the live end-to-end check once a database is reachable: two demo clones, the watcher, the scripted conflict from `demo-app/SCENARIO.md`.
+- Done on a local server (`npm run test:live`). Next: sign in (`spacetime login`), get approved, and run the demo once against the team database.
 
 ## How to review
 

@@ -23,7 +23,8 @@ Status on Oct 24, about 4:40 AM: everything A can do without C is done. `npm run
 
 ## Waiting on C (updated during the integration, branch `integration`; see checklists/integration.md)
 
-- [ ] Run the hooks against the real database once this laptop is signed in and approved (`npm run doctor`).
+- [x] Run the hooks against a real database: `npm run test:live` on a temporary local 2.13 server, 19/19 (Oct 24).
+- [ ] Run them against the team database once this laptop is signed in and approved (`npm run doctor`).
 - [x] MCP presence over WebSocket with C's bindings: done on `integration`. `register_agent` needs a live connection in C's module.
 - [x] SQL column names: C's module keeps camelCase (`CaseConversionPolicy.None`), and the hooks only filter on one-word columns anyway.
 - [x] Tokens: C's rule is "no token in .env". The tools now read this laptop's `spacetime login` session (`shared/src/session-token.ts`).

@@ -92,6 +92,7 @@ Calhacks/                          repo 1: the tool (our Devpost submission)
 │   ├── seed-fake.ts               fake rows for UI work and checkpoint 1
 │   ├── mock-stdb.ts               in-memory stand-in for SpacetimeDB, following Part C's rules
 │   ├── doctor.ts                  checks a laptop: settings, sign-in, approval, hooks, push rights
+│   ├── live-e2e.ts                the whole system on a temporary real SpacetimeDB server
 │   └── demo-reset.ts              clean slate before every demo run
 ├── pitch/
 │   ├── demo-script.md             the 2-minute script, word for word
@@ -239,6 +240,7 @@ Calhacks/                          repo 1: the tool (our Devpost submission)
 |---|---|---|---|
 | `seed-fake.ts` | Inserts fake agents, snapshots and a conflict, so the UI and checkpoint 1 don't wait on real hooks | D | Sat 9:20 (runs against the mock already) |
 | `mock-stdb.ts` | `npm run mock-db`: in-memory SpacetimeDB stand-in with the same HTTP endpoints and reducer rules as Part C's module (guarded reducers included) | A | Done Oct 24 |
+| `live-e2e.ts` | `npm run test:live`: a temporary in-memory SpacetimeDB 2.13 server with C's module, B's watcher and fixture, A's hooks and MCP server, playing the demo scenario end to end (19 checks) | A (integration) | Oct 24 |
 | `doctor.ts` | `npm run doctor [-- --demo <clone>]`: is this laptop ready? Settings, CLI, sign-in, read and write access, hooks, MCP, push rights; says what to do for each failure | A (integration) | Oct 24 |
 | `demo-reset.ts` | Clears the tables, deletes the remote `wip/*` branches, resets each demo-app clone | C | Sat 19:00 |
 

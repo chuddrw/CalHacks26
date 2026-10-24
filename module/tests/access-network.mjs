@@ -98,7 +98,8 @@ try {
   const expectedSnapshots=(await rows(reader,'snapshot')).length;
 
   cpSync(fileURLToPath(new URL('../../shared/module_bindings', import.meta.url)), path.join(temporary, 'bindings'), { recursive: true });
-  symlinkSync(path.join(modulePath, 'node_modules'), path.join(temporary, 'node_modules'), 'dir');
+  // 'junction' needs no admin rights on Windows; the type is ignored on Mac and Linux.
+  symlinkSync(path.join(modulePath, 'node_modules'), path.join(temporary, 'node_modules'), 'junction');
   const { DbConnection } = await import(pathToFileURL(path.join(temporary, 'bindings/index.ts')).href);
   async function connect(user, expectDenied = false) {
     let connection;
