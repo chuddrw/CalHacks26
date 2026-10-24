@@ -17,7 +17,7 @@ export interface WorktreeLease {
 export interface DiagnosisDependencies {
   acquireWorktree(context: DiagnosisInput): Promise<WorktreeLease>;
   addDiagnosisStep(...args: ReducerArgs["add_diagnosis_step"]): Promise<void>;
-  setExplanation(...args: ReducerArgs["set_explanation"]): Promise<void>;
+  setExplanationIfCurrent(...args: ReducerArgs["set_explanation_if_current"]): Promise<void>;
   /** Return false after resolution or if the database's error/run no longer matches this input. */
   isCurrent(context: DiagnosisInput): boolean;
   mode?: DiagnosisSource;
@@ -91,13 +91,23 @@ export function createDiagnosisRunner(deps: DiagnosisDependencies) {
         step(diagnosis ? "final" : "error", diagnosis ? diagnosis.summary : "diagnosis unavailable");
         await queue;
         if (!current() || !diagnosis) return null;
-        await deps.setExplanation(id, [diagnosis.summary, diagnosis.cause, diagnosis.suggestion].filter(Boolean).join("\n\n"));
+        await deps.setExplanationIfCurrent(id, context.conflict.runKey, context.conflict.error, context.conflict.fixer,
+          [diagnosis.summary, diagnosis.cause, diagnosis.suggestion].filter(Boolean).join("\n\n"));
         return current() ? diagnosis : null;
       } finally {
         // Drain pending writes before releasing the lease, including exceptional paths.
         try { await queue; } finally { await lease?.cleanup(); }
       }
-    })();
+    })().then(value => {
+      // Failed/unavailable attempts can recover on the next call. Never invalidate a newer run.
+      const entry = entries.get(id);
+      if (value === null && entry?.token === token) entry.valid = false;
+      return value;
+    }, error => {
+      const entry = entries.get(id);
+      if (entry?.token === token) entry.valid = false;
+      throw error;
+    });
     entries.set(id, { error: context.conflict.error, runKey: context.conflict.runKey, fixer: context.conflict.fixer, valid: true, token, result });
     return result;
   }

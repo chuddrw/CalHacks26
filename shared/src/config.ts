@@ -12,15 +12,23 @@
  * NOTES
  *   - Nothing here throws at import time. A hook must never crash an agent's turn because a
  *     setting is missing; it calls missingSettings() and fails open (hooks/src/lib/hook-io.ts).
- *   - process.loadEnvFile is built into Node, so there is no dotenv dependency.
+ *   - process.loadEnvFile is built into Node, so there is no dotenv dependency. Its failures
+ *     produce only configLoadError's fixed signal; file contents and credentials are never logged.
  *   - Setting names and meanings: .env.example.
  */
-import { existsSync } from "node:fs";
 import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..", "..");
 const envFile = path.join(repoRoot, ".env");
-if (existsSync(envFile)) process.loadEnvFile(envFile);
+/** A missing .env is normal. Other load errors must not prevent hooks from importing settings. */
+export const configLoadError: "env_load_failed" | null = (() => {
+  try {
+    process.loadEnvFile(envFile);
+    return null;
+  } catch (error) {
+    return error instanceof Error && "code" in error && error.code === "ENOENT" ? null : "env_load_failed";
+  }
+})();
 
 function env(name: string, fallback = ""): string {
   return process.env[name] ?? fallback;

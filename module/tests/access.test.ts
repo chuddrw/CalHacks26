@@ -5,6 +5,7 @@ import { expect, it } from 'vitest';
 import { ConnectionId, Identity } from 'spacetimedb';
 import { createModuleTestHarness, TestAuth } from 'spacetimedb/server/test-utils';
 import db, * as module from '../src/index';
+import { seedRedConflict, reportCurrentGreen } from './state-fixture';
 
 type Ctx = Parameters<typeof module.post_snapshot>[0];
 function caller(subject: string, connection: bigint) {
@@ -53,6 +54,7 @@ function seed(s: ReturnType<typeof setup>) {
   s.tx(s.owner, ctx => {
     module.register_agent(ctx, { agent: 'a' });
     module.post_snapshot(ctx, { agent: 'a', sha: 'a1', baseSha: 'base', files: ['a.ts'], diff: 'evidence' });
+    module.post_snapshot(ctx, { agent: 'b', sha: 'b1', baseSha: 'base', files: ['b.ts'], diff: 'evidence' });
     module.post_intent(ctx, { agent: 'a', summary: 'intent', files: ['a.ts'], symbols: ['value'] });
     module.report_check(ctx, { runKey: conflict.runKey, agents: ['a', 'b'], result: 'red', log: 'failure' });
     module.report_conflict(ctx, conflict);
@@ -109,18 +111,25 @@ it('public views return every original row/column for readers and no data for no
 
 it('editors can execute the existing coordination flow but cannot administer membership or reset', () => {
   const s = setup();
+  s.tx(s.editor, ctx => module.post_snapshot(ctx, { agent: 'b', sha: 'b1', baseSha: 'base', files: ['b.ts'], diff: 'evidence' }));
   for (const [name, mutate] of mutations) {
     if (name === 'resolve_conflict' || name === 'flag_needs_human') continue;
-    expect(() => s.tx(s.editor, mutate), name).not.toThrow();
+    expect(() => s.tx(s.editor, ctx => {
+      if (name === 'report_conflict') seedRedConflict(ctx, conflict);
+      else mutate(ctx);
+    }), name).not.toThrow();
   }
-  expect(s.h.db.snapshotData.count()).toBe(1n);
+  expect(s.h.db.snapshotData.count()).toBe(2n);
   expect(s.h.db.conflictData.count()).toBe(1n);
-  expect(() => s.tx(s.editor, ctx => module.resolve_conflict(ctx, { conflictId: 1, verifiedFact: 'verified after green' }))).not.toThrow();
+  expect(() => s.tx(s.editor, ctx => {
+    reportCurrentGreen(ctx, 1);
+    module.resolve_conflict(ctx, { conflictId: 1, verifiedFact: 'verified after green' });
+  })).not.toThrow();
   expect(s.h.db.intentData.count()).toBe(2n);
   expect(() => s.tx(s.editor, ctx => module.grant_access(ctx, { identity: s.identity(s.stranger).toHexString(), role: 'editor' }))).toThrow();
   expect(() => s.tx(s.editor, ctx => module.revoke_access(ctx, { identity: s.identity(s.reader).toHexString() }))).toThrow();
   expect(() => s.tx(s.editor, ctx => module.reset_all(ctx, {}))).toThrow();
-  expect(s.h.db.snapshotData.count()).toBe(1n);
+  expect(s.h.db.snapshotData.count()).toBe(2n);
 });
 
 it('owner alone administers membership, validates roles, and resets data while preserving ACL', () => {
@@ -145,7 +154,7 @@ it('owner alone administers membership, validates roles, and resets data while p
 it('revocation immediately removes view access and denies later writes on an existing identity', () => {
   const s = setup(); seed(s);
   const existingViewContext = s.view(s.editor);
-  expect(s.h.runQuery(module.snapshot(existingViewContext))).toHaveLength(1);
+  expect(s.h.runQuery(module.snapshot(existingViewContext))).toHaveLength(2);
   s.tx(s.owner, ctx => module.revoke_access(ctx, { identity: s.identity(s.editor).toHexString() }));
   for (const view of Object.values(views)) expect(s.h.runQuery(view.fn(existingViewContext))).toEqual([]);
   const before = state(s.h);
@@ -189,7 +198,7 @@ it('all backing tables and ACL are private and every read surface requires a cal
 it('downgrading an editor to reader preserves reads and denies writes immediately', () => {
   const s = setup(); seed(s);
   s.tx(s.owner, ctx => module.grant_access(ctx, { identity: s.identity(s.editor).toHexString(), role: 'reader' }));
-  expect(s.h.runQuery(module.snapshot(s.view(s.editor)))).toHaveLength(1);
+  expect(s.h.runQuery(module.snapshot(s.view(s.editor)))).toHaveLength(2);
   expect(() => s.tx(s.editor, ctx => module.send_note(ctx, { agent: 'a', kind: 'info', message: 'denied' }))).toThrow();
   expect(s.h.db.accessMember.identity.find(s.identity(s.editor))?.role).toBe('reader');
 });

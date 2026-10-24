@@ -23,6 +23,9 @@
     "mcp": "npm run start -w mcp",
     "ui": "npm run dev -w ui",
     "seed": "tsx scripts/seed-fake.ts",
-    "reset": "tsx scripts/demo-reset.ts"
+    "reset": "tsx scripts/demo-reset.ts",
+    "test:part-c": "node module/tests/run-part-c.mjs",
+    "test:part-c:integration": "node module/tests/run-network.mjs",
+    "test:part-c:coverage": "node module/tests/coverage.mjs"
   }
 }

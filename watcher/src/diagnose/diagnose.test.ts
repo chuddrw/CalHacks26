@@ -22,7 +22,7 @@ function harness(overrides: Partial<DiagnosisDependencies> = {}) {
     mode: "droid",
     acquireWorktree: async () => { leases++; return { path: "/tmp/owned-diagnosis", cleanup: async () => { cleaned++; } }; },
     addDiagnosisStep: async (...args) => { steps.push({ at: Date.now(), args }); },
-    setExplanation: async (_id, explanation) => { explanations.push(explanation); },
+    setExplanationIfCurrent: async (_id, _runKey, _error, _fixer, explanation) => { explanations.push(explanation); },
     isCurrent: () => true,
     droid: async () => diagnosis,
     claude: async () => null,

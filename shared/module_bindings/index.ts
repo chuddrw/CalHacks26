@@ -45,9 +45,11 @@ import ReportCheckReducer from "./report_check_reducer";
 import ReportConflictReducer from "./report_conflict_reducer";
 import ResetAllReducer from "./reset_all_reducer";
 import ResolveConflictReducer from "./resolve_conflict_reducer";
+import ResolveConflictIfCurrentReducer from "./resolve_conflict_if_current_reducer";
 import RevokeAccessReducer from "./revoke_access_reducer";
 import SendNoteReducer from "./send_note_reducer";
 import SetExplanationReducer from "./set_explanation_reducer";
+import SetExplanationIfCurrentReducer from "./set_explanation_if_current_reducer";
 
 // Import all procedure arg schemas
 
@@ -128,9 +130,11 @@ const reducersSchema = __reducers(
   __reducerSchema("report_conflict", ReportConflictReducer),
   __reducerSchema("reset_all", ResetAllReducer),
   __reducerSchema("resolve_conflict", ResolveConflictReducer),
+  __reducerSchema("resolve_conflict_if_current", ResolveConflictIfCurrentReducer),
   __reducerSchema("revoke_access", RevokeAccessReducer),
   __reducerSchema("send_note", SendNoteReducer),
   __reducerSchema("set_explanation", SetExplanationReducer),
+  __reducerSchema("set_explanation_if_current", SetExplanationIfCurrentReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

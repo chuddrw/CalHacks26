@@ -6,6 +6,7 @@ import { createModuleTestHarness, TestAuth } from 'spacetimedb/server/test-utils
 import { CaseConversionPolicy } from 'spacetimedb/server';
 import { Columns } from '../../shared/src/schema.ts';
 import db, * as reducers from '../src/index';
+import { seedRedConflict, resolveAfterGreen } from './state-fixture';
 
 function auth(connection = 1n) {
   return TestAuth.fromJwtPayload(JSON.stringify({ iss: 'cowork-test', sub: 'same-user' }), new ConnectionId(connection));
@@ -49,6 +50,8 @@ it('preserves all public column and reducer parameter orders', () => {
     resolve_conflict: ['conflictId', 'verifiedFact'], flag_needs_human: ['conflictId', 'reason'],
     send_note: ['agent', 'kind', 'message'], mark_delivered: ['inboxIds'], reset_all: [],
     grant_access: ['identity', 'role'], revoke_access: ['identity'],
+    set_explanation_if_current: ['conflictId', 'expectedRunKey', 'expectedError', 'expectedFixer', 'explanation'],
+    resolve_conflict_if_current: ['conflictId', 'expectedRunKey', 'expectedError', 'expectedFixer', 'verifiedRunKey', 'verifiedFact'],
   };
   for (const [name, parameters] of Object.entries(expected)) {
     const reducer = db.moduleDef.reducers.find(r => r.sourceName === name);
@@ -76,13 +79,13 @@ it('generated public bindings preserve actual wire names and numeric field types
 
 it('atomically creates a conflict, red agents, the right inboxes and one timer', () => {
   const h = harness();
-  h.withReducerTx(auth(), ctx => reducers.report_conflict(ctx, args));
+  h.withReducerTx(auth(), ctx => seedRedConflict(ctx, args));
   const [conflict] = [...h.db.conflictData.iter()];
   expect(conflict).toMatchObject({ pair: 'a+b', fixer: 'b', status: 'open', createdAt: 1_700_000_000_123, resolvedAt: 0 });
   expect([...h.db.agentData.iter()].map(a => a.status)).toEqual(['red', 'red']);
   expect([...h.db.inboxData.iter()].map(m => [m.agent, m.kind, m.conflictId])).toEqual([['b', 'conflict', conflict!.id], ['a', 'info', conflict!.id]]);
   expect([...h.db.escalation_timer.iter()]).toHaveLength(1);
-  h.withReducerTx(auth(), ctx => reducers.report_conflict(ctx, args));
+  h.withReducerTx(auth(), ctx => seedRedConflict(ctx, args));
   expect(h.db.conflictData.count()).toBe(1n);
   expect(h.db.inboxData.count()).toBe(2n);
   expect(h.db.escalation_timer.count()).toBe(1n);
@@ -91,18 +94,18 @@ it('atomically creates a conflict, red agents, the right inboxes and one timer',
 it('rolls back conflict, agent, inbox and timer writes on transaction failure', () => {
   const h = harness();
   expect(() => h.withReducerTx(auth(), ctx => {
-    reducers.report_conflict(ctx, args);
-    reducers.report_conflict(ctx, { ...args, fixer: 'outsider' });
+    seedRedConflict(ctx, args);
+    seedRedConflict(ctx, { ...args, fixer: 'outsider' });
   })).toThrow('Fixer must belong');
   for (const table of [h.db.conflictData, h.db.agentData, h.db.inboxData, h.db.escalation_timer]) expect(table.count()).toBe(0n);
 });
 
 it('reassigns the fixer with unchanged error and retires the old wakeup', () => {
   const h = harness();
-  h.withReducerTx(auth(), ctx => reducers.report_conflict(ctx, args));
+  h.withReducerTx(auth(), ctx => seedRedConflict(ctx, args));
   const id = [...h.db.conflictData.iter()][0]!.id;
   h.withReducerTx(auth(), ctx => reducers.set_explanation(ctx, { conflictId: id, explanation: 'Advice for b' }));
-  h.withReducerTx(auth(), ctx => reducers.report_conflict(ctx, { ...args, fixer: 'a' }));
+  h.withReducerTx(auth(), ctx => seedRedConflict(ctx, { ...args, fixer: 'a' }));
   expect(h.db.conflictData.id.find(id)?.explanation).toBe('');
   const wakeups = [...h.db.inboxData.iter()].filter(m => m.kind === 'conflict' && !m.delivered);
   expect(wakeups).toHaveLength(1);
@@ -114,14 +117,14 @@ it('reassigns the fixer with unchanged error and retires the old wakeup', () => 
 it('publishes a verified fact once, only on resolution, and clears pending wakeups/timers', () => {
   const h = harness();
   h.withReducerTx(auth(), ctx => {
-    reducers.report_conflict(ctx, args);
+    seedRedConflict(ctx, args);
     reducers.post_snapshot(ctx, { agent: 'c', sha: 'c1', baseSha: 'base', files: [], diff: '' });
   });
   const id = [...h.db.conflictData.iter()][0]!.id;
   h.withReducerTx(auth(), ctx => reducers.set_explanation(ctx, { conflictId: id, explanation: 'lastLogin uses milliseconds' }));
   expect(h.db.intentData.count()).toBe(0n);
-  h.withReducerTx(auth(), ctx => reducers.resolve_conflict(ctx, { conflictId: id, verifiedFact: 'lastLogin uses milliseconds' }));
-  h.withReducerTx(auth(), ctx => reducers.resolve_conflict(ctx, { conflictId: id, verifiedFact: 'duplicate' }));
+  h.withReducerTx(auth(), ctx => resolveAfterGreen(ctx, { conflictId: id, verifiedFact: 'lastLogin uses milliseconds' }));
+  h.withReducerTx(auth(), ctx => resolveAfterGreen(ctx, { conflictId: id, verifiedFact: 'duplicate' }));
   expect([...h.db.intentData.iter()]).toMatchObject([{ agent: 'watcher', verified: true, summary: 'lastLogin uses milliseconds' }]);
   expect([...h.db.inboxData.iter()].filter(m => m.kind === 'fact').map(m => m.agent).sort()).toEqual(['a', 'b', 'c']);
   expect([...h.db.inboxData.iter()].filter(m => m.kind === 'conflict' && !m.delivered)).toHaveLength(0);
@@ -132,14 +135,14 @@ it('publishes a verified fact once, only on resolution, and clears pending wakeu
 
 it('keeps needs_human red and deduplicated through snapshots, green checks and repeat reports', () => {
   const h = harness();
-  h.withReducerTx(auth(), ctx => reducers.report_conflict(ctx, args));
+  h.withReducerTx(auth(), ctx => seedRedConflict(ctx, args));
   const id = [...h.db.conflictData.iter()][0]!.id;
   h.withReducerTx(auth(), ctx => {
     reducers.flag_needs_human(ctx, { conflictId: id, reason: 'test deleted' });
     reducers.post_snapshot(ctx, { agent: 'a', sha: 'a2', baseSha: 'base', files: [], diff: '' });
     reducers.report_check(ctx, { runKey: 'a2+b1', agents: ['a', 'b'], result: 'green', log: '' });
-    reducers.resolve_conflict(ctx, { conflictId: id, verifiedFact: 'must not publish' });
-    reducers.report_conflict(ctx, { ...args, error: 'new error', fixer: 'a' });
+    resolveAfterGreen(ctx, { conflictId: id, verifiedFact: 'must not publish' });
+    seedRedConflict(ctx, { ...args, error: 'new error', fixer: 'a', runKey: 'a2+b1' });
   });
   expect(h.db.conflictData.count()).toBe(1n);
   expect(h.db.conflictData.id.find(id)?.status).toBe('needs_human');
@@ -164,7 +167,7 @@ it('tracks multiple connections with one identity and handles reassignment/disco
 
 it('schedules escalation for five minutes and rejects external scheduled calls', () => {
   const h = harness();
-  h.withReducerTx(auth(), ctx => reducers.report_conflict(ctx, args));
+  h.withReducerTx(auth(), ctx => seedRedConflict(ctx, args));
   const timer = [...h.db.escalation_timer.iter()][0]!;
   expect(timer.scheduledAt).toEqual(ScheduleAt.time(1_700_000_300_123_000n));
   expect(() => h.withReducerTx(auth(), ctx => reducers.escalate(ctx, { arg: timer }))).toThrow('Scheduled calls only');
@@ -177,11 +180,11 @@ it('schedules escalation for five minutes and rejects external scheduled calls',
 it('keeps an agent red when resolving only one of its outstanding conflicts', () => {
   const h = harness();
   h.withReducerTx(auth(), ctx => {
-    reducers.report_conflict(ctx, args);
-    reducers.report_conflict(ctx, { ...args, agentB: 'c', fixer: 'a', runKey: 'a1+c1' });
+    seedRedConflict(ctx, args);
+    seedRedConflict(ctx, { ...args, agentB: 'c', fixer: 'a', runKey: 'a1+c1' });
   });
   const id = [...h.db.conflictData.iter()].find(c => c.pair === 'a+b')!.id;
-  h.withReducerTx(auth(), ctx => reducers.resolve_conflict(ctx, { conflictId: id, verifiedFact: '' }));
+  h.withReducerTx(auth(), ctx => resolveAfterGreen(ctx, { conflictId: id, verifiedFact: '' }));
   expect(h.db.agentData.name.find('a')?.status).toBe('red');
   expect(h.db.agentData.name.find('b')?.status).toBe('green');
 });

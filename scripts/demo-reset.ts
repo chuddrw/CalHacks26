@@ -91,11 +91,18 @@ function git(directory: string, args: string[]): string {
   }).trim();
 }
 
-function remoteUrl(directory: string, remote: string): string {
-  // Push URLs may differ from fetch URLs, and multiple push URLs would widen the reset.
+function pushUrls(directory: string, remote: string): string[] {
+  // Push URLs may differ from fetch URLs; root protection must inspect every destination.
   const urls = git(directory, ["remote", "get-url", "--push", "--all", remote]).split("\n");
-  if (urls.length !== 1 || !urls[0]) throw new Error(`Expected one push URL for ${remote} in ${directory}.`);
-  return urls[0].replace(/\/$/, "").replace(/\.git$/, "");
+  if (!urls.length || urls.some(url => !url)) throw new Error(`Cannot identify push URLs for ${remote} in ${directory}.`);
+  return urls.map(url => url.replace(/\/+$/, "").replace(/\.git$/, ""));
+}
+
+function remoteUrl(directory: string, remote: string): string {
+  // Multiple demo push URLs would widen a destructive reset beyond its reviewed destination.
+  const urls = pushUrls(directory, remote);
+  if (urls.length !== 1) throw new Error(`Expected one push URL for ${remote} in ${directory}.`);
+  return urls[0]!;
 }
 
 /** Read-only preflight. Every clone must be clean and match the configured demo repository. */
@@ -107,9 +114,10 @@ export function buildPlan(options: ResetOptions, settings = config): ResetPlan {
   const demoRoot = realpathSync(git(demo, ["rev-parse", "--show-toplevel"]));
   if (demoRoot === root) throw new Error("DEMO_REPO_PATH points to repo 1; use the separate demo-app repository.");
   const expectedRemote = remoteUrl(demo, settings.gitRemote);
-  let rootRemote = "";
-  try { rootRemote = remoteUrl(root, settings.gitRemote); } catch { /* Repo 1 may have no remote yet. */ }
-  if (expectedRemote === rootRemote) throw new Error("Demo remote matches repo 1; refusing reset.");
+  // Remote names are local aliases. Inspect every repo 1 destination and fail closed on errors.
+  const rootRemotes = git(root, ["remote"]).split("\n").filter(Boolean);
+  const rootPushUrls = rootRemotes.flatMap(remote => pushUrls(root, remote));
+  if (rootPushUrls.includes(expectedRemote)) throw new Error("Demo remote matches repo 1; refusing reset.");
   const clones = options.clones.map((clone) => {
     const directory = realpathSync(clone);
     const topLevel = realpathSync(git(directory, ["rev-parse", "--show-toplevel"]));
@@ -177,7 +185,13 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   console.log(`Reset complete: database cleared, ${plan.branches.length} wip refs removed or absent, state files cleared in ${plan.clones.length} clones${plan.mainCommit ? ", main reset to demo-base" : ""}.`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+function invokedDirectly(): boolean {
+  // argv can be '-' or an eval argument when this module is imported as a library.
+  try { return Boolean(process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href); }
+  catch { return false; }
+}
+
+if (invokedDirectly()) {
   main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

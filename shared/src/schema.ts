@@ -155,6 +155,8 @@ export interface ConflictRow {
  * fact     = a verified fact, sent to everyone
  */
 export type InboxKind = "conflict" | "info" | "heads_up" | "fact";
+/** One-off notes cannot create actionable conflict wakeups without a real conflict ID. */
+export type NoteKind = Exclude<InboxKind, "conflict">;
 
 /** Authenticated view `inbox`. One row per message per recipient. Primary key: id (auto-increment). */
 export interface InboxRow {
@@ -227,12 +229,12 @@ export interface ReducerArgs {
   post_snapshot: [agent: AgentName, sha: string, baseSha: string, files: string[], diff: string];
   /** MCP tool post_intent. Also writes a heads_up inbox row for every other agent. */
   post_intent: [agent: AgentName, summary: string, files: string[], symbols: string[]];
-  /** Watcher, after every run. Green marks those agents green unless they still have an open conflict. */
+  /** Historical runs are stored; only current snapshot combinations can change live green status. */
   report_check: [runKey: string, agents: AgentName[], result: RunResult, log: string];
   /**
    * Watcher, when a run is red. One transaction: upsert the open conflict for this pair, set both
    * agents red, write a "conflict" inbox row for the fixer and an "info" row for the other agent,
-   * and schedule escalation.
+   * and schedule escalation. Requires a previously reported, current red check covering the pair.
    */
   report_conflict: [
     kind: ConflictKind,
@@ -251,13 +253,18 @@ export interface ReducerArgs {
    * at delivery time, so an undelivered message picks it up by itself. If the fixer already got the
    * message, the module also sends the explanation as an "info" note.
    */
+  /** @deprecated Concurrent diagnosis must use set_explanation_if_current to reject stale writes atomically. */
   set_explanation: [conflictId: number, explanation: string];
-  /** Watcher, when the pair checks green again. A non-empty fact becomes a verified intent and a "fact" for everyone. */
+  /** Atomic diagnosis publication; a changed run, error, fixer, or nonactive status is ignored. */
+  set_explanation_if_current: [conflictId: number, expectedRunKey: string, expectedError: string, expectedFixer: AgentName, explanation: string];
+  /** Legacy resolution requires a current covering green check. Prefer the explicit version-checked call below. */
   resolve_conflict: [conflictId: number, verifiedFact: string];
+  /** Resolve only this conflict version using an explicitly named, current covering green check. */
+  resolve_conflict_if_current: [conflictId: number, expectedRunKey: string, expectedError: string, expectedFixer: AgentName, verifiedRunKey: string, verifiedFact: string];
   /** Watcher's guard: the fix edited or deleted a test. */
   flag_needs_human: [conflictId: number, reason: string];
   /** Watcher's dependency heads-up (watcher/src/deps.ts), or any one-off note to one agent. */
-  send_note: [agent: AgentName, kind: InboxKind, message: string];
+  send_note: [agent: AgentName, kind: NoteKind, message: string];
   /** Hooks, right after showing messages to the agent. */
   mark_delivered: [inboxIds: number[]];
   /** Owner-only scripts/demo-reset.ts call. Clears team state while preserving access membership. */

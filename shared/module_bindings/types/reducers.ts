@@ -17,9 +17,11 @@ import ReportCheckReducer from "../report_check_reducer";
 import ReportConflictReducer from "../report_conflict_reducer";
 import ResetAllReducer from "../reset_all_reducer";
 import ResolveConflictReducer from "../resolve_conflict_reducer";
+import ResolveConflictIfCurrentReducer from "../resolve_conflict_if_current_reducer";
 import RevokeAccessReducer from "../revoke_access_reducer";
 import SendNoteReducer from "../send_note_reducer";
 import SetExplanationReducer from "../set_explanation_reducer";
+import SetExplanationIfCurrentReducer from "../set_explanation_if_current_reducer";
 
 export type AddDiagnosisStepParams = __Infer<typeof AddDiagnosisStepReducer>;
 export type FlagNeedsHumanParams = __Infer<typeof FlagNeedsHumanReducer>;
@@ -32,7 +34,9 @@ export type ReportCheckParams = __Infer<typeof ReportCheckReducer>;
 export type ReportConflictParams = __Infer<typeof ReportConflictReducer>;
 export type ResetAllParams = __Infer<typeof ResetAllReducer>;
 export type ResolveConflictParams = __Infer<typeof ResolveConflictReducer>;
+export type ResolveConflictIfCurrentParams = __Infer<typeof ResolveConflictIfCurrentReducer>;
 export type RevokeAccessParams = __Infer<typeof RevokeAccessReducer>;
 export type SendNoteParams = __Infer<typeof SendNoteReducer>;
 export type SetExplanationParams = __Infer<typeof SetExplanationReducer>;
+export type SetExplanationIfCurrentParams = __Infer<typeof SetExplanationIfCurrentReducer>;
 

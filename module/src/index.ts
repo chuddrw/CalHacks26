@@ -182,6 +182,30 @@ function getConflict(ctx: Ctx, id: number) {
   if (!row) throw new SenderError(`Unknown conflict #${id}`);
   return row;
 }
+type ConflictRecord = ReturnType<typeof getConflict>;
+type Version = { expectedRunKey: string; expectedError: string; expectedFixer: string };
+/** Snapshot IDs define posting order even when multiple snapshots share a millisecond timestamp. */
+function currentRun(ctx: Ctx, run: { runKey: string; agents: string[] }): boolean {
+  const agents = new Set(run.agents);
+  if (!agents.size || agents.size !== run.agents.length) return false;
+  const latest = new Map<string, { id: number; sha: string }>();
+  for (const snapshot of ctx.db.snapshotData.iter()) if (agents.has(snapshot.agent)) {
+    const previous = latest.get(snapshot.agent);
+    if (!previous || snapshot.id > previous.id) latest.set(snapshot.agent, snapshot);
+  }
+  return latest.size === agents.size && [...latest.values()].map(row => row.sha).sort().join('+') === run.runKey;
+}
+function covers(run: { agents: string[] }, conflict: { agentA: string; agentB: string }): boolean {
+  return run.agents.includes(conflict.agentA) && (!conflict.agentB || run.agents.includes(conflict.agentB));
+}
+function mutableConflict(row: ConflictRecord): boolean { return row.status === 'open' || row.status === 'escalated'; }
+function matchesVersion(row: ConflictRecord, expected: Version): boolean {
+  return mutableConflict(row) && row.runKey === expected.expectedRunKey && row.error === expected.expectedError && row.fixer === expected.expectedFixer;
+}
+function greenEvidence(ctx: Ctx, conflict: ConflictRecord, runKey?: string): boolean {
+  const runs = runKey === undefined ? [...ctx.db.checkRunData.iter()] : [ctx.db.checkRunData.runKey.find(runKey)];
+  return runs.some(run => run !== null && run.result === 'green' && covers(run, conflict) && currentRun(ctx, run));
+}
 function retireWakeups(ctx: Ctx, id: number): void {
   for (const message of ctx.db.inboxData.iter()) if (message.conflictId === id &&
     message.kind === 'conflict' && !message.delivered) ctx.db.inboxData.id.update({ ...message, delivered: true });
@@ -239,7 +263,8 @@ export const report_check = spacetimedb.reducer({ runKey: t.string().name("runKe
   const row = { ...args, log: cut(args.log, 20 * 1024), createdAt: now(ctx) };
   if (ctx.db.checkRunData.runKey.find(args.runKey)) ctx.db.checkRunData.runKey.update(row);
   else ctx.db.checkRunData.insert(row);
-  if (args.result === 'green') for (const value of args.agents) refresh(ctx, value);
+  // Old results remain useful history, but must never paint newer untested snapshots green.
+  if (args.result === 'green' && currentRun(ctx, row)) for (const value of args.agents) refresh(ctx, value);
 });
 export const report_conflict = spacetimedb.reducer({ kind: t.string(), agentA: t.string().name("agentA"),
   agentB: t.string().name("agentB"), locA: t.string().name("locA"), locB: t.string().name("locB"), error: t.string(), fixer: t.string(),
@@ -252,6 +277,9 @@ export const report_conflict = spacetimedb.reducer({ kind: t.string(), agentA: t
   }
   if (args.agentB) name(args.agentB);
   if (args.fixer !== args.agentA && args.fixer !== args.agentB) throw new SenderError('Fixer must belong to conflict');
+  const check = ctx.db.checkRunData.runKey.find(args.runKey);
+  if (!check || check.result !== 'red' || !covers(check, args)) throw new SenderError('Conflict requires a red check covering its agents');
+  if (!currentRun(ctx, check)) return;
   const pair = args.agentB ? [args.agentA, args.agentB].sort().join('+') : args.agentA;
   const existing = [...ctx.db.conflictData.pair.filter(pair)].find(c => active(c.status));
   const error = cut(args.error, 4 * 1024);
@@ -285,19 +313,27 @@ export const add_diagnosis_step = spacetimedb.reducer({ conflictId: t.u32().name
   oneOf(args.kind, ['status', 'tool_call', 'tool_result', 'thought', 'final', 'error']);
   ctx.db.diagnosisStepData.insert({ id: 0, ...args, detail: cut(args.detail, 2 * 1024), createdAt: now(ctx) });
 });
+function writeExplanation(ctx: Ctx, row: ConflictRecord, explanation: string): void {
+  if (row.explanation === explanation) return;
+  ctx.db.conflictData.id.update({ ...row, explanation });
+  const latestWakeup = [...ctx.db.inboxData.iter()]
+    .filter(m => m.conflictId === row.id && m.agent === row.fixer && m.kind === 'conflict')
+    .sort((a, b) => b.id - a.id)[0];
+  // Older notifications may have been retired during a retry rather than shown to the fixer.
+  if (latestWakeup?.delivered) note(ctx, row.fixer, 'info', row.id, `[cowork] Diagnosis for conflict #${row.id}: ${explanation}`);
+}
 export const set_explanation = spacetimedb.reducer({ conflictId: t.u32().name("conflictId"), explanation: t.string() }, (ctx, args) => {
   requireEditor(ctx);
   const row = getConflict(ctx, args.conflictId);
-  if (!active(row.status) || row.explanation === args.explanation) return;
-  ctx.db.conflictData.id.update({ ...row, explanation: args.explanation });
-  const delivered = [...ctx.db.inboxData.iter()].some(m => m.conflictId === row.id &&
-    m.agent === row.fixer && m.kind === 'conflict' && m.delivered);
-  if (delivered) note(ctx, row.fixer, 'info', row.id, `[cowork] Diagnosis for conflict #${row.id}: ${args.explanation}`);
+  if (active(row.status)) writeExplanation(ctx, row, args.explanation);
 });
-export const resolve_conflict = spacetimedb.reducer({ conflictId: t.u32().name("conflictId"), verifiedFact: t.string() }, (ctx, args) => {
+export const set_explanation_if_current = spacetimedb.reducer({ conflictId: t.u32(), expectedRunKey: t.string(),
+  expectedError: t.string(), expectedFixer: t.string(), explanation: t.string() }, (ctx, args) => {
   requireEditor(ctx);
-  const row = getConflict(ctx, args.conflictId);
-  if (row.status === 'resolved' || row.status === 'needs_human') return;
+  const row = ctx.db.conflictData.id.find(args.conflictId);
+  if (row && matchesVersion(row, args)) writeExplanation(ctx, row, args.explanation);
+});
+function finishResolution(ctx: Ctx, row: ConflictRecord, verifiedFact: string): void {
   ctx.db.conflictData.id.update({ ...row, status: 'resolved', resolvedAt: now(ctx) });
   retireWakeups(ctx, row.id);
   for (const timer of ctx.db.escalation_timer.iter()) if (timer.conflictId === row.id) {
@@ -305,13 +341,24 @@ export const resolve_conflict = spacetimedb.reducer({ conflictId: t.u32().name("
   }
   refresh(ctx, row.agentA);
   if (row.agentB) refresh(ctx, row.agentB);
-  if (args.verifiedFact.trim()) {
+  if (verifiedFact.trim()) {
     const files = [...new Set([...(ctx.db.agentData.name.find(row.agentA)?.files ?? []),
       ...(ctx.db.agentData.name.find(row.agentB)?.files ?? [])])];
-    ctx.db.intentData.insert({ id: 0, agent: 'watcher', summary: args.verifiedFact, files,
+    ctx.db.intentData.insert({ id: 0, agent: 'watcher', summary: verifiedFact, files,
       symbols: [], verified: true, createdAt: now(ctx) });
-    for (const recipient of ctx.db.agentData.iter()) note(ctx, recipient.name, 'fact', row.id, `[cowork] Verified fact: ${args.verifiedFact}`);
+    for (const recipient of ctx.db.agentData.iter()) note(ctx, recipient.name, 'fact', row.id, `[cowork] Verified fact: ${verifiedFact}`);
   }
+}
+export const resolve_conflict = spacetimedb.reducer({ conflictId: t.u32().name("conflictId"), verifiedFact: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getConflict(ctx, args.conflictId);
+  if (mutableConflict(row) && greenEvidence(ctx, row)) finishResolution(ctx, row, args.verifiedFact);
+});
+export const resolve_conflict_if_current = spacetimedb.reducer({ conflictId: t.u32(), expectedRunKey: t.string(),
+  expectedError: t.string(), expectedFixer: t.string(), verifiedRunKey: t.string(), verifiedFact: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = ctx.db.conflictData.id.find(args.conflictId);
+  if (row && matchesVersion(row, args) && greenEvidence(ctx, row, args.verifiedRunKey)) finishResolution(ctx, row, args.verifiedFact);
 });
 export const flag_needs_human = spacetimedb.reducer({ conflictId: t.u32().name("conflictId"), reason: t.string() }, (ctx, args) => {
   requireEditor(ctx);
@@ -326,7 +373,7 @@ export const flag_needs_human = spacetimedb.reducer({ conflictId: t.u32().name("
 });
 export const send_note = spacetimedb.reducer({ agent: t.string(), kind: t.string(), message: t.string() }, (ctx, args) => {
   requireEditor(ctx);
-  oneOf(args.kind, ['conflict', 'info', 'heads_up', 'fact']);
+  oneOf(args.kind, ['info', 'heads_up', 'fact']);
   note(ctx, args.agent, args.kind, 0, args.message);
 });
 export const mark_delivered = spacetimedb.reducer({ inboxIds: t.array(t.u32()) }, (ctx, args) => {

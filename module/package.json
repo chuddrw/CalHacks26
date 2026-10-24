@@ -11,15 +11,29 @@
     "test": "vitest run && node --test tests/generate.test.mjs",
     "test:http": "tsx tests/http-smoke.mjs",
     "test:access-network": "tsx tests/access-network.mjs",
-    "access": "node access.mjs"
+    "access": "node access.mjs",
+    "test:part-c": "node tests/run-part-c.mjs",
+    "test:integration": "node tests/run-network.mjs",
+    "typecheck:tests": "tsc -p tsconfig.tests.json",
+    "test:coverage": "node tests/coverage.mjs"
   },
   "dependencies": {
     "spacetimedb": "2.13.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
+    "@babel/parser": "7.29.11",
+    "@bcoe/v8-coverage": "1.0.2",
+    "@factory/droid-sdk": "0.10.0",
     "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "5.0.5",
+    "ast-v8-to-istanbul": "1.0.7",
+    "istanbul-lib-coverage": "3.2.2",
+    "istanbul-lib-report": "3.0.1",
+    "istanbul-reports": "3.2.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "zod": "3.25.76"
   }
 }
