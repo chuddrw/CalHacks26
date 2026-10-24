@@ -13,7 +13,7 @@
     "ui"
   ],
   "scripts": {
-    "setup": "npm install -D tsx typescript @types/node && npm install -w mcp @modelcontextprotocol/sdk zod@3 spacetimedb && npm install -w watcher spacetimedb @factory/droid-sdk @anthropic-ai/sdk zod@3 madge && npm install -w ui react react-dom spacetimedb && npm install -w ui -D vite @vitejs/plugin-react @types/react @types/react-dom && npm install --prefix module spacetimedb && npm install --prefix module -D typescript && npm install --prefix demo-app -D typescript vitest",
+    "setup": "npm install -D tsx typescript @types/node && npm install -w mcp @modelcontextprotocol/sdk zod@3 spacetimedb && npm install -w watcher spacetimedb @factory/droid-sdk @anthropic-ai/sdk zod@3 madge && npm install -w ui react react-dom spacetimedb && npm install -w ui -D vite @vitejs/plugin-react @types/react @types/react-dom && npm install --prefix module spacetimedb && npm install --prefix module -D typescript && npm install --prefix demo-app --no-save typescript@7 vitest@5",
     "typecheck": "tsc -p hooks && tsc -p mcp && tsc -p watcher && tsc -p ui",
     "module:generate": "node module/manage.mjs generate",
     "install-hooks": "node hooks/src/install.ts",

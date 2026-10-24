@@ -43,7 +43,7 @@
  */
 import { config, missingSettings } from "../../shared/src/config.ts";
 import { pairKey, runKey, type AgentName, type ConflictRow, type SnapshotRow } from "../../shared/src/schema.ts";
-import { describeFailures, firstError } from "./check.ts";
+import { describeFailures, firstError, INSTALL_TOOLS, missingTools } from "./check.ts";
 import { diagnose, invalidateDiagnosis, type DiagnoseRequest } from "./diagnosis.ts";
 import { pickFixer } from "./fixer.ts";
 import * as git from "./git.ts";
@@ -395,6 +395,11 @@ async function main(): Promise<void> {
   const missing = missingSettings(["stdbDb", "demoRepoPath"]);
   if (missing.length > 0) {
     console.error(`[watcher] Set ${missing.join(" and ")} in .env first (see .env.example).`);
+    process.exit(1);
+  }
+  const tools = missingTools();
+  if (tools.length > 0) {
+    console.error(`[watcher] ${config.demoRepoPath} has no ${tools.join(" or ")}, so nothing could turn red. Run this in that folder first:\n  ${INSTALL_TOOLS}`);
     process.exit(1);
   }
   process.on("SIGINT", () => void shutdown("Ctrl+C", 0));

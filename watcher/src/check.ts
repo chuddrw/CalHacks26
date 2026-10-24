@@ -21,6 +21,8 @@
  *   failureSignatures(outcome)    one string per failure, without line numbers, for comparing runs
  *   withoutKnown(outcome, known)  the outcome minus failures whose signature is in `known`
  *   describeFailures(outcome)     every failure as plain text, cut to 4 KB, for the diagnosis prompt
+ *   missingTools()                "typescript" and/or "vitest" if DEMO_REPO_PATH lacks them
+ *   INSTALL_TOOLS                 the command that installs them there without touching package.json
  *
  * COMMANDS (tsc and vitest in parallel, 60 s timeout each; no shell, node + script path)
  *   cwd <worktree>: node <DEMO_REPO_PATH>/node_modules/typescript/bin/tsc --noEmit --pretty false -p .
@@ -29,7 +31,8 @@
  *   Calling node directly avoids the .cmd shims that can't be spawned without a shell on Windows.
  *   Every worktree links the same node_modules, so vitest's two caches (both under node_modules)
  *   are turned off: parallel runs would share them. tsc is skipped when there's no tsconfig.json.
- *   Versions: typescript 7.0.2, vitest 5.0.5.
+ *   Versions: typescript 7.0.2, vitest 5.0.5. demo-app's package.json lists neither, so a plain
+ *   `npm install` in the clone installs nothing; INSTALL_TOOLS uses --no-save to keep it clean.
  *
  * PARSING (checked with tsc 7.0.2 and vitest 5.0.5)
  *   tsc lines, paths relative to the cwd:
@@ -56,6 +59,8 @@ import { existsSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { config } from "../../shared/src/config.ts";
+
+export const INSTALL_TOOLS = "npm install --no-save typescript@7 vitest@5";
 
 const TIMEOUT_MS = 60_000;
 const MAX_LOG = 20 * 1024;
@@ -109,6 +114,23 @@ interface ToolRun {
 
 let reportCounter = 0;
 
+function tscPath(): string {
+  return path.join(repo(), "node_modules", "typescript", "bin", "tsc");
+}
+
+function vitestPath(): string {
+  return path.join(repo(), "node_modules", "vitest", "vitest.mjs");
+}
+
+export function missingTools(): string[] {
+  return [
+    ["typescript", tscPath()],
+    ["vitest", vitestPath()],
+  ]
+    .filter(([, file]) => !existsSync(file!))
+    .map(([name]) => name!);
+}
+
 /** tsc and vitest in one worktree, in parallel. */
 export async function runChecks(worktree: string): Promise<CheckOutcome> {
   const [tsc, vitest] = await Promise.all([runTsc(worktree), runVitest(worktree)]);
@@ -125,8 +147,8 @@ export async function runChecks(worktree: string): Promise<CheckOutcome> {
 
 async function runTsc(worktree: string): Promise<{ errors: TscError[]; crash: string; log: string }> {
   if (!existsSync(path.join(worktree, "tsconfig.json"))) return { errors: [], crash: "", log: "" };
-  const tsc = path.join(repo(), "node_modules", "typescript", "bin", "tsc");
-  if (!existsSync(tsc)) return { errors: [], crash: `TypeScript isn't installed: run npm install in ${repo()}.`, log: "" };
+  const tsc = tscPath();
+  if (!existsSync(tsc)) return { errors: [], crash: `TypeScript isn't installed: run ${INSTALL_TOOLS} in ${repo()}.`, log: "" };
   const run = await runNode(tsc, ["--noEmit", "--pretty", "false", "-p", "."], worktree);
   const output = clean(`${run.stdout}${run.stderr}`, worktree);
   const errors = parseTsc(output);
@@ -138,8 +160,8 @@ async function runTsc(worktree: string): Promise<{ errors: TscError[]; crash: st
 }
 
 async function runVitest(worktree: string): Promise<{ fails: TestFail[]; crash: string; log: string }> {
-  const vitest = path.join(repo(), "node_modules", "vitest", "vitest.mjs");
-  if (!existsSync(vitest)) return { fails: [], crash: `Vitest isn't installed: run npm install in ${repo()}.`, log: "" };
+  const vitest = vitestPath();
+  if (!existsSync(vitest)) return { fails: [], crash: `Vitest isn't installed: run ${INSTALL_TOOLS} in ${repo()}.`, log: "" };
   const report = path.join(os.tmpdir(), `cowork-vitest-${process.pid}-${++reportCounter}.json`);
   try {
     const run = await runNode(
