@@ -1,0 +1,33 @@
+external/devpost.txt
+
+WHAT THIS IS
+  Our Devpost submission page (cal-hacks-13-0.devpost.com): what it needs and when. The text to
+  paste in is pitch/devpost.md.
+
+WHO / WHEN
+  D. A draft on Saturday night (the Hacker Guide strongly recommends it). The final version by
+  Sunday 8:30 AM. The hard deadline is 9:00 AM Sunday, and late entries aren't judged. Devpost says
+  edits are allowed until 10 AM except the table number; we treat 9 AM as locked.
+
+REQUIRED
+  - Project images: screenshots of the dashboard (all green, the red conflict, the Droid panel).
+  - GitHub repo link: repo 1, plus repo 2. Public. "For any code to be considered."
+  - Table number.
+  - A demo video, both on Devpost (some sponsors judge from it, without visiting) and stored
+    locally on the laptop.
+  - Prize tracks: SpacetimeDB, Anthropic, Factory (Best Use of the Droid SDK), Most Technically
+    Advanced, Hacker's Choice. Copy the exact names from Devpost.
+
+JUDGING
+  Sunday 10:30 AM-12:30 PM. Judges walk to the tables. All four of us must be at the table the
+  whole time, or we aren't judged. A live demo is required.
+  Pitch length: the Guide says 2 minutes; Devpost says 3 minutes + 2 of Q&A. Our main version is
+  2 minutes (pitch/demo-script.md), with one more minute ready.
+
+TABLE
+  Devpost: claim a table by 8:00 AM Sunday. Guide: tables are assigned after 9 AM, 2-3 teams per
+  table. Ask in #0-ask-directors on Saturday; be there by 8 either way.
+
+SCORING (Devpost, no weights)
+  Application, Intentionality, Functionality (a smooth live demo and a clear video), Creativity
+  (say how we differ: pitch/qa.md), Technical Complexity.

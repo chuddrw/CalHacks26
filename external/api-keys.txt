@@ -1,0 +1,19 @@
+external/api-keys.txt
+
+WHAT THIS IS
+  Every secret the project uses, where it goes, and who holds it. The values go in .env (repo 1,
+  one per laptop, gitignored). Never put a key in a committed file, in team chat, or in a prompt.
+
+KEYS
+  name               used for                                   needed on      where to get it
+  STDB_TOKEN         the hooks' HTTP calls to SpacetimeDB       every laptop   spacetimedb-maincloud.txt, step 7
+  FACTORY_API_KEY    Droid SDK diagnosis                        watcher only   Factory dashboard or booth (factory-droid.txt)
+  ANTHROPIC_API_KEY  Claude fallback diagnosis                  watcher only   console.anthropic.com; ask the Anthropic
+                                                                               booth about hackathon credits
+  GitHub             pushing wip/* branches                     every laptop   each laptop's normal git login; nothing in .env
+
+NOT SECRET, BUT PER LAPTOP
+  COWORK_NAME (a, b, c or d) and, on the watcher, DEMO_REPO_PATH. See .env.example.
+
+IF A KEY LEAKS
+  Revoke it in that service's dashboard right away, make a new one, and tell the team.

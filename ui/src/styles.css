@@ -1,0 +1,140 @@
+/*
+ * ui/src/styles.css
+ *
+ * WHAT IT'S FOR
+ *   The dashboard's look. The rule that matters: it must read from across a table on a big screen.
+ *   Large type, strong contrast, and red/green always paired with words ("RED", "fixing", "green"),
+ *   never color alone.
+ *
+ * OWNER: D. WHEN: Sat 14:00-19:00.
+ *
+ * LOOK
+ *   This is a plain starting point. For a bolder look, Terry's comic x punk style guide
+ *   (C:/dvp/style.md on Terry's laptop) is ready to use; the team decides.
+ */
+
+:root {
+  --bg: #0f1115;
+  --panel: #181b22;
+  --text: #f2f3f5;
+  --muted: #9aa3b2;
+  --green: #2fbf71;
+  --red: #ff5a5f;
+  --amber: #ffb020;
+  --line: #2a2f3a;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+.app {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  font-size: 16px;
+}
+
+.app.big {
+  font-size: 22px;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.4em;
+}
+
+.headline {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.4em;
+}
+
+.headline.red,
+.status-red .badge {
+  color: var(--red);
+}
+
+.headline.green,
+.status-green .badge {
+  color: var(--green);
+}
+
+.status-working .badge {
+  color: var(--amber);
+}
+
+.agents {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.middle,
+.bottom {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.card,
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.card.offline {
+  opacity: 0.5;
+}
+
+.card h2,
+.panel h2 {
+  margin: 0 0 6px;
+  font-size: 1.1em;
+}
+
+.badge {
+  margin: 0 0 6px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.intent,
+.empty {
+  color: var(--muted);
+}
+
+.files,
+.steps,
+.events {
+  margin: 0;
+  padding-left: 18px;
+  overflow-wrap: anywhere;
+}
+
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 6px 0;
+  font-size: 0.85em;
+}
+
+@media (max-width: 600px) {
+  .app.big {
+    font-size: 16px;
+  }
+}

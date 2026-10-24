@@ -1,0 +1,22 @@
+// ui/tsconfig.json
+//
+// WHAT IT'S FOR
+//   Browser TypeScript settings for the dashboard. Vite does the bundling; tsc only type-checks.
+//   It doesn't extend tsconfig.base.json, because the browser needs DOM types and JSX, not Node types.
+//
+// OWNER: D.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src", "../shared/src/schema.ts", "../shared/module_bindings"]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@cowork/hooks",
+  "private": true,
+  "type": "module",
+  "description": "WHAT THIS FILE IS FOR: the Claude Code hooks package (owner A). Hooks run with plain `node <file>.ts` (Node 24 strips the types), so they start fast and need nothing beyond Node itself. hooks/src/install.ts registers them in each laptop's demo-app/.claude/settings.local.json.",
+  "scripts": {
+    "install-hooks": "node src/install.ts",
+    "spike": "node src/rewake-spike.ts --print-config",
+    "typecheck": "tsc -p ."
+  }
+}

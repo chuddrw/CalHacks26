@@ -1,0 +1,17 @@
+// watcher/tsconfig.json
+//
+// WHAT IT'S FOR
+//   Type-checks the watcher. Like the MCP server it runs with tsx, so it relaxes two options from
+//   tsconfig.base.json (bundler-style module resolution, erasableSyntaxOnly off) to accept the
+//   generated SpacetimeDB bindings and the Droid and Anthropic SDK types.
+//
+// OWNER: B.
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "erasableSyntaxOnly": false
+  },
+  "include": ["src/**/*.ts", "../shared/src/**/*.ts", "../shared/module_bindings/**/*.ts"]
+}

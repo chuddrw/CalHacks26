@@ -1,0 +1,37 @@
+external/spacetimedb-maincloud.txt
+
+WHAT THIS IS
+  Our hosted SpacetimeDB database on maincloud, SpacetimeDB's cloud. The module code is
+  module/src/index.ts. This file covers the account, the version, publishing, and the token the
+  hooks use for HTTP calls.
+
+WHO / WHEN
+  C, tonight.
+
+WRITE THESE DOWN HERE TONIGHT
+  SpacetimeDB version: ________   (1.12 or 2.0; the reducer syntax differs, see module/src/index.ts)
+  Database name (STDB_DB): ________
+  Host (STDB_HOST): https://maincloud.spacetimedb.com   (confirm in the quickstart)
+
+STEPS
+  1. Install the spacetime CLI from the official install page. Run `spacetime version` and write it above.
+  2. spacetime login   (opens the browser)
+  3. Run the official TypeScript module quickstart once in a throwaway folder, then delete it.
+  4. In module/: spacetime init --lang typescript. If it wants an empty folder, init in a temp
+     folder and copy its package.json dependencies, scripts and tsconfig over; keep our header notes.
+  5. Replace REPLACE_WITH_STDB_DB in module/package.json, then `npm run publish:cloud` in module/.
+     Check the flags with `spacetime publish --help` first.
+  6. `npm run module:generate` at the repo root writes shared/module_bindings/. Commit the result.
+  7. Token for the hooks' HTTP calls: create an identity over HTTP (POST {host}/v1/identity returns an
+     identity and a token; check the HTTP authorization docs for our version), or reuse the token the
+     CLI saved at login. Put it in every laptop's .env as STDB_TOKEN. Treat it like a password.
+
+CHECK IT WORKS
+  - spacetime sql <database> "SELECT * FROM agent"   (check `spacetime sql --help`)
+  - `npm run seed` at the repo root fills every table, and the UI shows the rows.
+  - spacetime logs <database> shows reducer errors.
+
+PRIZE
+  SpacetimeDB is a presenting sponsor. Its prize details weren't published when we prepped; ask at
+  the booth what they judge. Their brief: SpacetimeDB as the core real-time backend, "not just added
+  on the side". Their examples include shared ops dashboards and world state shared by many agents.

@@ -1,0 +1,19 @@
+// module/tsconfig.json
+//
+// WHAT IT'S FOR
+//   TypeScript settings for the SpacetimeDB module. The spacetime CLI bundles module/src/index.ts
+//   itself, so tsc only type-checks here. If `spacetime init --lang typescript` generates its own
+//   tsconfig.json, use that one and keep this comment at the top.
+//
+// OWNER: C.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"]
+}
