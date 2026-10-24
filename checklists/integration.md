@@ -1,6 +1,6 @@
 # Integration: A + B + C
 
-> **What this file is for:** how the three branches were combined on branch `integration`, which side won each conflict, what had to change so the parts fit together, the test results, and what each of us still has to do. Nothing was merged into `main`, and nobody's own branch was changed.
+> This file records how the three branches were combined on branch `integration`, which side won each conflict, what had to change so the parts fit together, the test results, and what each of us still has to do. Nothing was merged into `main`, and nobody's own branch was changed.
 
 Done Oct 24, about 5:30 AM, by A (with Claude Code).
 
@@ -12,6 +12,7 @@ Done Oct 24, about 5:30 AM, by A (with Claude Code).
 2. `feat/a-hooks-mcp` (A): hooks, MCP server, mock database, end-to-end test. One conflict, in `package.json` (both scripts lists kept).
 3. `watcher` (B): the watcher, plus Christina's own module (`2c267b6`). 22 conflicts, decided below.
 4. One commit of changes that make the three fit together, then this file and the docs.
+5. `codex/work-d-dashboard-pitch` (D, Oct 24 ~7 AM): dashboard UI and pitch files. Three conflicts: `ui/package.json` and `scripts/seed-fake.ts` took D's version, and `package-lock.json` was regenerated. Two fixes in D's seed so it works with C's module: it no longer asks for `STDB_TOKEN`, and it creates agent rows with `send_note` because `register_agent` needs a live WebSocket. Checked: every type check passes, D's UI tests 16/16, A's e2e passes, and the seed scenes conflict, resolved and needs_human all run against the mock database.
 
 ## Conflict decisions (B's merge)
 
@@ -69,7 +70,7 @@ The live run uses the real code of every part: A's hooks and MCP server, B's wat
 - Run the fixture against a real server (local or the team database once approved).
 
 **D**
-- `ui/src/stdb.ts` `connect()`: the bindings exist now. The open question is how the browser gets a token under C's rules (no token in `.env`); one option is a dev-server endpoint on the dashboard laptop that reads the local `spacetime login` session.
+- `ui/src/live.ts` accepts a `session.getToken()` callback, but `connect()` doesn't pass one yet, so the live dashboard can't sign in to C's module. `?demo` works. One option: a dev-server endpoint on the dashboard laptop that reads the local `spacetime login` session.
 
 **A**
 - Done on a local server (`npm run test:live`). Next: sign in (`spacetime login`), get approved, and run the demo once against the team database.
