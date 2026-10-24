@@ -17,6 +17,10 @@ import react from "@vitejs/plugin-react";
 import { sessionHandler } from "../session-server.ts";
 
 const root = path.resolve(import.meta.dirname, "../..");
+assert.ok(
+  !process.argv.includes("--browser") || process.stdin.isTTY,
+  "Browser verification requires an interactive terminal so Enter can advance and clean up.",
+);
 const temporary = mkdtempSync(path.join(os.tmpdir(), "cowork-dashboard-"));
 const database = `cowork-dashboard-${process.pid}`;
 const env = { ...process.env };
@@ -395,6 +399,7 @@ try {
   );
 } finally {
   process.stdin.pause();
+  if (process.argv.includes("--browser")) process.stdin.destroy();
   await web?.close();
   stop?.();
   for (const peer of peers) peer.disconnect();
