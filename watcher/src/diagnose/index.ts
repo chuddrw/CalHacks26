@@ -1,33 +1,120 @@
-/**
- * watcher/src/diagnose/index.ts
- *
- * WHAT IT'S FOR
- *   Runs the diagnosis for one new conflict, and makes sure exactly one explanation reaches the
- *   database. Droid goes first (DIAGNOSE_WITH=droid, Factory prize); if it is off, fails, or takes
- *   longer than 90 s, the Claude fallback runs. If both fail, the conflict keeps its raw error.
- *
- * OWNER: C. WHEN: Sat 14:00-19:00.
- * DONE WHEN: every new conflict gets a set_explanation call within about 60 s, or a clear
- *            "diagnosis unavailable" step in the Droid panel, and leaves no worktree behind.
- *
- * STEPS (index.ts in the watcher starts this without awaiting it)
- *   1. Build the DiagnosisContext (prompt.ts): the conflict row, each side's latest intent, files and
- *      diff (cut to a few KB), and the failing output.
- *   2. Make a disposable worktree with the failing combination merged (git.ts), for Droid to explore.
- *   3. add_diagnosis_step(id, source, "status", "started")
- *   4. diagnosis = await diagnoseWithDroid(ctx, onStep) when DIAGNOSE_WITH is "droid" and
- *      FACTORY_API_KEY is set. If that's null: add a "status" step "Droid unavailable, asking
- *      Claude", then diagnosis = await diagnoseWithClaude(ctx).
- *   5. If there's a diagnosis: set_explanation(id, `${summary} ${suggestion}`), and keep `fact` in the
- *      watcher's memory for resolve_conflict. If not: add an "error" step "diagnosis unavailable".
- *   6. finally: remove the worktree.
- *
- * NOTES
- *   - One diagnosis at a time per conflict. If the same conflict is updated (still red after a fix
- *     attempt), don't start a second one unless the error text changed.
- *   - onStep writes add_diagnosis_step rows. Send at most 5 per second so the database and the UI
- *     stay smooth.
+/** Part C diagnosis runner. B injects database calls, current-conflict checks and an owned worktree lease.
+ * No watcher orchestration, subscriptions or shared worktrees are mutated here. Proposed facts are
+ * returned to the caller; only B's later green check may publish them as verified memory.
  */
+import { config } from "../../../shared/src/config.ts";
+import type { DiagnosisSource, ReducerArgs } from "../../../shared/src/schema.ts";
+import type { Diagnosis, DiagnosisContext } from "./prompt.ts";
+import { truncateUtf8 } from "./text.ts";
+import type { OnStep } from "./droid.ts";
 
-// TODO (C): steps 1-6 above.
-export {};
+export type DiagnosisInput = Omit<DiagnosisContext, "worktree">;
+export interface WorktreeLease {
+  path: string;
+  /** Removes this diagnosis worktree only. Must also handle a failed merge. */
+  cleanup(): Promise<void>;
+}
+export interface DiagnosisDependencies {
+  acquireWorktree(context: DiagnosisInput): Promise<WorktreeLease>;
+  addDiagnosisStep(...args: ReducerArgs["add_diagnosis_step"]): Promise<void>;
+  setExplanationIfCurrent(...args: ReducerArgs["set_explanation_if_current"]): Promise<void>;
+  /** Return false after resolution or if the database's error/run no longer matches this input. */
+  isCurrent(context: DiagnosisInput): boolean;
+  mode?: DiagnosisSource;
+  droid?: (context: DiagnosisContext, onStep: OnStep) => Promise<Diagnosis | null>;
+  claude?: (context: DiagnosisContext) => Promise<Diagnosis | null>;
+}
+
+/** Per-conflict serialization prevents overlapping sessions. Changed errors supersede old results. */
+export function createDiagnosisRunner(deps: DiagnosisDependencies) {
+  const entries = new Map<number, { error: string; runKey: string; fixer: string; valid: boolean; token: object; result: Promise<Diagnosis | null> }>();
+
+  function diagnose(input: DiagnosisInput): Promise<Diagnosis | null> {
+    const context = structuredClone(input);
+    const id = context.conflict.id;
+    const previous = entries.get(id);
+    if (previous?.valid && previous.error === context.conflict.error) {
+      // Keep the plan's same-error deduplication without returning a fact from a different run/fixer.
+      if (previous.runKey !== context.conflict.runKey || previous.fixer !== context.conflict.fixer || !deps.isCurrent(context)) return Promise.resolve(null);
+      return previous.result;
+    }
+    const token = {};
+    const current = () => entries.get(id)?.token === token && entries.get(id)?.valid === true && deps.isCurrent(context);
+    const result = (async () => {
+      // The microtask also lets the map entry be installed before current() is first called.
+      await Promise.resolve();
+      if (previous) await previous.result.catch(() => null);
+      if (!current()) return null;
+      let lease: WorktreeLease | undefined;
+      let source: DiagnosisSource = deps.mode ?? config.diagnoseWith;
+      let queue = Promise.resolve();
+      let lastStep = 0;
+      let count = 0;
+      const step = (kind: ReducerArgs["add_diagnosis_step"][2], detail: string) => {
+        if (!current() || count++ >= 500) return;
+        const stepSource = source;
+        queue = queue.then(async () => {
+          const wait = Math.max(0, lastStep + 200 - Date.now());
+          if (wait) await new Promise(resolve => setTimeout(resolve, wait));
+          if (!current()) return;
+          await deps.addDiagnosisStep(id, stepSource, kind, truncateUtf8(detail, 2048));
+          lastStep = Date.now();
+        });
+        // Attach immediately: a slow model must not leave a failed DB call unhandled.
+        void queue.catch(() => {});
+      };
+      try {
+        lease = await deps.acquireWorktree(context);
+        if (!current()) return null;
+        const full = { ...context, worktree: lease.path };
+        let diagnosis: Diagnosis | null = null;
+        if (source === "droid") {
+          step("status", "Droid diagnosis started");
+          try {
+            const droid = deps.droid ?? (await import("./droid.ts")).diagnoseWithDroid;
+            diagnosis = await droid(full, step);
+          } catch {
+            step("error", "Droid unavailable");
+          }
+        }
+        if (!diagnosis && current()) {
+          source = "claude";
+          step("status", "Asking Claude for diagnosis");
+          try {
+            const claude = deps.claude ?? (await import("./claude.ts")).diagnoseWithClaude;
+            diagnosis = await claude(full);
+          } catch {
+            step("error", "Claude unavailable");
+          }
+        }
+        if (!current()) return null;
+        step(diagnosis ? "final" : "error", diagnosis ? diagnosis.summary : "diagnosis unavailable");
+        await queue;
+        if (!current() || !diagnosis) return null;
+        await deps.setExplanationIfCurrent(id, context.conflict.runKey, context.conflict.error, context.conflict.fixer,
+          [diagnosis.summary, diagnosis.cause, diagnosis.suggestion].filter(Boolean).join("\n\n"));
+        return current() ? diagnosis : null;
+      } finally {
+        // Drain pending writes before releasing the lease, including exceptional paths.
+        try { await queue; } finally { await lease?.cleanup(); }
+      }
+    })().then(value => {
+      // Failed/unavailable attempts can recover on the next call. Never invalidate a newer run.
+      const entry = entries.get(id);
+      if (value === null && entry?.token === token) entry.valid = false;
+      return value;
+    }, error => {
+      const entry = entries.get(id);
+      if (entry?.token === token) entry.valid = false;
+      throw error;
+    });
+    entries.set(id, { error: context.conflict.error, runKey: context.conflict.runKey, fixer: context.conflict.fixer, valid: true, token, result });
+    return result;
+  }
+
+  return {
+    diagnose,
+    /** Invalidate on resolution/reset; active sessions finish and clean up without publishing. */
+    invalidate(conflictId: number) { const entry = entries.get(conflictId); if (entry) entry.valid = false; },
+  };
+}

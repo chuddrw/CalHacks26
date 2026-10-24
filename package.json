@@ -15,7 +15,7 @@
   "scripts": {
     "setup": "npm install -D tsx typescript @types/node && npm install -w mcp @modelcontextprotocol/sdk zod@3 spacetimedb && npm install -w watcher spacetimedb @factory/droid-sdk @anthropic-ai/sdk zod@3 madge && npm install -w ui react react-dom spacetimedb && npm install -w ui -D vite @vitejs/plugin-react @types/react @types/react-dom && npm install --prefix module spacetimedb && npm install --prefix demo-app -D typescript vitest",
     "typecheck": "tsc -p hooks && tsc -p mcp && tsc -p watcher && tsc -p ui",
-    "module:generate": "spacetime generate --lang typescript --out-dir shared/module_bindings --project-path module",
+    "module:generate": "node module/manage.mjs generate",
     "install-hooks": "node hooks/src/install.ts",
     "spike:rewake": "node hooks/src/rewake-spike.ts --print-config",
     "spike:watcher": "npm run spike -w watcher",
@@ -23,6 +23,9 @@
     "mcp": "npm run start -w mcp",
     "ui": "npm run dev -w ui",
     "seed": "tsx scripts/seed-fake.ts",
-    "reset": "tsx scripts/demo-reset.ts"
+    "reset": "tsx scripts/demo-reset.ts",
+    "test:part-c": "node module/tests/run-part-c.mjs",
+    "test:part-c:integration": "node module/tests/run-network.mjs",
+    "test:part-c:coverage": "node module/tests/coverage.mjs"
   }
 }

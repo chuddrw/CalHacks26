@@ -8,7 +8,9 @@
 // OWNER: C.
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ESNext",
+    "lib": ["ES2021", "dom"],
+    "isolatedModules": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
