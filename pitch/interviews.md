@@ -11,6 +11,15 @@
 
 ## Notes
 
+No interviews have been recorded yet. Empty rows are not evidence of user research.
+Record the date, agent tools, concrete incident, and permission in the table below.
+Keep identifying details out of the public submission unless explicitly approved.
+
+Ask for a specific recent incident before introducing our solution. Distinguish
+what the person observed from what we infer, and record their wording verbatim
+when collecting a quote. If no usable quote is collected, use the scenario-based
+opening in demo-script.md; do not invent a team or quote.
+
 | # | Team / table | Agents they use | What happened | Time lost | Quote | OK to quote? |
 |---|---|---|---|---|---|---|
 | 1 | | | | | | |

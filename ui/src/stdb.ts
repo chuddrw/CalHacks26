@@ -1,53 +1,78 @@
-/**
- * ui/src/stdb.ts
- *
- * WHAT IT'S FOR
- *   The dashboard's live link to SpacetimeDB. It connects with the generated bindings, subscribes
- *   to every table, and hands the rows to React through useRows(). Because every screen subscribes
- *   to the same database, all three screens change at the same moment in the demo.
- *
- * OWNER: D. WHEN: tonight (connect and show one table), Sat 9:20-13:00 (all tables).
- * DONE WHEN: scripts/seed-fake.ts makes cards and a conflict appear on every open dashboard within
- *            a second, with no page reload.
- *
- * HOW
- *   connect(): build the connection with the generated bindings in shared/module_bindings, using
- *     import.meta.env.VITE_STDB_HOST and VITE_STDB_DB. Subscribe to "SELECT * FROM <table>" for every
- *     table in shared/src/schema.ts. On every insert, update or delete, call setRows(table,
- *     [...all rows of that table]). Copy the connection pattern from the official SpacetimeDB
- *     TypeScript (or React) quickstart for the version we picked.
- *   useRows(table): already written below; components call it and re-render on changes.
- *
- * The UI only reads. It never calls reducers, except a future "approve" button (stretch item 1).
- */
+/** WHAT IT'S FOR: React table access and explicit live/demo startup. Owner: D. */
 import { useSyncExternalStore } from "react";
 import type { TableName, TableRows } from "../../shared/src/schema.ts";
+import { emptyTables } from "./dashboard";
+import { getSnapshot, replaceTables, setConnection, subscribe } from "./store";
+import { startLive, type Bindings } from "./live";
+import { startDemo } from "./demo";
+export { setRows } from "./store";
 
-type Store = { [K in TableName]?: TableRows[K][] };
-
-const EMPTY: never[] = [];
-const listeners = new Set<() => void>();
-let store: Store = {};
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+export function useDashboard() {
+  return useSyncExternalStore(subscribe, getSnapshot);
 }
-
-/** Replaces one table's rows and re-renders every component that reads it. Call it from the SDK callbacks. */
-export function setRows<T extends TableName>(table: T, rows: TableRows[T][]): void {
-  store = { ...store, [table]: rows } as Store;
-  for (const listener of listeners) listener();
-}
-
-/** The live rows of one table. */
 export function useRows<T extends TableName>(table: T): TableRows[T][] {
-  return useSyncExternalStore(subscribe, () => (store[table] as TableRows[T][] | undefined) ?? EMPTY);
+  return useSyncExternalStore(subscribe, () => getSnapshot().tables[table]);
 }
-
-/** Opens the SpacetimeDB connection and keeps the store up to date. */
-export function connect(): void {
-  // TODO (D): connect and subscribe as described in the header, calling setRows() on every change.
+let stop: (() => void) | undefined;
+let epoch = 0;
+export function connect(): () => void {
+  stop?.();
+  const current = ++epoch;
+  replaceTables(emptyTables());
+  stop = undefined;
+  if (new URLSearchParams(location.search).has("demo")) {
+    setConnection({
+      phase: "demo",
+      detail: "Simulated data. No agents or database are connected.",
+    });
+    stop = startDemo();
+  } else {
+    const database = import.meta.env.VITE_STDB_DB?.trim();
+    const host =
+      import.meta.env.VITE_STDB_HOST?.trim() ||
+      "https://maincloud.spacetimedb.com";
+    // C's real generated index is discovered at build time. An empty glob is intentional today.
+    const generated = import.meta.glob("../../shared/module_bindings/index.ts");
+    const load = generated["../../shared/module_bindings/index.ts"];
+    if (!database || !load) {
+      setConnection({
+        phase: "unconfigured",
+        detail: !database
+          ? "Set VITE_STDB_DB in the root .env, then restart the dashboard."
+          : "Waiting for generated SpacetimeDB bindings from C. Generate them, then restart the dashboard.",
+      });
+    } else {
+      setConnection({
+        phase: "connecting",
+        detail: "Loading the database client…",
+      });
+      void load()
+        .then((module) => {
+          if (current !== epoch) return;
+          const bindings = module as Partial<Bindings>;
+          if (!bindings.DbConnection?.builder)
+            throw new Error(
+              "Generated bindings must export DbConnection.builder().",
+            );
+          stop = startLive(bindings as Bindings, host, database);
+        })
+        .catch((error) => {
+          if (current === epoch)
+            setConnection({
+              phase: "error",
+              detail:
+                error instanceof Error
+                  ? error.message
+                  : "Could not load database bindings.",
+            });
+        });
+    }
+  }
+  return () => {
+    if (current === epoch) {
+      epoch++;
+      stop?.();
+      stop = undefined;
+    }
+  };
 }

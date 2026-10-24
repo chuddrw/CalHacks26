@@ -1,45 +1,71 @@
-# Demo script (2 minutes)
+# Demo script — two minutes
 
-> This file has the words we say and the keys we press when judges come to the table, plus the checklist before they arrive and the fallback if the live demo breaks. The technical steps behind each beat are in [../demo-app/SCENARIO.md](../demo-app/SCENARIO.md). D owns this file.
+WHAT IT'S FOR: D's narration and stage cues. Keep the actual pacing from rehearsals.
+The user confirmed the Agent Cowork name and direct technical tone. No interview quote is assumed.
 
-D narrates and stands by the big screen. A and B sit at their laptops. C is ready for beat 4.
+## Choose the truthful version
 
-## Before judges arrive
+Use the **live-loop version** only after the evidence gates in submission-checklist.md
+pass. Until then, use the dashboard walkthrough and explicitly identify simulated data.
+The preview's Play story button drives local fixtures, not real agents.
 
-- [ ] Reset done (SCENARIO.md, "Reset"). Every card online, none red.
-- [ ] Beat 2 already done: B's idle feature is written, green, and B's agent is idle.
-- [ ] A's prompt pasted into A's terminal, **not sent**.
-- [ ] Laptop C: a fresh Claude session, prompt ready.
-- [ ] Big screen on `http://localhost:5173/?big`. Watcher terminal visible but small.
-- [ ] Backup video open in a player, paused at 0:00, stored on the laptop (no Wi-Fi needed).
-- [ ] Chargers plugged in. Notifications off on every screen.
+## Live-loop version (after verified integration)
 
-## The script
+D narrates; A triggers the timestamp change; B's agent is already idle after adding
+its seconds-based feature; C is ready for the memory beat. Keep B's terminal visible.
 
-| Time | Who | Say | Do |
-|---|---|---|---|
-| 0:00 | A | | Press Enter on A's prompt as D starts talking. A's agent needs about 40 s. |
-| 0:00 | D | "*[the quote from another Cal Hacks team, pitch/interviews.md]*. Every team here has four people, each with an AI agent writing code on its own laptop. Each agent only sees its own laptop." | |
-| 0:15 | D | "This is Agent Cowork. These are our four agents, live. B's agent just added an idle-time feature, and it's green." | Point at the cards. |
-| 0:25 | D | "Meanwhile A's agent is switching `lastLogin` to milliseconds, because the frontend needs it. It updates every caller it can see. Git would merge this cleanly, and the types still match." | Point at A's card and intent. |
-| 0:45 | D | "And there it is: red. A's change times B's change, and neither one has committed anything. Droid is investigating; you can watch every step it takes." | Point at the conflict panel, then the Droid panel. |
-| 1:00 | D | "B's agent was idle. It just woke up on its own, pulled A's work in progress, and is fixing its own file." | Point at laptop B. |
-| 1:15 | D | "Green. And it's now a verified fact in shared memory: `lastLogin` is milliseconds." | Point at the memory panel. |
-| 1:20 | A, C | | A commits and pushes. C runs `git pull`, then sends C's prompt. |
-| 1:25 | D | "A merges. C starts a task that touches `lastLogin`. Its session opens with that fact, so it writes milliseconds the first time. No conflict." | Point at laptop C. |
-| 1:45 | D | "Git stores the code. SpacetimeDB holds the team's live state. Tests decide red or green; Droid explains. And where Claude can go wrong, for example weakening a test to get a green check, we send it to a human." | |
-| 2:00 | D | "Want to try it? Tell B's agent to delete that test." | Hand the judge the keyboard if they want. |
+| Time | Say                                                                                                                                                                                            | Stage cue                                                           |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 0:00 | “Four teammates. Four coding agents. Each agent knows its own laptop, but the changes have to work together.”                                                                                  | A sends the timestamp-change prompt.                                |
+| 0:12 | “Agent Cowork gives the team a shared picture before anyone commits. Here are the agents, their plans, and the files they're changing.”                                                        | Open an agent symbol to reveal intent/files, then close.                          |
+| 0:25 | “B added an idle-time feature that assumes seconds, then went idle. A is changing login timestamps to milliseconds and updating the callers it can see.”                                       | Inspect A and B in turn, then return to the map.                                        |
+| 0:40 | “The edits are in different files. Git can merge them, and the types still match. But the combined test fails.”                                                                                | Open the red hub, then Changes & diagnosis to show both excerpts.              |
+| 0:52 | “The watcher found the conflicting pair and assigned B to fix it. Droid investigates the failed combination; these are its actual steps.”                                                      | Show the real diagnosis feed and result.                            |
+| 1:05 | “B's agent has woken up. It pulls A's in-progress change so it can test both together, then adjusts its own code.”                                                                             | Show B's terminal. Never infer waking from the dashboard alone.     |
+| 1:22 | “The combined check passes. The verified contract now lives in shared memory: lastLogin is milliseconds.”                                                                                      | Return to the green hub, then open Memory to show the fact.                       |
+| 1:35 | “A commits the change. C pulls it and starts a fresh task. That new agent receives the fact before writing code.”                                                                              | Perform the actual commit/pull/session step in the agreed scenario. |
+| 1:49 | “Git stores the code. SpacetimeDB holds the team's live state. Tests decide whether the changes work; AI explains the failure. If a proposed fix changes existing tests, a person reviews it.” | Show the actual guard result if time permits; finish by 2:00.       |
 
-The timings are targets. Replace them with what you measure in rehearsals (SCENARIO.md, rehearsal log). If beat 3 runs long, keep talking over the timeline panel; don't skip the wake-up moment.
+If a beat has not happened, describe what the screen actually shows. The proposed
+timestamps are stage targets, not performance measurements.
 
-## Fallback
+An interview quote can replace the first sentence once recorded with permission in
+interviews.md. Attribute it exactly and keep the opening under fifteen seconds.
 
-If the screen doesn't turn red within 20 s, or anything crashes:
+## Dashboard walkthrough (available before full integration)
 
-> "Live demos at hackathons... here's the run we recorded an hour ago."
+Say at the start: “This is a simulated walkthrough of the interface. The live agent
+integration is still being built.” Keep the SIMULATED DEMO banner visible.
 
-Play the backup video from the conflict onwards. Never fake agent output or type the fix yourself.
+1. Select **Agents working**. Show the agent symbols; open an agent for its intent and files.
+2. Select **Conflict detected**. Open the red hub, then **Changes & diagnosis**. Show A's milliseconds edit, B's seconds assumption,
+   the failed assertion, and the assigned fixer.
+3. Select **B is fixing**. Explain how the diagnosis suggests a unit-consistent fix.
+4. Select **Verified & green**. Open the hub for the fixed line and **Memory** for the fact. Show the fixed line, passing check, resolution event,
+   and fact in shared memory. Explain that these are example rows.
+5. Select **Test-edit guard**. Show the required human review. Do not imply the
+   backend guard ran during this walkthrough.
+6. Close with the integration work still required and offer the source/architecture.
 
-## The one-liner (for the end, and for Devpost)
+## Optional one-minute technical extension
 
-**Live CI for a team's AI agents: it checks everyone's uncommitted work together and wakes up the agent that has to fix a break, before anyone commits.**
+“Every agent's working tree becomes a disposable Git snapshot. The watcher checks
+all snapshots together. If the combination fails, singles and pairs help identify
+where the failure comes from. Fixer assignment is deterministic; the model's role
+is to explain the error and suggest a change.
+
+The shared state belongs in SpacetimeDB so the watcher, agent hooks, and screens
+observe the same conflict and assignment. An explicit recipient owns the fix;
+other agents receive context rather than competing to fix the same thing.
+
+A passing typecheck can't prove that seconds and milliseconds mean the same thing.
+That needs a behavioral test. The interface makes failures and human-review states
+visible, while shared facts help a later agent avoid repeating the assumption.”
+
+Describe each architecture claim as planned if its evidence gate remains open.
+
+## Recovery
+
+If a live run stalls, briefly name the issue and play a previously verified local
+recording. If no such recording exists, switch to the labeled simulated walkthrough.
+Never represent a fixture, typed correction, or prerecorded result as a live agent run.

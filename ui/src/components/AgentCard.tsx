@@ -1,28 +1,95 @@
-/**
- * ui/src/components/AgentCard.tsx
- *
- * WHAT IT'S FOR
- *   One card per teammate's agent: name, online or offline, its check state (working, green, red),
- *   what it says it's doing (latest intent), and the files in its latest snapshot. In the demo, the
- *   cards are how judges see that four separate laptops are all being watched at once.
- *
- * OWNER: D. WHEN: Sat 9:20-13:00.
- * TODO (D): show "last snapshot 12 s ago" (lastSnapshotAt), and briefly flash the card when a
- *           new snapshot arrives so judges can see edits flowing in.
- */
+/** WHAT IT'S FOR: an agent node showing presence, plan, snapshot activity, and check status. Owner: D. */
+import { useEffect, useRef, useState } from "react";
 import type { AgentRow } from "../../../shared/src/schema.ts";
-
+import { wipBranch } from "../../../shared/src/schema.ts";
+import { useRows } from "../stdb";
+import { absoluteTime, relativeTime } from "../time";
+import { useNow } from "../useNow";
+import { Icon } from "./Icon";
 export function AgentCard({ agent }: { agent: AgentRow }) {
+  const now = useNow();
+  const latest = useRows("snapshot")
+    .filter((s) => s.agent === agent.name)
+    .sort((a, b) => b.createdAt - a.createdAt || b.id - a.id)[0];
+  const previous = useRef(agent.lastSnapshotAt);
+  const [fresh, setFresh] = useState(false);
+  useEffect(() => {
+    if (agent.lastSnapshotAt <= previous.current) {
+      previous.current = agent.lastSnapshotAt;
+      return;
+    }
+    previous.current = agent.lastSnapshotAt;
+    setFresh(true);
+    const timer = setTimeout(() => setFresh(false), 2400);
+    return () => clearTimeout(timer);
+  }, [agent.lastSnapshotAt]);
+  const label =
+    agent.status === "red"
+      ? "Check failed"
+      : agent.status === "green"
+        ? "Check passed"
+        : "Working";
   return (
-    <article className={`card status-${agent.status}${agent.online ? "" : " offline"}`}>
-      <h2>{agent.name}</h2>
-      <p className="badge">{agent.online ? agent.status : "offline"}</p>
-      <p className="intent">{agent.intent || "No intent posted yet"}</p>
-      <ul className="files">
-        {agent.files.map((file) => (
-          <li key={file}>{file}</li>
-        ))}
-      </ul>
+    <article
+      className={`agent-node status-${agent.status}${agent.online ? "" : " offline"}${fresh ? " fresh" : ""}`}
+    >
+      <div className="agent-top">
+        <span className="agent-avatar">
+          {agent.name.slice(0, 2).toUpperCase()}
+          <span className={`presence ${agent.online ? "online" : ""}`} />
+        </span>
+        <div>
+          <h3>Agent {agent.name.toUpperCase()}</h3>
+          <span className="small muted">
+            {agent.online ? "Connected" : "Offline"}
+          </span>
+        </div>
+        <span
+          className={`agent-state tone-${agent.status === "red" ? "red" : agent.status === "green" ? "green" : "amber"}`}
+        >
+          <span className="dot" />
+          {label}
+        </span>
+      </div>
+      <p className="agent-intent">{agent.intent || "Waiting for an intent"}</p>
+      <div className="agent-meta">
+        <span>
+          <Icon name="branch" size={12} />
+          <code>{wipBranch(agent.name)}</code>
+        </span>
+        <code className="snapshot-sha" title={latest?.sha}>
+          {latest ? latest.sha.slice(0, 7) : "No snapshot"}
+        </code>
+      </div>
+      <div className="agent-footer">
+        {agent.files.length > 0 ? (
+          <details className="agent-files">
+            <summary>
+              {agent.files.length} file{agent.files.length === 1 ? "" : "s"}{" "}
+              changed
+            </summary>
+            <ul>
+              {agent.files.map((file) => (
+                <li key={file}>
+                  <code>{file}</code>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : (
+          <span className="small muted">No changed files</span>
+        )}
+        <time
+          dateTime={
+            agent.lastSnapshotAt
+              ? new Date(agent.lastSnapshotAt).toISOString()
+              : undefined
+          }
+          title={absoluteTime(agent.lastSnapshotAt)}
+        >
+          {relativeTime(agent.lastSnapshotAt, now)}
+        </time>
+      </div>
     </article>
   );
 }

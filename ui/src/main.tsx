@@ -12,8 +12,10 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { connect } from "./stdb";
 import "./styles.css";
+import "./overview.css";
 
-connect();
+const disconnect = connect();
+import.meta.hot?.dispose(disconnect);
 
 const root = document.getElementById("root");
 if (root) {
