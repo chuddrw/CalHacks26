@@ -1,7 +1,7 @@
 shared/module_bindings/README.txt
 
 WHAT THIS IS FOR
-  Public TypeScript WebSocket bindings generated from Part C's SpacetimeDB 2.13.0 module.
+  Authenticated-view TypeScript WebSocket bindings generated from Part C's SpacetimeDB 2.13.0 module.
   Public IDs and millisecond timestamps remain JavaScript numbers. Status/kind strings are
   validated by the module; shared/src/schema.ts carries the narrower application unions.
 
@@ -21,4 +21,6 @@ RULES
   - Do not edit generated .ts files by hand. Change the module, then regenerate.
   - Commit generated bindings so clients don't need the CLI at runtime.
   - Generated imports omit extensions; WebSocket clients use tsx/bundler resolution.
-  - No private connection table, schedule table, or scheduled reducer is exposed here.
+  - No private backing, membership, connection or schedule table is exposed here.
+  - Authenticate with the caller's own signed-in session. Owner grants Reader/Editor membership;
+    see module/ACCESS.md. Login alone grants no access. Existing query names and rows are retained.

@@ -10,7 +10,23 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export const Agent = __t.object("Agent", {
+export const AccessMember = __t.object("AccessMember", {
+  identity: __t.identity(),
+  role: __t.string(),
+});
+export type AccessMember = __Infer<typeof AccessMember>;
+
+export const Agent = __t.object("Agent", {});
+export type Agent = __Infer<typeof Agent>;
+
+export const AgentConnection = __t.object("AgentConnection", {
+  connectionId: __t.connectionId(),
+  agent: __t.string(),
+  identity: __t.identity(),
+});
+export type AgentConnection = __Infer<typeof AgentConnection>;
+
+export const AgentData = __t.object("AgentData", {
   name: __t.string(),
   online: __t.bool(),
   status: __t.string(),
@@ -18,24 +34,24 @@ export const Agent = __t.object("Agent", {
   files: __t.array(__t.string()),
   lastSnapshotAt: __t.f64(),
 });
-export type Agent = __Infer<typeof Agent>;
+export type AgentData = __Infer<typeof AgentData>;
 
-export const AgentConnection = __t.object("AgentConnection", {
-  connectionId: __t.connectionId(),
-  agent: __t.string(),
-});
-export type AgentConnection = __Infer<typeof AgentConnection>;
+export const CheckRun = __t.object("CheckRun", {});
+export type CheckRun = __Infer<typeof CheckRun>;
 
-export const CheckRun = __t.object("CheckRun", {
+export const CheckRunData = __t.object("CheckRunData", {
   runKey: __t.string(),
   agents: __t.array(__t.string()),
   result: __t.string(),
   log: __t.string(),
   createdAt: __t.f64(),
 });
-export type CheckRun = __Infer<typeof CheckRun>;
+export type CheckRunData = __Infer<typeof CheckRunData>;
 
-export const Conflict = __t.object("Conflict", {
+export const Conflict = __t.object("Conflict", {});
+export type Conflict = __Infer<typeof Conflict>;
+
+export const ConflictData = __t.object("ConflictData", {
   id: __t.u32(),
   pair: __t.string(),
   kind: __t.string(),
@@ -51,9 +67,12 @@ export const Conflict = __t.object("Conflict", {
   createdAt: __t.f64(),
   resolvedAt: __t.f64(),
 });
-export type Conflict = __Infer<typeof Conflict>;
+export type ConflictData = __Infer<typeof ConflictData>;
 
-export const DiagnosisStep = __t.object("DiagnosisStep", {
+export const DiagnosisStep = __t.object("DiagnosisStep", {});
+export type DiagnosisStep = __Infer<typeof DiagnosisStep>;
+
+export const DiagnosisStepData = __t.object("DiagnosisStepData", {
   id: __t.u32(),
   conflictId: __t.u32(),
   source: __t.string(),
@@ -61,7 +80,7 @@ export const DiagnosisStep = __t.object("DiagnosisStep", {
   detail: __t.string(),
   createdAt: __t.f64(),
 });
-export type DiagnosisStep = __Infer<typeof DiagnosisStep>;
+export type DiagnosisStepData = __Infer<typeof DiagnosisStepData>;
 
 export const EscalationTimer = __t.object("EscalationTimer", {
   scheduledId: __t.u64(),
@@ -70,7 +89,10 @@ export const EscalationTimer = __t.object("EscalationTimer", {
 });
 export type EscalationTimer = __Infer<typeof EscalationTimer>;
 
-export const Inbox = __t.object("Inbox", {
+export const Inbox = __t.object("Inbox", {});
+export type Inbox = __Infer<typeof Inbox>;
+
+export const InboxData = __t.object("InboxData", {
   id: __t.u32(),
   agent: __t.string(),
   kind: __t.string(),
@@ -79,9 +101,12 @@ export const Inbox = __t.object("Inbox", {
   delivered: __t.bool(),
   createdAt: __t.f64(),
 });
-export type Inbox = __Infer<typeof Inbox>;
+export type InboxData = __Infer<typeof InboxData>;
 
-export const Intent = __t.object("Intent", {
+export const Intent = __t.object("Intent", {});
+export type Intent = __Infer<typeof Intent>;
+
+export const IntentData = __t.object("IntentData", {
   id: __t.u32(),
   agent: __t.string(),
   summary: __t.string(),
@@ -90,9 +115,12 @@ export const Intent = __t.object("Intent", {
   verified: __t.bool(),
   createdAt: __t.f64(),
 });
-export type Intent = __Infer<typeof Intent>;
+export type IntentData = __Infer<typeof IntentData>;
 
-export const Snapshot = __t.object("Snapshot", {
+export const Snapshot = __t.object("Snapshot", {});
+export type Snapshot = __Infer<typeof Snapshot>;
+
+export const SnapshotData = __t.object("SnapshotData", {
   id: __t.u32(),
   agent: __t.string(),
   sha: __t.string(),
@@ -101,5 +129,5 @@ export const Snapshot = __t.object("Snapshot", {
   diff: __t.string(),
   createdAt: __t.f64(),
 });
-export type Snapshot = __Infer<typeof Snapshot>;
+export type SnapshotData = __Infer<typeof SnapshotData>;
 

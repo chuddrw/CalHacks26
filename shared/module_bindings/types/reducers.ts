@@ -8,6 +8,7 @@ import { type Infer as __Infer } from "spacetimedb";
 // Import all reducer arg schemas
 import AddDiagnosisStepReducer from "../add_diagnosis_step_reducer";
 import FlagNeedsHumanReducer from "../flag_needs_human_reducer";
+import GrantAccessReducer from "../grant_access_reducer";
 import MarkDeliveredReducer from "../mark_delivered_reducer";
 import PostIntentReducer from "../post_intent_reducer";
 import PostSnapshotReducer from "../post_snapshot_reducer";
@@ -16,11 +17,13 @@ import ReportCheckReducer from "../report_check_reducer";
 import ReportConflictReducer from "../report_conflict_reducer";
 import ResetAllReducer from "../reset_all_reducer";
 import ResolveConflictReducer from "../resolve_conflict_reducer";
+import RevokeAccessReducer from "../revoke_access_reducer";
 import SendNoteReducer from "../send_note_reducer";
 import SetExplanationReducer from "../set_explanation_reducer";
 
 export type AddDiagnosisStepParams = __Infer<typeof AddDiagnosisStepReducer>;
 export type FlagNeedsHumanParams = __Infer<typeof FlagNeedsHumanReducer>;
+export type GrantAccessParams = __Infer<typeof GrantAccessReducer>;
 export type MarkDeliveredParams = __Infer<typeof MarkDeliveredReducer>;
 export type PostIntentParams = __Infer<typeof PostIntentReducer>;
 export type PostSnapshotParams = __Infer<typeof PostSnapshotReducer>;
@@ -29,6 +32,7 @@ export type ReportCheckParams = __Infer<typeof ReportCheckReducer>;
 export type ReportConflictParams = __Infer<typeof ReportConflictReducer>;
 export type ResetAllParams = __Infer<typeof ResetAllReducer>;
 export type ResolveConflictParams = __Infer<typeof ResolveConflictReducer>;
+export type RevokeAccessParams = __Infer<typeof RevokeAccessReducer>;
 export type SendNoteParams = __Infer<typeof SendNoteReducer>;
 export type SetExplanationParams = __Infer<typeof SetExplanationReducer>;
 

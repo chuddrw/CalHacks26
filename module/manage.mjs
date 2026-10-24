@@ -12,7 +12,7 @@ if (action === 'generate') {
   args = [fileURLToPath(new URL('./generate.mjs', import.meta.url))];
 } else if (action === 'publish' || action === 'logs') {
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(config.stdbDb)) {
-    console.error('Set STDB_DB in the root .env to the approved database name first.');
+    console.error('Set the public STDB_DB process setting to the approved database name first.');
     process.exit(1);
   }
   args = action === 'publish'

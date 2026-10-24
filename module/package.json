@@ -9,13 +9,16 @@
     "logs": "node manage.mjs logs",
     "typecheck": "tsc -p .",
     "test": "vitest run && node --test tests/generate.test.mjs",
-    "test:http": "node tests/http-smoke.mjs"
+    "test:http": "tsx tests/http-smoke.mjs",
+    "test:access-network": "tsx tests/access-network.mjs",
+    "access": "node access.mjs"
   },
   "dependencies": {
     "spacetimedb": "2.13.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
   }

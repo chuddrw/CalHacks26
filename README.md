@@ -36,7 +36,7 @@ laptops: hooks + MCP server ──git push──▶ GitHub  wip/<name> ◀──
 ### SpacetimeDB
 
 Implemented in [module/src/index.ts](module/src/index.ts) for SpacetimeDB **2.13.0**, using the frozen [shared interface](shared/src/schema.ts). Local transactional and HTTP integration checks pass:
-- Seven public tables hold team state: `agent`, `snapshot`, `intent`, `check_run`, `conflict`, `inbox`, and `diagnosis_step`. Twelve public reducers preserve the shared argument order. Public IDs and millisecond timestamps remain JavaScript numbers.
+- Seven authenticated views over private backing tables hold team state: `agent`, `snapshot`, `intent`, `check_run`, `conflict`, `inbox`, and `diagnosis_step`. The twelve business reducers preserve the shared argument order. Owner-only grant/revoke reducers manage Reader/Editor membership; signing in alone grants no access. See [access setup](module/ACCESS.md). Public IDs and millisecond timestamps remain JavaScript numbers.
 - `report_conflict` creates the conflict, assigns the fixer and writes both inboxes in a single transaction, so two agents never both try to fix the same break.
 - A schedule table escalates a conflict to a human if it stays open for 5 minutes.
 - Lifecycle reducers track which agents are online.

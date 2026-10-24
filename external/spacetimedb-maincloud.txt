@@ -1,52 +1,42 @@
 external/spacetimedb-maincloud.txt
 
-WHAT THIS IS
-  Our hosted SpacetimeDB database on maincloud, SpacetimeDB's cloud. The module code is
-  module/src/index.ts. This file covers the account, the version, publishing, and the token the
-  hooks use for HTTP calls.
+WHAT THIS IS FOR
+  Part C's published SpacetimeDB database and permission setup. No credentials belong here.
 
-WHO / WHEN
-  C, tonight.
-
-WRITE THESE DOWN HERE TONIGHT
-  SpacetimeDB version: 2.13.0 (latest stable verified Oct 24, 2026; https://spacetimedb.com/changelog)
-  Database name (STDB_DB): agent-cowork (display name: Agent Cowork; approved Oct 24, 2026)
-  Host (STDB_HOST): https://maincloud.spacetimedb.com   (confirm in the quickstart)
-
-STEPS
-  1. Install the spacetime CLI from the official install page. Run `spacetime version` and write it above.
-  2. spacetime login   (opens the browser)
-  3. Run the official TypeScript module quickstart once in a throwaway folder, then delete it.
-  4. In module/: spacetime init --lang typescript --server-only. If it wants an empty folder, init in a temp
-     folder and copy its package.json dependencies, scripts and tsconfig over; keep our header notes.
-  5. Replace REPLACE_WITH_STDB_DB in module/package.json, then `npm run publish:cloud` in module/.
-     Check the flags with `spacetime publish --help` first.
-  6. `npm run module:generate` at the repo root writes shared/module_bindings/. Commit the result.
-  7. Token for the hooks' HTTP calls: create an identity over HTTP (POST {host}/v1/identity returns an
-     identity and a token; check the HTTP authorization docs for our version), or reuse the token the
-     CLI saved at login. Put it in every laptop's .env as STDB_TOKEN. Treat it like a password.
-
-CHECK IT WORKS
-  - spacetime sql <database> "SELECT * FROM agent"   (check `spacetime sql --help`)
-  - `npm run seed` at the repo root fills every table, and the UI shows the rows.
-  - spacetime logs <database> shows reducer errors.
-
-PRIZE
-  SpacetimeDB is a presenting sponsor. Its prize details weren't published when we prepped; ask at
-  the booth what they judge. Their brief: SpacetimeDB as the core real-time backend, "not just added
-  on the side". Their examples include shared ops dashboards and world state shared by many agents.
-
-APPROVED INTERFACE DECISIONS (Oct 24, 2026)
-  Public IDs use u32 (JavaScript number). Public millisecond timestamps use f64, validated as
-  nonnegative safe integers. Only the private schedule ID uses u64. This preserves the frozen
-  shared number interface without requiring changes in hooks, watcher, MCP or UI.
-  needs_human remains red and blocks duplicate conflicts and automatic green resolution.
-  Presence counts connections, not identities. Fixer reassignment queues a new notification.
-
-PUBLISHED (Oct 24, 2026)
-  Database: agent-cowork
+PUBLISHED
+  SpacetimeDB version: 2.13.0 (latest stable verified Oct 24, 2026)
+  Database name (STDB_DB): agent-cowork
+  Display name: Agent Cowork
+  Host (STDB_HOST): https://maincloud.spacetimedb.com
   Identity: c200265232fd2ba44e83549a9d038d6ac7ca0b3e889f5b00bcf84cdbac0132a1
   Dashboard: https://spacetimedb.com/agent-cowork
-  Module and CLI: 2.13.0
-  Credentials are managed only by the CLI sign-in store. No API keys or auth tokens are copied
-  into this repository or a project .env.
+
+ACCESS
+  Owner-only by default. Only the configured Owner can approve Reader/Editor membership.
+  Opening the link or signing in does not grant access. Public query names expose authenticated
+  views; backing tables, connection state, schedules, and membership are private.
+  Read module/ACCESS.md for the sign-in, public-identity approval, and revocation workflow.
+  Maincloud dashboard collaborators govern platform administration and are separate from this
+  module access list. They are not automatically synchronized.
+
+CREDENTIALS
+  Each user signs in locally with spacetime login. Public identity is shown by login show.
+  Never share login show --token output. Agents use each user's own signed-in session; their
+  session/credential store or process memory supplies HTTP/WS authentication.
+  No API key or auth token was copied into this repo or a project .env. CLI authentication is
+  managed only by the CLI sign-in store.
+
+DEPLOY AND GENERATE
+  Official installation: https://spacetimedb.com/install
+  Module package and required compiler options follow the official TypeScript init template.
+  npm run module:generate invokes module/generate.mjs, restores the extractor's omitted None
+  naming policy, and verifies untouched official bindings against the shared query contract.
+  Set public STDB_DB in the publishing process. First deploy also sets ACCESS_OWNER_IDENTITY
+  to the Owner's public identity (not a secret); future publishes preserve server configuration.
+  See module/README.md and module/manage.mjs. Never force-delete data to get a publish through.
+
+VERIFIED
+  Module datastore authorization tests, generation guard tests, and real local HTTP/WebSocket
+  role/revocation tests pass. The empty legacy tables were replaced without row loss and with
+  --delete-data=never. The hosted owner can read; anonymous reads/writes return 403 Forbidden.
+  Membership starts empty, so only the configured Owner has access until explicitly approved.

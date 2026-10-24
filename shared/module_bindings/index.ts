@@ -36,6 +36,7 @@ import {
 // Import all reducer arg schemas
 import AddDiagnosisStepReducer from "./add_diagnosis_step_reducer";
 import FlagNeedsHumanReducer from "./flag_needs_human_reducer";
+import GrantAccessReducer from "./grant_access_reducer";
 import MarkDeliveredReducer from "./mark_delivered_reducer";
 import PostIntentReducer from "./post_intent_reducer";
 import PostSnapshotReducer from "./post_snapshot_reducer";
@@ -44,6 +45,7 @@ import ReportCheckReducer from "./report_check_reducer";
 import ReportConflictReducer from "./report_conflict_reducer";
 import ResetAllReducer from "./reset_all_reducer";
 import ResolveConflictReducer from "./resolve_conflict_reducer";
+import RevokeAccessReducer from "./revoke_access_reducer";
 import SendNoteReducer from "./send_note_reducer";
 import SetExplanationReducer from "./set_explanation_reducer";
 
@@ -65,87 +67,50 @@ const tablesSchema = __schema({
   agent: __table({
     name: 'agent',
     indexes: [
-      { accessor: 'name', name: 'agent_name_idx_btree', algorithm: 'btree', columns: [
-        'name',
-      ] },
     ],
     constraints: [
-      { name: 'agent_name_key', constraint: 'unique', columns: ['name'] },
     ],
   }, AgentRow),
   checkRun: __table({
     name: 'check_run',
     indexes: [
-      { accessor: 'runKey', name: 'check_run_runKey_idx_btree', algorithm: 'btree', columns: [
-        'runKey',
-      ] },
     ],
     constraints: [
-      { name: 'check_run_runKey_key', constraint: 'unique', columns: ['runKey'] },
     ],
   }, CheckRunRow),
   conflict: __table({
     name: 'conflict',
     indexes: [
-      { accessor: 'id', name: 'conflict_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
-      { accessor: 'pair', name: 'conflict_pair_idx_btree', algorithm: 'btree', columns: [
-        'pair',
-      ] },
     ],
     constraints: [
-      { name: 'conflict_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ConflictRow),
   diagnosisStep: __table({
     name: 'diagnosis_step',
     indexes: [
-      { accessor: 'conflictId', name: 'diagnosis_step_conflictId_idx_btree', algorithm: 'btree', columns: [
-        'conflictId',
-      ] },
-      { accessor: 'id', name: 'diagnosis_step_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
     ],
     constraints: [
-      { name: 'diagnosis_step_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, DiagnosisStepRow),
   inbox: __table({
     name: 'inbox',
     indexes: [
-      { accessor: 'agent', name: 'inbox_agent_idx_btree', algorithm: 'btree', columns: [
-        'agent',
-      ] },
-      { accessor: 'id', name: 'inbox_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
     ],
     constraints: [
-      { name: 'inbox_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, InboxRow),
   intent: __table({
     name: 'intent',
     indexes: [
-      { accessor: 'id', name: 'intent_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
     ],
     constraints: [
-      { name: 'intent_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, IntentRow),
   snapshot: __table({
     name: 'snapshot',
     indexes: [
-      { accessor: 'id', name: 'snapshot_id_idx_btree', algorithm: 'btree', columns: [
-        'id',
-      ] },
     ],
     constraints: [
-      { name: 'snapshot_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, SnapshotRow),
 });
@@ -154,6 +119,7 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("add_diagnosis_step", AddDiagnosisStepReducer),
   __reducerSchema("flag_needs_human", FlagNeedsHumanReducer),
+  __reducerSchema("grant_access", GrantAccessReducer),
   __reducerSchema("mark_delivered", MarkDeliveredReducer),
   __reducerSchema("post_intent", PostIntentReducer),
   __reducerSchema("post_snapshot", PostSnapshotReducer),
@@ -162,6 +128,7 @@ const reducersSchema = __reducers(
   __reducerSchema("report_conflict", ReportConflictReducer),
   __reducerSchema("reset_all", ResetAllReducer),
   __reducerSchema("resolve_conflict", ResolveConflictReducer),
+  __reducerSchema("revoke_access", RevokeAccessReducer),
   __reducerSchema("send_note", SendNoteReducer),
   __reducerSchema("set_explanation", SetExplanationReducer),
 );
