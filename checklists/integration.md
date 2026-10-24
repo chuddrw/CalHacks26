@@ -46,11 +46,11 @@ Done Oct 24, about 5:30 AM, by A (with Claude Code).
 | What | Result |
 |---|---|
 | Type checks: hooks, mcp, watcher, ui, module, module tests | All clean |
-| A's end-to-end test (`npm run test:a`, mock database) | 49 / 49 |
+| A's end-to-end test (`npm run test:a`, mock database) | 50 / 50 (adds: the wake message carries a's plan) |
 | C's vitest suite (`npm run test:part-c`, part 1) | 87 / 87 |
 | C's Node test suite (part 2) | 74 / 90. **Exactly the same 16 fail on C's own branch on this laptop**, so the merge added none. They assume Mac or Linux (fake CLI shell scripts, symlinks). |
 | C's network test (`npm run test:part-c:integration`, real 2.13 server) | Passes: Reader/Editor/Owner guards, revocation, current-run guards |
-| **Live run, all parts together** (`npm run test:live`, temporary local 2.13 server) | **19 / 19, twice in a row.** b is woken **3.5 s** after a's edit; C's module records `src/users/user.ts:14 x src/sessions/idle.ts:4`, fixer b; the diagnosis bridge runs C's runner; the MCP server shows b online over a WebSocket and offline after; `pull_teammate` brings a's change over; the conflict resolves **2.1 s** after b's fix. No processes or temp files left behind. |
+| **Live run, all parts together** (`npm run test:live`, temporary local 2.13 server) | **19 / 19, twice in a row; 20 / 20 after the plan line was added.** b is woken **3.5 s** after a's edit, and the wake message includes a's plan (its latest `post_intent`); C's module records `src/users/user.ts:14 x src/sessions/idle.ts:4`, fixer b; the diagnosis bridge runs C's runner; the MCP server shows b online over a WebSocket and offline after; `pull_teammate` brings a's change over; the conflict resolves **2.1 s** after b's fix. No processes or temp files left behind. |
 
 The live run uses the real code of every part: A's hooks and MCP server, B's watcher and fixture repos, C's module published with its access rules. It never touches the team database or anyone's login: identities and keys are throwaway, and the server lives in memory.
 

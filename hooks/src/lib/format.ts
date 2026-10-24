@@ -37,8 +37,11 @@ function clip(text: string): string {
   return text.length > MAX_CHARS ? `${text.slice(0, MAX_CHARS)}\n(cut; call the team_status tool for the rest)` : text;
 }
 
-/** The message that wakes the fixer. */
-export function conflictForFixer(c: ConflictRow): string {
+/**
+ * The message that wakes the fixer. `theirPlan` is the teammate's latest post_intent summary
+ * (fixer-message.ts fetches it), so the fixer knows why the other change was made.
+ */
+export function conflictForFixer(c: ConflictRow, theirPlan = ""): string {
   const iAmA = c.fixer === c.agentA;
   const other = iAmA ? c.agentB : c.agentA;
   const mine = iAmA ? c.locA : c.locB;
@@ -53,7 +56,7 @@ export function conflictForFixer(c: ConflictRow): string {
 
   const todo =
     c.kind === "pair"
-      ? `Call the pull_teammate tool with "${other}". It brings ${other}'s in-progress change into your working tree. Keep their changes exactly as pulled, and adapt your own files until npm test passes with both.`
+      ? `Call the pull_teammate tool with "${other}". It brings ${other}'s in-progress change into your working tree. Keep their changes exactly as pulled (their plan says why they made them), and adapt your own files until npm test passes with both.`
       : c.kind === "merge"
         ? `Rework your edit in ${theirs || mine} so it no longer overlaps ${other}'s, or ask your human to coordinate with ${other}'s human.`
         : "Fix your change until the type check and the tests pass.";
@@ -64,6 +67,11 @@ export function conflictForFixer(c: ConflictRow): string {
       headline,
       mine ? `  yours:  ${mine}` : "",
       c.kind !== "self" && theirs ? `  theirs: ${theirs} (${other})` : "",
+      c.kind === "self"
+        ? ""
+        : theirPlan
+          ? `${other}'s plan: ${theirPlan}`
+          : `${other} posted no plan. Read their change (pull_teammate) or call team_status to see why they made it.`,
       "First error:",
       indent(c.error),
       c.explanation ? `Why: ${c.explanation}` : "Why: the diagnosis is still running. It will arrive as a note.",

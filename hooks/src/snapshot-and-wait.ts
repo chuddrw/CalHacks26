@@ -26,7 +26,7 @@
  *   4. Every second, until LISTENER_MINUTES have passed:
  *        - a newer listener took over: exit 0
  *        - undelivered "conflict" inbox rows for us: mark them delivered and, if the conflict is
- *          still open, wake the agent with conflictForFixer() (lib/format.ts), which exits with 2
+ *          still open, wake the agent with fixerMessage() (lib/fixer-message.ts), which exits with 2
  *   5. Time is up: exit 0. (Claude Code would stop us at the 1800 s timeout anyway.)
  *
  * NOTES
@@ -39,7 +39,7 @@
  */
 import { config, missingSettings } from "../../shared/src/config.ts";
 import { callReducer, selectRows, sqlString } from "../../shared/src/stdb-http.ts";
-import { conflictForFixer } from "./lib/format.ts";
+import { fixerMessage } from "./lib/fixer-message.ts";
 import { runHook, wakeAgent, type HookInput } from "./lib/hook-io.ts";
 import { claimListener, isCurrentListener, releaseListener } from "./lib/listener-lock.ts";
 import { gitDirOf, takeSnapshot } from "./lib/snapshot.ts";
@@ -81,7 +81,7 @@ async function main(input: HookInput): Promise<void> {
           await callReducer("mark_delivered", [rows.map((row) => row.id)]);
           if (conflict && (conflict.status === "open" || conflict.status === "escalated")) {
             releaseListener(gitDir);
-            wakeAgent(conflictForFixer(conflict));
+            wakeAgent(await fixerMessage(conflict));
           }
         }
       } catch (error) {

@@ -180,6 +180,7 @@ try {
   const rejected = await callReducer(mock, "report_conflict", conflictArgs).then(() => false, () => true);
   check("report_conflict without a red check is rejected (Part C rule)", rejected && !db.conflict.some((c) => c.pair === "a+b"));
   await callReducer(mock, "report_check", [pairKeyAB, ["a", "b"], "red", "1 failed: src/sessions/idle.test.ts"]);
+  await callReducer(mock, "post_intent", ["a", "Switching User.lastLogin to milliseconds because the frontend needs ms.", ["src/users/user.ts"], ["User.lastLogin"]]);
   const reportedAt = Date.now();
   await callReducer(mock, "report_conflict", conflictArgs);
   const b1Run = await b1.done;
@@ -188,6 +189,7 @@ try {
   check("wake arrives within 3 s of report_conflict", wakeMs <= 3000, `${wakeMs} ms`);
   check("wake message names b as the fixer", b1Run.stderr.includes("[cowork] CONFLICT #") && b1Run.stderr.includes("you are the fixer"));
   check("wake message tells b to call pull_teammate", b1Run.stderr.includes('pull_teammate tool with "a"'));
+  check("wake message gives a's plan, so b knows why a changed it", b1Run.stderr.includes("a's plan: Switching User.lastLogin to milliseconds"));
   check("b's conflict note is marked delivered", db.inbox.filter((r) => r.agent === "b" && r.kind === "conflict").every((r) => r.delivered));
   check("b's listener removed its PID file", !existsSync(path.join(cloneB, ".git", "cowork-listener.pid")));
 

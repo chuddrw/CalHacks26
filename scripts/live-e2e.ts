@@ -188,6 +188,7 @@ try {
   check("B's watcher checks b alone: green", true);
 
   // ---- 4. a switches lastLogin to milliseconds; the watcher must catch the clash ----------------------
+  await call(agentA.token, "post_intent", ["a", "Switching User.lastLogin to milliseconds because the frontend needs ms.", ["src/users/user.ts"], ["User.lastLogin"]]);
   editFile("a", "src/contracts/user.ts", "in seconds since the Unix epoch", "in milliseconds since the Unix epoch");
   editFile("a", "src/users/user.ts", "Math.floor(at.getTime() / 1000)", "at.getTime()");
   editFile("a", "src/users/user.test.ts", "toBe(1792843200)", "toBe(1792843200000)");
@@ -205,6 +206,7 @@ try {
   const wakeSeconds = ((Date.now() - aEdited) / 1000).toFixed(1);
   check("b's listener (A) is woken by the conflict (exit code 2)", bCode === 2, `code ${bCode}, ${wakeSeconds} s after a's edit`);
   check("the wake message names b the fixer and says to pull a's change", bListener.output().includes("[cowork] CONFLICT #") && bListener.output().includes('pull_teammate tool with "a"'));
+  check("the wake message gives a's plan, so b knows why a changed it", bListener.output().includes("a's plan: Switching User.lastLogin to milliseconds"));
   const conflict = (await rows("conflict")).find((c) => c.pair === "a+b");
   check("C's module recorded one pair conflict a x b, fixer b", conflict?.kind === "pair" && conflict.fixer === "b" && conflict.status === "open", conflict ? `${conflict.locA} x ${conflict.locB}` : "no conflict row");
   check("the error is the failing idle test", (conflict?.error ?? "").includes("expected"), (conflict?.error ?? "").split("\n")[0]?.slice(0, 90));

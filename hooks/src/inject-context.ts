@@ -20,7 +20,7 @@
  *   1. If settings are missing, exit 0.
  *   2. rows = undelivered inbox rows for this agent.
  *   3. If a listener is alive (lib/listener-lock.ts), leave the "conflict" rows to it. Any remaining
- *      "conflict" row is rendered in full with conflictForFixer(), the rest with notes().
+ *      "conflict" row is rendered in full with fixerMessage(), the rest with notes().
  *   4. Nothing to say: exit 0 with no output, so the agent's context costs nothing.
  *   5. addContext(<this event>, text), then mark_delivered(ids). Marking AFTER printing means a note
  *      can show twice if we get killed in between, but never zero times.
@@ -31,7 +31,8 @@
 import { config, missingSettings } from "../../shared/src/config.ts";
 import { callReducer, selectRows, sqlString } from "../../shared/src/stdb-http.ts";
 import type { InboxRow } from "../../shared/src/schema.ts";
-import { conflictForFixer, notes } from "./lib/format.ts";
+import { notes } from "./lib/format.ts";
+import { fixerMessage } from "./lib/fixer-message.ts";
 import { addContext, runHook, type HookInput } from "./lib/hook-io.ts";
 import { listenerAlive } from "./lib/listener-lock.ts";
 import { gitDirOf } from "./lib/snapshot.ts";
@@ -54,7 +55,7 @@ async function main(input: HookInput): Promise<void> {
   const parts: string[] = [];
   for (const row of rows.filter((r) => r.kind === "conflict")) {
     const [conflict] = await selectRows("conflict", `id = ${Number(row.conflictId)}`);
-    if (conflict && (conflict.status === "open" || conflict.status === "escalated")) parts.push(conflictForFixer(conflict));
+    if (conflict && (conflict.status === "open" || conflict.status === "escalated")) parts.push(await fixerMessage(conflict));
   }
   const quiet = rows.filter((row) => row.kind !== "conflict");
   if (quiet.length > 0) parts.push(notes(quiet));
