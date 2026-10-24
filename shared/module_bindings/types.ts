@@ -131,3 +131,10 @@ export const SnapshotData = __t.object("SnapshotData", {
 });
 export type SnapshotData = __Infer<typeof SnapshotData>;
 
+export const TestReview = __t.object("TestReview", {
+  conflictId: __t.u32(),
+  snapshotId: __t.u32(),
+  createdAt: __t.f64(),
+});
+export type TestReview = __Infer<typeof TestReview>;
+

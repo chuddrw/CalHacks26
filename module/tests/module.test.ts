@@ -52,6 +52,7 @@ it('preserves all public column and reducer parameter orders', () => {
     grant_access: ['identity', 'role'], revoke_access: ['identity'],
     set_explanation_if_current: ['conflictId', 'expectedRunKey', 'expectedError', 'expectedFixer', 'explanation'],
     resolve_conflict_if_current: ['conflictId', 'expectedRunKey', 'expectedError', 'expectedFixer', 'verifiedRunKey', 'verifiedFact'],
+    review_test_change: ['conflictId', 'approve', 'comment'],
   };
   for (const [name, parameters] of Object.entries(expected)) {
     const reducer = db.moduleDef.reducers.find(r => r.sourceName === name);

@@ -31,6 +31,7 @@
     "test:a": "node hooks/test/e2e.ts",
     "typecheck:a": "tsc -p hooks && tsc -p mcp",
     "doctor": "node scripts/doctor.ts",
+    "review": "node scripts/review.ts",
     "test:live": "node scripts/live-e2e.ts"
   },
   "devDependencies": {

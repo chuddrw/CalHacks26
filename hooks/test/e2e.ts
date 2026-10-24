@@ -239,6 +239,52 @@ try {
   const startText = contextOf(start);
   check("SessionStart gives the team status with the verified fact", startText.includes("Team status") && startText.includes("User.lastLogin is milliseconds since the Unix epoch."));
 
+  // ---- 6b. a person reviews a fix that changed tests (review_test_change, npm run review) ---------
+  // Its own conflict, a x c with fixer c, so the earlier sections stay as they are.
+  const latestSha = (agent: string) => db.snapshot.filter((s) => s.agent === agent).at(-1)?.sha ?? "";
+  const runReview = (args: string[]) =>
+    new Promise<HookRun>((resolve) => {
+      const started = Date.now();
+      const child = spawn(process.execPath, [path.join(repoRoot, "scripts", "review.ts"), ...args], { env: { ...process.env, ...envFor("c") }, windowsHide: true });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (c: Buffer) => (stdout += c.toString()));
+      child.stderr.on("data", (c: Buffer) => (stderr += c.toString()));
+      child.on("close", (code) => resolve({ code, stdout, stderr, ms: Date.now() - started }));
+    });
+  const aSha = latestSha("a");
+  await callReducer(mock, "post_snapshot", ["c", "c-feature", "base", ["src/sessions/report.ts"], ""]);
+  const keyAC1 = runKey([aSha, "c-feature"]);
+  await callReducer(mock, "report_check", [keyAC1, ["a", "c"], "red", "1 failed: src/sessions/report.test.ts"]);
+  await callReducer(mock, "report_conflict", ["pair", "a", "c", "src/users/user.ts:14", "src/sessions/report.ts:9", "FAIL src/sessions/report.test.ts", "c", keyAC1]);
+  const conflictAC = db.conflict.find((c) => c.pair === "a+c")!;
+  // c "fixes" it by editing the test; the watcher's guard flags it, and the combined check is green.
+  await callReducer(mock, "post_snapshot", ["c", "c-test-edit", "base", ["src/sessions/report.test.ts"], ""]);
+  await callReducer(mock, "flag_needs_human", [conflictAC.id, "The fix changed tests: src/sessions/report.test.ts"]);
+  const keyAC2 = runKey([aSha, "c-test-edit"]);
+  await callReducer(mock, "report_check", [keyAC2, ["a", "c"], "green", "all tests passed"]);
+  const listed = await runReview([]);
+  check("npm run review lists the conflict waiting for a person", listed.code === 0 && listed.stdout.includes(`#${conflictAC.id}`), listed.stdout.split("\n")[0]);
+
+  const sentBack = await runReview([String(conflictAC.id), "reject", "keep", "the", "31-minute", "test"]);
+  check("send back reopens the conflict", sentBack.code === 0 && conflictAC.status === "open", sentBack.stdout.trim() || sentBack.stderr.trim());
+  await callReducer(mock, "resolve_conflict_if_current", [conflictAC.id, conflictAC.runKey, conflictAC.error, conflictAC.fixer, keyAC2, ""]);
+  check("the green check from the sent-back fix can't resolve it", conflictAC.status === "open");
+
+  const cWake = await startHook("snapshot-and-wait.ts", edit("c", cloneC), envFor("c", "0.2")).done;
+  check("the fixer is woken (exit code 2)", cWake.code === 2, `code ${cWake.code}`);
+  check("the wake message says a person sent the fix back, and why", cWake.stderr.includes("A person sent your fix") && cWake.stderr.includes("keep the 31-minute test"));
+
+  // c changes tests again; this time the person accepts the change.
+  await callReducer(mock, "post_snapshot", ["c", "c-test-edit-2", "base", ["src/sessions/report.test.ts"], ""]);
+  await callReducer(mock, "flag_needs_human", [conflictAC.id, "The fix changed tests: src/sessions/report.test.ts"]);
+  const redApprove = await runReview([String(conflictAC.id), "approve"]);
+  check("approve is refused while no green check covers the newest snapshots", redApprove.code === 1 && conflictAC.status === "needs_human", `code ${redApprove.code}, ${conflictAC.status}: ${redApprove.stderr.trim()}`);
+  await callReducer(mock, "report_check", [runKey([aSha, "c-test-edit-2"]), ["a", "c"], "green", "all tests passed"]);
+  const approved = await runReview([String(conflictAC.id), "approve", "the", "old", "test", "assumed", "seconds"]);
+  check("approve resolves it once the check is green", approved.code === 0 && conflictAC.status === "resolved", approved.stdout.trim() || approved.stderr.trim());
+  check("both agents hear that a person approved it", ["a", "c"].every((agent) => db.inbox.some((r) => r.agent === agent && r.message.includes("approved the test change"))));
+
   // ---- 7. install -------------------------------------------------------------------------------
   const oldOurs = { type: "command", command: "node", args: [path.join(repoRoot, "hooks", "src", "old-hook.ts")] };
   mkdirSync(path.join(cloneB, ".claude"), { recursive: true });

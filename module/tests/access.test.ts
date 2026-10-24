@@ -43,11 +43,12 @@ const mutations: Array<[string, (ctx: Ctx) => void]> = [
   ['set_explanation', ctx => module.set_explanation(ctx, { conflictId: 1, explanation: 'cause' })],
   ['resolve_conflict', ctx => module.resolve_conflict(ctx, { conflictId: 1, verifiedFact: 'fact' })],
   ['flag_needs_human', ctx => module.flag_needs_human(ctx, { conflictId: 1, reason: 'test deleted' })],
+  ['review_test_change', ctx => module.review_test_change(ctx, { conflictId: 1, approve: false, comment: 'send back' })],
   ['send_note', ctx => module.send_note(ctx, { agent: 'a', kind: 'info', message: 'note' })],
   ['mark_delivered', ctx => module.mark_delivered(ctx, { inboxIds: [1] })],
 ];
 function state(h: ReturnType<typeof setup>['h']) {
-  const names = ['agentData', 'snapshotData', 'intentData', 'checkRunData', 'conflictData', 'inboxData', 'diagnosisStepData', 'agent_connection', 'escalation_timer', 'accessMember'] as const;
+  const names = ['agentData', 'snapshotData', 'intentData', 'checkRunData', 'conflictData', 'inboxData', 'diagnosisStepData', 'agent_connection', 'escalation_timer', 'accessMember', 'testReview'] as const;
   return Object.fromEntries(names.map(name => [name, [...h.db[name].iter()]]));
 }
 function seed(s: ReturnType<typeof setup>) {
@@ -113,7 +114,7 @@ it('editors can execute the existing coordination flow but cannot administer mem
   const s = setup();
   s.tx(s.editor, ctx => module.post_snapshot(ctx, { agent: 'b', sha: 'b1', baseSha: 'base', files: ['b.ts'], diff: 'evidence' }));
   for (const [name, mutate] of mutations) {
-    if (name === 'resolve_conflict' || name === 'flag_needs_human') continue;
+    if (name === 'resolve_conflict' || name === 'flag_needs_human' || name === 'review_test_change') continue;
     expect(() => s.tx(s.editor, ctx => {
       if (name === 'report_conflict') seedRedConflict(ctx, conflict);
       else mutate(ctx);

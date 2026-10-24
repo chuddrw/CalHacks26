@@ -38,10 +38,22 @@ function clip(text: string): string {
 }
 
 /**
- * The message that wakes the fixer. `theirPlan` is the teammate's latest post_intent summary
- * (fixer-message.ts fetches it), so the fixer knows why the other change was made.
+ * What the database said beyond "you are the fixer", e.g. "Still red after your last change." or
+ * "A person sent your fix ... back (reason)". Empty for a plain new conflict.
  */
-export function conflictForFixer(c: ConflictRow, theirPlan = ""): string {
+export function wakeReason(inboxMessage: string): string {
+  return inboxMessage
+    .replace(/^\[cowork\]\s*/, "")
+    .replace(/\s*Conflict #\d+: you are the fixer\.?$/, "")
+    .trim();
+}
+
+/**
+ * The message that wakes the fixer. `theirPlan` is the teammate's latest post_intent summary
+ * (fixer-message.ts fetches it), so the fixer knows why the other change was made. `reason` is
+ * wakeReason() of the inbox note that triggered the wake.
+ */
+export function conflictForFixer(c: ConflictRow, theirPlan = "", reason = ""): string {
   const iAmA = c.fixer === c.agentA;
   const other = iAmA ? c.agentB : c.agentA;
   const mine = iAmA ? c.locA : c.locB;
@@ -64,6 +76,7 @@ export function conflictForFixer(c: ConflictRow, theirPlan = ""): string {
   return clip(
     [
       `${MESSAGE_PREFIX} CONFLICT #${c.id}: you are the fixer.`,
+      reason,
       headline,
       mine ? `  yours:  ${mine}` : "",
       c.kind !== "self" && theirs ? `  theirs: ${theirs} (${other})` : "",

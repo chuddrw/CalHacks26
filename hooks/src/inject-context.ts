@@ -55,7 +55,7 @@ async function main(input: HookInput): Promise<void> {
   const parts: string[] = [];
   for (const row of rows.filter((r) => r.kind === "conflict")) {
     const [conflict] = await selectRows("conflict", `id = ${Number(row.conflictId)}`);
-    if (conflict && (conflict.status === "open" || conflict.status === "escalated")) parts.push(await fixerMessage(conflict));
+    if (conflict && (conflict.status === "open" || conflict.status === "escalated")) parts.push(await fixerMessage(conflict, row.message));
   }
   const quiet = rows.filter((row) => row.kind !== "conflict");
   if (quiet.length > 0) parts.push(notes(quiet));

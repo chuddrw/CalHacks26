@@ -22,6 +22,7 @@
  *   with exit code 0 and nothing on stdout, so the agent carries on as if we weren't there.
  *   Errors are printed (to stderr) only when COWORK_DEBUG=1, so normal sessions stay quiet.
  */
+import { finishProcess } from "../../../shared/src/stdb-http.ts";
 
 export interface HookInput {
   session_id?: string;
@@ -52,15 +53,24 @@ export function blockStop(reason: string): void {
   process.stdout.write(JSON.stringify({ decision: "block", reason }));
 }
 
-/** Wakes the agent with a message. Only works in a hook registered with asyncRewake: true. */
-export function wakeAgent(message: string): never {
+/**
+ * Wakes the agent with a message. Only works in a hook registered with asyncRewake: true.
+ * The hook's main function must return right after this: the process then ends by itself with
+ * exit code 2 (finishProcess explains why not process.exit).
+ */
+export async function wakeAgent(message: string): Promise<void> {
   process.stderr.write(message);
-  process.exit(2);
+  await finishProcess(2);
 }
 
 /** Runs a hook's main function with a time budget, and fails open on any error. */
 export async function runHook(main: (input: HookInput) => Promise<void>, budgetMs: number): Promise<void> {
-  const timer = setTimeout(() => process.exit(0), budgetMs);
+  // Safety net only; the listener stops itself before this. Give background work a moment to finish
+  // before exiting (see finishProcess).
+  const timer = setTimeout(() => {
+    void finishProcess(0);
+    setTimeout(() => process.exit(0), 500);
+  }, budgetMs);
   try {
     await main(await readHookInput());
   } catch (error) {

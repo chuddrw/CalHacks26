@@ -81,7 +81,8 @@ async function main(input: HookInput): Promise<void> {
           await callReducer("mark_delivered", [rows.map((row) => row.id)]);
           if (conflict && (conflict.status === "open" || conflict.status === "escalated")) {
             releaseListener(gitDir);
-            wakeAgent(await fixerMessage(conflict));
+            await wakeAgent(await fixerMessage(conflict, newest.message));
+            return;
           }
         }
       } catch (error) {

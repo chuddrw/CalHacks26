@@ -263,6 +263,12 @@ export interface ReducerArgs {
   resolve_conflict_if_current: [conflictId: number, expectedRunKey: string, expectedError: string, expectedFixer: AgentName, verifiedRunKey: string, verifiedFact: string];
   /** Watcher's guard: the fix edited or deleted a test. */
   flag_needs_human: [conflictId: number, reason: string];
+  /**
+   * A person's answer to a needs_human conflict (dashboard buttons or scripts/review.ts).
+   * approve: resolves it; needs a current green check. reject: reopens it and wakes the fixer to
+   * put the tests back; no check resolves it until the fixer posts a newer snapshot.
+   */
+  review_test_change: [conflictId: number, approve: boolean, comment: string];
   /** Watcher's dependency heads-up (watcher/src/deps.ts), or any one-off note to one agent. */
   send_note: [agent: AgentName, kind: NoteKind, message: string];
   /** Hooks, right after showing messages to the agent. */

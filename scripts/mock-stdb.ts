@@ -83,6 +83,7 @@ const ARITY: Record<ReducerName, number> = {
   resolve_conflict: 2,
   resolve_conflict_if_current: 6,
   flag_needs_human: 2,
+  review_test_change: 3,
   send_note: 3,
   mark_delivered: 1,
   reset_all: 0,
@@ -117,6 +118,8 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
   const db = emptyTables();
   const calls: MockStdb["calls"] = [];
   const timers = new Map<number, ReturnType<typeof setTimeout>>();
+  /** Part C's test_review table: conflict id -> the fixer's latest snapshot id when a person sent the fix back. */
+  const reviews = new Map<number, number>();
   const escalateMs = options.escalateMs ?? ESCALATE_MS;
   let nextId = 1;
   const now = () => Date.now();
@@ -167,6 +170,16 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
     const runs = runKey === undefined ? db.check_run : db.check_run.filter((r) => r.runKey === runKey);
     return runs.some((run) => run.result === "green" && covers(run, conflict) && currentRun(run));
   };
+  const latestSnapshotId = (agent: string) => db.snapshot.reduce((id, row) => (row.agent === agent && row.id > id ? row.id : id), 0);
+  const sentBack = (row: ConflictRow) => reviews.has(row.id) && latestSnapshotId(row.fixer) <= reviews.get(row.id)!;
+  const scheduleEscalation = (id: number) => {
+    const timer = setTimeout(() => {
+      const row = db.conflict.find((c) => c.id === id);
+      if (row?.status === "open") row.status = "escalated";
+    }, escalateMs);
+    timer.unref();
+    timers.set(id, timer);
+  };
   const retireWakeups = (id: number) => {
     for (const message of db.inbox) if (message.conflictId === id && message.kind === "conflict") message.delivered = true;
   };
@@ -187,6 +200,7 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
     row.resolvedAt = now();
     retireWakeups(row.id);
     stopTimer(row.id);
+    reviews.delete(row.id);
     refresh(row.agentA);
     if (row.agentB) refresh(row.agentB);
     if (verifiedFact.trim()) {
@@ -263,12 +277,7 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
         });
         note(fixer, "conflict", id, `[cowork] Conflict #${id}: you are the fixer`);
         if (other) note(other, "info", id, `[cowork] Conflict #${id}: ${fixer} is the fixer`);
-        const timer = setTimeout(() => {
-          const row = db.conflict.find((c) => c.id === id);
-          if (row?.status === "open") row.status = "escalated";
-        }, escalateMs);
-        timer.unref();
-        timers.set(id, timer);
+        scheduleEscalation(id);
       }
       refresh(agentA);
       if (agentB) refresh(agentB);
@@ -289,11 +298,11 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
     },
     resolve_conflict: ([conflictId, verifiedFact]) => {
       const row = getConflict(conflictId);
-      if (mutableConflict(row) && greenEvidence(row)) finishResolution(row, verifiedFact);
+      if (mutableConflict(row) && !sentBack(row) && greenEvidence(row)) finishResolution(row, verifiedFact);
     },
     resolve_conflict_if_current: ([conflictId, expectedRunKey, expectedError, expectedFixer, verifiedRunKey, verifiedFact]) => {
       const row = db.conflict.find((c) => c.id === conflictId);
-      if (row && matchesVersion(row, { expectedRunKey, expectedError, expectedFixer }) && greenEvidence(row, verifiedRunKey)) {
+      if (row && matchesVersion(row, { expectedRunKey, expectedError, expectedFixer }) && !sentBack(row) && greenEvidence(row, verifiedRunKey)) {
         finishResolution(row, verifiedFact);
       }
     },
@@ -308,6 +317,29 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
         refresh(recipient);
       }
     },
+    review_test_change: ([conflictId, approve, comment]) => {
+      const row = getConflict(conflictId);
+      if (row.status !== "needs_human") throw new SenderError(`Conflict #${row.id} is not waiting for a person`);
+      const trimmed = cut(comment.trim(), 500);
+      const said = trimmed ? ` (${trimmed})` : "";
+      const other = row.fixer === row.agentA ? row.agentB : row.agentA;
+      if (approve) {
+        if (!greenEvidence(row)) throw new SenderError("The combined check is still red. Approve the test change once it passes.");
+        finishResolution(row, "");
+        for (const recipient of [row.agentA, row.agentB].filter(Boolean)) {
+          note(recipient, "info", row.id, `[cowork] A person approved the test change for conflict #${row.id}${said}. The conflict is resolved.`);
+        }
+        return;
+      }
+      row.status = "open";
+      reviews.set(row.id, latestSnapshotId(row.fixer));
+      stopTimer(row.id);
+      scheduleEscalation(row.id);
+      note(row.fixer, "conflict", row.id, `[cowork] A person sent your fix for conflict #${row.id} back${said}. Put back the tests you changed, then fix the code so those tests pass as they are.`);
+      if (other) note(other, "info", row.id, `[cowork] Conflict #${row.id}: a person sent ${row.fixer}'s test change back${said}.`);
+      refresh(row.agentA);
+      if (row.agentB) refresh(row.agentB);
+    },
     send_note: ([agent, kind, message]) => {
       oneOf(kind, ["info", "heads_up", "fact"]);
       note(agent, kind, 0, message);
@@ -318,6 +350,7 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
     },
     reset_all: () => {
       for (const id of [...timers.keys()]) stopTimer(id);
+      reviews.clear();
       for (const table of Object.keys(db) as TableName[]) db[table].length = 0;
       nextId = 1;
     },

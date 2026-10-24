@@ -73,6 +73,29 @@ export function toObjects<T extends TableName>(table: T, rows: unknown[][]): Tab
   return rows.map((row) => Object.fromEntries(columns.map((name, i) => [name, row[i]])) as unknown as TableRows[T]);
 }
 
+/**
+ * Ends the process with `code` without process.exit(). It sets process.exitCode and closes fetch's
+ * keep-alive connections so they don't hold the process open; the caller then returns and Node
+ * exits by itself. The caller must leave nothing else running (timers, loops).
+ *
+ * Why: on Windows, process.exit() shortly after a database call can crash Node instead of exiting
+ * ("Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c", exit code
+ * 0xC0000409). process.exit() tears down while Node's background work (for example compiling the
+ * TypeScript type stripper) is still finishing; a normal exit waits for it. Exit code 2 is how
+ * Claude Code knows to wake an agent, so a crash there means the fixer never wakes.
+ */
+export async function finishProcess(code: number): Promise<void> {
+  process.exitCode = code;
+  const dispatcher = (globalThis as Record<symbol, { destroy?: () => Promise<void> } | undefined>)[
+    Symbol.for("undici.globalDispatcher.1")
+  ];
+  try {
+    await dispatcher?.destroy?.();
+  } catch {
+    // Already closed.
+  }
+}
+
 /** Quotes a value for a SpacetimeDB SQL string literal. */
 export function sqlString(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;

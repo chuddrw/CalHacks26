@@ -10,9 +10,10 @@
  */
 import { selectRows, sqlString } from "../../../shared/src/stdb-http.ts";
 import type { ConflictRow } from "../../../shared/src/schema.ts";
-import { conflictForFixer } from "./format.ts";
+import { conflictForFixer, wakeReason } from "./format.ts";
 
-export async function fixerMessage(c: ConflictRow): Promise<string> {
+/** `inboxMessage` is the text of the conflict note that triggered this wake, if any. */
+export async function fixerMessage(c: ConflictRow, inboxMessage = ""): Promise<string> {
   const other = c.fixer === c.agentA ? c.agentB : c.agentA;
   let plan = "";
   if (c.kind !== "self" && other) {
@@ -23,5 +24,5 @@ export async function fixerMessage(c: ConflictRow): Promise<string> {
       // The wake matters more than the plan; send the message without it.
     }
   }
-  return conflictForFixer(c, plan);
+  return conflictForFixer(c, plan, wakeReason(inboxMessage));
 }

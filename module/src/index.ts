@@ -44,11 +44,15 @@ const agent_connection = table({ name: 'agent_connection' }, {
 const escalation_timer = table({ name: 'escalation_timer' }, {
   scheduledId: t.u64().primaryKey().autoInc(), scheduledAt: t.scheduleAt(), conflictId: t.u32().name("conflictId"),
 });
+/** A person sent a test-changing fix back; only a newer snapshot from the fixer can resolve it. */
+const testReview = table({ name: 'test_review' }, {
+  conflictId: t.u32().name("conflictId").primaryKey(), snapshotId: t.u32().name("snapshotId"), createdAt: t.f64().name("createdAt"),
+});
 const accessMember = table({ name: 'access_member' }, {
   identity: t.identity().primaryKey(), role: t.string(),
 });
 const spacetimedb = schema({ agentData, snapshotData, intentData, checkRunData, conflictData, inboxData,
-  diagnosisStepData, accessMember, agent_connection, escalation_timer }, {
+  diagnosisStepData, accessMember, agent_connection, escalation_timer, testReview }, {
   // SQL callers already use the frozen camelCase column names; don't normalize them.
   CASE_CONVERSION_POLICY: CaseConversionPolicy.None,
   env: { ACCESS_OWNER_IDENTITY: t.string() },
@@ -206,6 +210,20 @@ function greenEvidence(ctx: Ctx, conflict: ConflictRecord, runKey?: string): boo
   const runs = runKey === undefined ? [...ctx.db.checkRunData.iter()] : [ctx.db.checkRunData.runKey.find(runKey)];
   return runs.some(run => run !== null && run.result === 'green' && covers(run, conflict) && currentRun(ctx, run));
 }
+function latestSnapshotId(ctx: Ctx, agent: string): number {
+  let id = 0;
+  for (const row of ctx.db.snapshotData.iter()) if (row.agent === agent && row.id > id) id = row.id;
+  return id;
+}
+/** True while a person's "send back" stands: the fixer has posted nothing newer since. */
+function sentBack(ctx: Ctx, row: ConflictRecord): boolean {
+  const review = ctx.db.testReview.conflictId.find(row.id);
+  return !!review && latestSnapshotId(ctx, row.fixer) <= review.snapshotId;
+}
+function scheduleEscalation(ctx: Ctx, conflictId: number): void {
+  ctx.db.escalation_timer.insert({ scheduledId: 0n, scheduledAt:
+    ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 5n * 60n * 1_000_000n), conflictId });
+}
 function retireWakeups(ctx: Ctx, id: number): void {
   for (const message of ctx.db.inboxData.iter()) if (message.conflictId === id &&
     message.kind === 'conflict' && !message.delivered) ctx.db.inboxData.id.update({ ...message, delivered: true });
@@ -299,8 +317,7 @@ export const report_conflict = spacetimedb.reducer({ kind: t.string(), agentA: t
     note(ctx, args.fixer, 'conflict', row.id, `[cowork] Conflict #${row.id}: you are the fixer`);
     const other = args.fixer === args.agentA ? args.agentB : args.agentA;
     if (other) note(ctx, other, 'info', row.id, `[cowork] Conflict #${row.id}: ${args.fixer} is the fixer`);
-    ctx.db.escalation_timer.insert({ scheduledId: 0n, scheduledAt:
-      ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 5n * 60n * 1_000_000n), conflictId: row.id });
+    scheduleEscalation(ctx, row.id);
   }
   refresh(ctx, args.agentA);
   if (args.agentB) refresh(ctx, args.agentB);
@@ -339,6 +356,7 @@ function finishResolution(ctx: Ctx, row: ConflictRecord, verifiedFact: string): 
   for (const timer of ctx.db.escalation_timer.iter()) if (timer.conflictId === row.id) {
     ctx.db.escalation_timer.scheduledId.delete(timer.scheduledId);
   }
+  ctx.db.testReview.conflictId.delete(row.id);
   refresh(ctx, row.agentA);
   if (row.agentB) refresh(ctx, row.agentB);
   if (verifiedFact.trim()) {
@@ -352,13 +370,15 @@ function finishResolution(ctx: Ctx, row: ConflictRecord, verifiedFact: string): 
 export const resolve_conflict = spacetimedb.reducer({ conflictId: t.u32().name("conflictId"), verifiedFact: t.string() }, (ctx, args) => {
   requireEditor(ctx);
   const row = getConflict(ctx, args.conflictId);
-  if (mutableConflict(row) && greenEvidence(ctx, row)) finishResolution(ctx, row, args.verifiedFact);
+  if (mutableConflict(row) && !sentBack(ctx, row) && greenEvidence(ctx, row)) finishResolution(ctx, row, args.verifiedFact);
 });
 export const resolve_conflict_if_current = spacetimedb.reducer({ conflictId: t.u32(), expectedRunKey: t.string(),
   expectedError: t.string(), expectedFixer: t.string(), verifiedRunKey: t.string(), verifiedFact: t.string() }, (ctx, args) => {
   requireEditor(ctx);
   const row = ctx.db.conflictData.id.find(args.conflictId);
-  if (row && matchesVersion(row, args) && greenEvidence(ctx, row, args.verifiedRunKey)) finishResolution(ctx, row, args.verifiedFact);
+  if (row && matchesVersion(row, args) && !sentBack(ctx, row) && greenEvidence(ctx, row, args.verifiedRunKey)) {
+    finishResolution(ctx, row, args.verifiedFact);
+  }
 });
 export const flag_needs_human = spacetimedb.reducer({ conflictId: t.u32().name("conflictId"), reason: t.string() }, (ctx, args) => {
   requireEditor(ctx);
@@ -370,6 +390,41 @@ export const flag_needs_human = spacetimedb.reducer({ conflictId: t.u32().name("
     note(ctx, recipient, 'info', row.id, `[cowork] Conflict #${row.id} needs a person: ${args.reason}. Do not edit tests to make checks pass.`);
     refresh(ctx, recipient);
   }
+});
+/**
+ * A person's answer to a needs_human conflict (the fix changed existing tests).
+ *   approve: the test change is accepted. Needs a current green check: approval can't make a red check pass.
+ *   reject:  the conflict reopens and the fixer is woken to restore the tests and fix the code instead.
+ *            Until the fixer posts a newer snapshot, no check can resolve it.
+ */
+export const review_test_change = spacetimedb.reducer({ conflictId: t.u32().name("conflictId"), approve: t.bool(),
+  comment: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getConflict(ctx, args.conflictId);
+  if (row.status !== 'needs_human') throw new SenderError(`Conflict #${row.id} is not waiting for a person`);
+  const comment = cut(args.comment.trim(), 500);
+  const said = comment ? ` (${comment})` : '';
+  const other = row.fixer === row.agentA ? row.agentB : row.agentA;
+  if (args.approve) {
+    if (!greenEvidence(ctx, row)) throw new SenderError('The combined check is still red. Approve the test change once it passes.');
+    finishResolution(ctx, row, '');
+    for (const recipient of [row.agentA, row.agentB].filter(Boolean)) {
+      note(ctx, recipient, 'info', row.id, `[cowork] A person approved the test change for conflict #${row.id}${said}. The conflict is resolved.`);
+    }
+    return;
+  }
+  ctx.db.conflictData.id.update({ ...row, status: 'open' });
+  const review = { conflictId: row.id, snapshotId: latestSnapshotId(ctx, row.fixer), createdAt: now(ctx) };
+  if (ctx.db.testReview.conflictId.find(row.id)) ctx.db.testReview.conflictId.update(review);
+  else ctx.db.testReview.insert(review);
+  for (const timer of ctx.db.escalation_timer.iter()) if (timer.conflictId === row.id) {
+    ctx.db.escalation_timer.scheduledId.delete(timer.scheduledId);
+  }
+  scheduleEscalation(ctx, row.id);
+  note(ctx, row.fixer, 'conflict', row.id, `[cowork] A person sent your fix for conflict #${row.id} back${said}. Put back the tests you changed, then fix the code so those tests pass as they are.`);
+  if (other) note(ctx, other, 'info', row.id, `[cowork] Conflict #${row.id}: a person sent ${row.fixer}'s test change back${said}.`);
+  refresh(ctx, row.agentA);
+  if (row.agentB) refresh(ctx, row.agentB);
 });
 export const send_note = spacetimedb.reducer({ agent: t.string(), kind: t.string(), message: t.string() }, (ctx, args) => {
   requireEditor(ctx);
@@ -386,6 +441,7 @@ export const mark_delivered = spacetimedb.reducer({ inboxIds: t.array(t.u32()) }
 export const reset_all = spacetimedb.reducer({}, ctx => {
   requireOwner(ctx);
   for (const row of ctx.db.escalation_timer.iter()) ctx.db.escalation_timer.scheduledId.delete(row.scheduledId);
+  for (const row of ctx.db.testReview.iter()) ctx.db.testReview.conflictId.delete(row.conflictId);
   for (const row of ctx.db.agent_connection.iter()) ctx.db.agent_connection.connectionId.delete(row.connectionId);
   for (const row of ctx.db.diagnosisStepData.iter()) ctx.db.diagnosisStepData.id.delete(row.id);
   for (const row of ctx.db.inboxData.iter()) ctx.db.inboxData.id.delete(row.id);

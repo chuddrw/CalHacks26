@@ -46,6 +46,7 @@ import ReportConflictReducer from "./report_conflict_reducer";
 import ResetAllReducer from "./reset_all_reducer";
 import ResolveConflictReducer from "./resolve_conflict_reducer";
 import ResolveConflictIfCurrentReducer from "./resolve_conflict_if_current_reducer";
+import ReviewTestChangeReducer from "./review_test_change_reducer";
 import RevokeAccessReducer from "./revoke_access_reducer";
 import SendNoteReducer from "./send_note_reducer";
 import SetExplanationReducer from "./set_explanation_reducer";
@@ -131,6 +132,7 @@ const reducersSchema = __reducers(
   __reducerSchema("reset_all", ResetAllReducer),
   __reducerSchema("resolve_conflict", ResolveConflictReducer),
   __reducerSchema("resolve_conflict_if_current", ResolveConflictIfCurrentReducer),
+  __reducerSchema("review_test_change", ReviewTestChangeReducer),
   __reducerSchema("revoke_access", RevokeAccessReducer),
   __reducerSchema("send_note", SendNoteReducer),
   __reducerSchema("set_explanation", SetExplanationReducer),
