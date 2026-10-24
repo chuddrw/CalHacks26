@@ -2,10 +2,21 @@
   "name": "agent-cowork-module",
   "private": true,
   "type": "module",
-  "description": "WHAT THIS FILE IS FOR: the SpacetimeDB module's own package (owner C). It is not an npm workspace, because the spacetime CLI builds and publishes it. If `spacetime init --lang typescript` gives you a different package.json, keep its dependencies and scripts and copy this description over. Replace REPLACE_WITH_STDB_DB with our database name before publishing. Steps: external/spacetimedb-maincloud.txt.",
+  "description": "WHAT THIS FILE IS FOR: Part C's standalone SpacetimeDB 2.13.0 module, based on the official TypeScript init template. Public interface: shared/src/schema.ts. Manage commands require the approved STDB_DB for publishing; module is outside root workspaces.",
   "scripts": {
-    "publish:cloud": "spacetime publish --project-path . --server maincloud REPLACE_WITH_STDB_DB",
-    "generate": "spacetime generate --lang typescript --out-dir ../shared/module_bindings --project-path .",
-    "logs": "spacetime logs --server maincloud REPLACE_WITH_STDB_DB"
+    "publish:cloud": "node manage.mjs publish",
+    "generate": "node manage.mjs generate",
+    "logs": "node manage.mjs logs",
+    "typecheck": "tsc -p .",
+    "test": "vitest run && node --test tests/generate.test.mjs",
+    "test:http": "node tests/http-smoke.mjs"
+  },
+  "dependencies": {
+    "spacetimedb": "2.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   }
 }

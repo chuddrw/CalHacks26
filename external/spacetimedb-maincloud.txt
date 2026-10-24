@@ -9,15 +9,15 @@ WHO / WHEN
   C, tonight.
 
 WRITE THESE DOWN HERE TONIGHT
-  SpacetimeDB version: ________   (1.12 or 2.0; the reducer syntax differs, see module/src/index.ts)
-  Database name (STDB_DB): ________
+  SpacetimeDB version: 2.13.0 (latest stable verified Oct 24, 2026; https://spacetimedb.com/changelog)
+  Database name (STDB_DB): agent-cowork (display name: Agent Cowork; approved Oct 24, 2026)
   Host (STDB_HOST): https://maincloud.spacetimedb.com   (confirm in the quickstart)
 
 STEPS
   1. Install the spacetime CLI from the official install page. Run `spacetime version` and write it above.
   2. spacetime login   (opens the browser)
   3. Run the official TypeScript module quickstart once in a throwaway folder, then delete it.
-  4. In module/: spacetime init --lang typescript. If it wants an empty folder, init in a temp
+  4. In module/: spacetime init --lang typescript --server-only. If it wants an empty folder, init in a temp
      folder and copy its package.json dependencies, scripts and tsconfig over; keep our header notes.
   5. Replace REPLACE_WITH_STDB_DB in module/package.json, then `npm run publish:cloud` in module/.
      Check the flags with `spacetime publish --help` first.
@@ -35,3 +35,18 @@ PRIZE
   SpacetimeDB is a presenting sponsor. Its prize details weren't published when we prepped; ask at
   the booth what they judge. Their brief: SpacetimeDB as the core real-time backend, "not just added
   on the side". Their examples include shared ops dashboards and world state shared by many agents.
+
+APPROVED INTERFACE DECISIONS (Oct 24, 2026)
+  Public IDs use u32 (JavaScript number). Public millisecond timestamps use f64, validated as
+  nonnegative safe integers. Only the private schedule ID uses u64. This preserves the frozen
+  shared number interface without requiring changes in hooks, watcher, MCP or UI.
+  needs_human remains red and blocks duplicate conflicts and automatic green resolution.
+  Presence counts connections, not identities. Fixer reassignment queues a new notification.
+
+PUBLISHED (Oct 24, 2026)
+  Database: agent-cowork
+  Identity: c200265232fd2ba44e83549a9d038d6ac7ca0b3e889f5b00bcf84cdbac0132a1
+  Dashboard: https://spacetimedb.com/agent-cowork
+  Module and CLI: 2.13.0
+  Credentials are managed only by the CLI sign-in store. No API keys or auth tokens are copied
+  into this repository or a project .env.
