@@ -2,7 +2,7 @@
  * No API requests, real credentials, watcher orchestration or other teammates' components are used.
  */
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-import type { DiagnosisContext } from '../../watcher/src/diagnose/prompt.ts';
+import type { DiagnosisContext } from '../../orchestrator/src/diagnose/prompt.ts';
 
 const diagnosis = { summary: 'Unit mismatch', cause: 'Milliseconds meets seconds', suggestion: 'Convert B', fact: 'lastLogin is milliseconds' };
 const context: DiagnosisContext = {
@@ -33,7 +33,7 @@ afterEach(() => {
   vi.doUnmock('../../shared/src/config.ts');
 });
 async function adapter() {
-  return (await import('../../watcher/src/diagnose/claude.ts')).diagnoseWithClaude;
+  return (await import('../../orchestrator/src/diagnose/claude.ts')).diagnoseWithClaude;
 }
 
 it('missing credentials return unavailable without constructing an SDK client', async () => {

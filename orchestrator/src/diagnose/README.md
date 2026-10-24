@@ -47,5 +47,5 @@ Runtime dependencies are already listed by root `npm run setup`: `@factory/droid
 Run isolated regressions after dependencies are installed:
 
 ```sh
-node --test watcher/src/diagnose/diagnose.test.ts
+node --test orchestrator/src/diagnose/diagnose.test.ts
 ```

@@ -1,5 +1,5 @@
 /**
- * watcher/src/map-errors.ts
+ * checks/src/map-errors.ts
  *
  * WHAT IT'S FOR
  *   Turns "the check failed at src/sessions/idle.ts:7" into "that line belongs to b's change, and

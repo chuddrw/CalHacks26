@@ -14,5 +14,5 @@
     "moduleResolution": "bundler",
     "erasableSyntaxOnly": false
   },
-  "include": ["src/**/*.ts", "../shared/src/**/*.ts", "../shared/module_bindings/**/*.ts"]
+  "include": ["src/**/*.ts", "../shared/src/**/*.ts", "../shared/module_bindings/**/*.ts", "../checks/src/**/*.ts"]
 }

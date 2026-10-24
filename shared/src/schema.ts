@@ -4,11 +4,13 @@
  * WHAT IT'S FOR
  *   The frozen interface between every part of Agent Cowork: the row shape of each query,
  *   every reducer's name and argument order, and the string formats that cross a boundary
- *   (hook -> SpacetimeDB -> watcher -> UI). Everyone codes against this file, so we freeze it
+ *   (hook -> SpacetimeDB -> orchestrator -> UI). Everyone codes against this file, so we freeze it
  *   tonight (plan.md, "Freeze tonight") and change it only when all four of us agree.
+ *   Branch feat/orchestrator added the orchestrator's tables (request, task, review, message,
+ *   plan_step) and reducers; checklists/orchestrator.md has the design.
  *
  * OWNER: C keeps module/src/index.ts identical to this file. Everyone else reads it.
- * USED BY: hooks/ and scripts/ (HTTP calls), watcher/, mcp/, ui/.
+ * USED BY: hooks/ and scripts/ (HTTP calls), orchestrator/, mcp/, ui/.
  *
  * RULES THAT KEEP HTTP WORKING
  *   - A reducer call over HTTP sends a JSON array of arguments in exactly the order given in
@@ -42,8 +44,14 @@ export type Loc = string;
 /** Milliseconds since the Unix epoch. */
 export type Millis = number;
 
-/** Name the watcher uses when it posts a verified fact to shared memory. */
-export const WATCHER_NAME = "watcher";
+/**
+ * The orchestrator's own name: the author of its plan steps and thread messages, and of the
+ * verified facts the module writes to shared memory when a conflict is resolved.
+ */
+export const ORCHESTRATOR_NAME = "orchestrator";
+
+/** Author of a decision two humans sent from the dashboard (message rows). */
+export const HUMAN_AUTHOR = "human";
 
 /** Every message our hooks show an agent starts with this, so the agent (and we) can spot it. */
 export const MESSAGE_PREFIX = "[cowork]";
@@ -94,23 +102,23 @@ export interface SnapshotRow {
   createdAt: Millis;
 }
 
-/** Authenticated view `intent`. Shared memory: what agents plan to do, plus facts the watcher verified. Primary key: id. */
+/** Authenticated view `intent`. Shared memory: what agents plan to do, plus verified facts. Primary key: id. */
 export interface IntentRow {
   id: number;
-  /** Who posted it. Verified facts use WATCHER_NAME. */
+  /** Who posted it. Verified facts use ORCHESTRATOR_NAME. */
   agent: AgentName;
   summary: string;
   files: string[];
   /** Exported names the change touches, e.g. ["User.lastLogin", "recordLogin"]. */
   symbols: string[];
-  /** true = a fact the watcher confirmed with a green check. */
+  /** true = a fact both agents agreed on, confirmed by a green check. */
   verified: boolean;
   createdAt: Millis;
 }
 
 export type RunResult = "green" | "red";
 
-/** Authenticated view `check_run`. One row per combination of snapshots the watcher checked. Primary key: runKey. */
+/** Authenticated view `check_run`. One row per combination of snapshots an agent's check_with_team ran. Primary key: runKey. */
 export interface CheckRunRow {
   runKey: string;
   agents: AgentName[];
@@ -120,11 +128,21 @@ export interface CheckRunRow {
   createdAt: Millis;
 }
 
-/** self = fails on its own; merge = git textual conflict; pair = fails only when combined. */
-export type ConflictKind = "self" | "merge" | "pair";
+/**
+ * self = fails on its own; merge = git textual conflict; pair = fails only when combined;
+ * potential = the orchestrator expects two agents' work to clash, before any check fails.
+ */
+export type ConflictKind = "self" | "merge" | "pair" | "potential";
+/**
+ * open = the two agents are talking it out; escalated = they couldn't, both humans decide on the
+ * dashboard; needs_human = a fix changed existing tests; resolved = both agreed and a check is green.
+ */
 export type ConflictStatus = "open" | "resolved" | "escalated" | "needs_human";
 
-/** Authenticated view `conflict`. At most one open conflict per pair. Primary key: id (auto-increment). */
+/**
+ * Authenticated view `conflict`. A conflict is a thread between two agents (messages are in the
+ * `message` view). At most one active conflict per pair. Primary key: id (auto-increment).
+ */
 export interface ConflictRow {
   id: number;
   /** pairKey(agentA, agentB). Lets reducers find the open conflict for a pair. */
@@ -133,15 +151,21 @@ export interface ConflictRow {
   agentA: AgentName;
   /** "" when kind is "self". */
   agentB: AgentName | "";
+  /** Where each side's change is. "" for a potential conflict. */
   locA: Loc;
   locB: Loc;
-  /** The first error, cut to 4 KB. */
+  /** The first error, cut to 4 KB. For a potential conflict: the orchestrator's topic and reason. */
   error: string;
-  /** Written by Droid or Claude after the conflict is created. "" until then. */
+  /** Legacy diagnosis text (no longer written at run time). "" by default. */
   explanation: string;
+  /**
+   * The agent suggested to adapt: for a check, the agent whose change contains the error; for a
+   * potential conflict, the orchestrator's suggestion. A suggestion only: the two agents agree on
+   * who changes what in the thread.
+   */
   fixer: AgentName;
   status: ConflictStatus;
-  /** runKey of the run that found it. */
+  /** runKey of the run that found it. "" for a potential conflict. */
   runKey: string;
   createdAt: Millis;
   /** 0 until resolved. */
@@ -149,14 +173,18 @@ export interface ConflictRow {
 }
 
 /**
- * conflict = you are the fixer (the listener delivers it and wakes you)
- * info     = a conflict you're part of, but someone else fixes it
- * heads_up = a teammate's intent, or a dependency warning, that touches your files
+ * conflict = a conflict thread with you opened (the listener wakes you)
+ * task     = the orchestrator assigned you a task (wakes you)
+ * message  = a teammate's message in your conflict thread, or your humans' decision (wakes you)
+ * info     = a status note: a request planned or sent back, a review, someone else's progress
+ * heads_up = a teammate's intent that touches your files
  * fact     = a verified fact, sent to everyone
  */
-export type InboxKind = "conflict" | "info" | "heads_up" | "fact";
-/** One-off notes cannot create actionable conflict wakeups without a real conflict ID. */
-export type NoteKind = Exclude<InboxKind, "conflict">;
+export type InboxKind = "conflict" | "task" | "message" | "info" | "heads_up" | "fact";
+/** Kinds the listener wakes an agent for. The rest wait for the next tool call or prompt. */
+export const WAKE_KINDS: readonly InboxKind[] = ["conflict", "task", "message"];
+/** One-off notes (send_note) can't create wakeups: those need a real task or conflict. */
+export type NoteKind = "info" | "heads_up" | "fact";
 
 /** Authenticated view `inbox`. One row per message per recipient. Primary key: id (auto-increment). */
 export interface InboxRow {
@@ -186,6 +214,111 @@ export interface DiagnosisStepRow {
   createdAt: Millis;
 }
 
+/**
+ * new = a human just asked; planning = the orchestrator's Droid is working on it;
+ * waiting_review = planned, its tasks wait for every review; assigned = its tasks are out;
+ * done = every task is finished; rejected = a reviewer sent it back; failed = no plan came out.
+ */
+export type RequestStatus = "new" | "planning" | "waiting_review" | "assigned" | "done" | "rejected" | "failed";
+
+/** Authenticated view `request`. What a human asked the orchestrator for. Primary key: id (auto-increment). */
+export interface RequestRow {
+  id: number;
+  /** The agent whose human asked; it forwarded the request with the ask_orchestrator tool. */
+  agent: AgentName;
+  /** The request, in the human's words. Cut to 4 KB. */
+  body: string;
+  status: RequestStatus;
+  /** The orchestrator's plan in a few sentences, or why planning failed. "" until then. */
+  summary: string;
+  /** The published plan (PlanInput as JSON). Its conflicts open once every review is approved. */
+  plan: string;
+  createdAt: Millis;
+  updatedAt: Millis;
+}
+
+/** waiting_review = held until every review of its request is approved. */
+export type TaskStatus = "waiting_review" | "assigned" | "done" | "cancelled";
+
+/** Authenticated view `task`. One piece of a plan, for the agent that owns that feature. Primary key: id. */
+export interface TaskRow {
+  id: number;
+  requestId: number;
+  /** The assignee: the agent responsible for this feature (cowork.owners.json). */
+  agent: AgentName;
+  title: string;
+  details: string;
+  /** Files the task is expected to change. */
+  files: string[];
+  /** true = changes a shared contract or another owner's feature, so a human reviewed it first. */
+  major: boolean;
+  status: TaskStatus;
+  /** The agent's summary when done, or why it was cancelled. */
+  note: string;
+  createdAt: Millis;
+  updatedAt: Millis;
+}
+
+export type ReviewStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+/** Authenticated view `review`. A major change waiting for the human whose feature it affects. Primary key: id. */
+export interface ReviewRow {
+  id: number;
+  requestId: number;
+  /** The agent whose human must review: the owner of the affected feature. */
+  reviewer: AgentName;
+  /** What changes and how it affects the reviewer's feature. */
+  summary: string;
+  status: ReviewStatus;
+  /** The reviewer's note from the dashboard. */
+  answer: string;
+  createdAt: Millis;
+  /** 0 until decided. */
+  decidedAt: Millis;
+}
+
+/**
+ * message = one agent talking to the other; agree = "I agree, my side is done" (both agree plus a
+ * green check resolves the conflict); escalate = hand it to both humans; decision = the humans' answer.
+ */
+export type MessageKind = "message" | "agree" | "escalate" | "decision";
+/** What an agent may post with post_message. Decisions come from the dashboard (decide_conflict). */
+export type AgentMessageKind = Exclude<MessageKind, "decision">;
+
+/** Authenticated view `message`. The conversation inside a conflict thread. Primary key: id. */
+export interface MessageRow {
+  id: number;
+  conflictId: number;
+  /** An agent name, ORCHESTRATOR_NAME, or HUMAN_AUTHOR. */
+  author: string;
+  kind: MessageKind;
+  /** Cut to 4 KB. */
+  body: string;
+  createdAt: Millis;
+}
+
+/** Authenticated view `plan_step`. What the orchestrator's Droid did for a request, streamed to the UI. */
+export interface PlanStepRow {
+  id: number;
+  requestId: number;
+  kind: DiagnosisStepKind;
+  /** One step, cut to 2 KB. */
+  detail: string;
+  createdAt: Millis;
+}
+
+/**
+ * The plan the orchestrator publishes for one request (publish_plan's `plan` argument, as JSON).
+ * The module validates it and writes it in one transaction.
+ */
+export interface PlanInput {
+  tasks: Array<{ agent: AgentName; title: string; details: string; files: string[]; major: boolean }>;
+  /** One per human whose feature a major task affects. Any review holds every task of the request. */
+  reviews: Array<{ reviewer: AgentName; summary: string }>;
+  /** Overlaps Droid expects between two agents' work. They open as "potential" conflicts. */
+  conflicts: Array<{ agentA: AgentName; agentB: AgentName; topic: string; details: string; suggested: AgentName }>;
+}
+
 // The module also has a private schedule table `escalation_timer` (scheduled id, scheduled time,
 // conflict id) that calls the `escalate` reducer a few minutes after a conflict opens.
 // Clients never use it.
@@ -202,6 +335,11 @@ export const Columns = {
   ],
   inbox: ["id", "agent", "kind", "conflictId", "message", "delivered", "createdAt"],
   diagnosis_step: ["id", "conflictId", "source", "kind", "detail", "createdAt"],
+  request: ["id", "agent", "body", "status", "summary", "plan", "createdAt", "updatedAt"],
+  task: ["id", "requestId", "agent", "title", "details", "files", "major", "status", "note", "createdAt", "updatedAt"],
+  review: ["id", "requestId", "reviewer", "summary", "status", "answer", "createdAt", "decidedAt"],
+  message: ["id", "conflictId", "author", "kind", "body", "createdAt"],
+  plan_step: ["id", "requestId", "kind", "detail", "createdAt"],
 } as const;
 
 export interface TableRows {
@@ -212,6 +350,11 @@ export interface TableRows {
   conflict: ConflictRow;
   inbox: InboxRow;
   diagnosis_step: DiagnosisStepRow;
+  request: RequestRow;
+  task: TaskRow;
+  review: ReviewRow;
+  message: MessageRow;
+  plan_step: PlanStepRow;
 }
 export type TableName = keyof TableRows;
 
@@ -229,12 +372,16 @@ export interface ReducerArgs {
   post_snapshot: [agent: AgentName, sha: string, baseSha: string, files: string[], diff: string];
   /** MCP tool post_intent. Also writes a heads_up inbox row for every other agent. */
   post_intent: [agent: AgentName, summary: string, files: string[], symbols: string[]];
-  /** Historical runs are stored; only current snapshot combinations can change live green status. */
+  /**
+   * An agent's check_with_team, once per combination it checked. Historical runs are stored; only
+   * current snapshot combinations can change live green status.
+   */
   report_check: [runKey: string, agents: AgentName[], result: RunResult, log: string];
   /**
-   * Watcher, when a run is red. One transaction: upsert the open conflict for this pair, set both
-   * agents red, write a "conflict" inbox row for the fixer and an "info" row for the other agent,
-   * and schedule escalation. Requires a previously reported, current red check covering the pair.
+   * An agent's check_with_team, when it and a teammate are red together. One transaction: upsert the
+   * open conflict for this pair, set both agents red, write a "conflict" inbox row for the suggested
+   * agent (`fixer`) and an "info" row for the other, and schedule escalation. Requires a previously
+   * reported, current red check covering the pair. The suggested agent's first message wakes the other.
    */
   report_conflict: [
     kind: ConflictKind,
@@ -246,10 +393,10 @@ export interface ReducerArgs {
     fixer: AgentName,
     runKey: string,
   ];
-  /** Watcher's diagnosis, once per step. */
+  /** Legacy diagnosis (the watcher's Droid explanation), once per step. Not called at run time any more. */
   add_diagnosis_step: [conflictId: number, source: DiagnosisSource, kind: DiagnosisStepKind, detail: string];
   /**
-   * Watcher's diagnosis, final explanation. Hooks render the fixer's message from the conflict row
+   * Legacy diagnosis, final explanation. Hooks render the fixer's message from the conflict row
    * at delivery time, so an undelivered message picks it up by itself. If the fixer already got the
    * message, the module also sends the explanation as an "info" note.
    */
@@ -261,7 +408,7 @@ export interface ReducerArgs {
   resolve_conflict: [conflictId: number, verifiedFact: string];
   /** Resolve only this conflict version using an explicitly named, current covering green check. */
   resolve_conflict_if_current: [conflictId: number, expectedRunKey: string, expectedError: string, expectedFixer: AgentName, verifiedRunKey: string, verifiedFact: string];
-  /** Watcher's guard: the fix edited or deleted a test. */
+  /** The test guard (an agent's agree tool): the fix edited or deleted a test. */
   flag_needs_human: [conflictId: number, reason: string];
   /**
    * A person's answer to a needs_human conflict (dashboard buttons or scripts/review.ts).
@@ -269,11 +416,44 @@ export interface ReducerArgs {
    * put the tests back; no check resolves it until the fixer posts a newer snapshot.
    */
   review_test_change: [conflictId: number, approve: boolean, comment: string];
-  /** Watcher's dependency heads-up (watcher/src/deps.ts), or any one-off note to one agent. */
+  /** Any one-off note to one agent. */
   send_note: [agent: AgentName, kind: NoteKind, message: string];
   /** Hooks, right after showing messages to the agent. */
   mark_delivered: [inboxIds: number[]];
   /** Owner-only scripts/demo-reset.ts call. Clears team state while preserving access membership. */
   reset_all: [];
+
+  // ---- Orchestrator (branch feat/orchestrator) ----
+  /** MCP tool ask_orchestrator: a human's request, forwarded by their own agent. Creates a "new" request. */
+  submit_request: [agent: AgentName, body: string];
+  /** Orchestrator: it picked the request up (new -> planning). */
+  start_request: [requestId: number];
+  /** Orchestrator: one step of its Droid session, for the dashboard. */
+  add_plan_step: [requestId: number, kind: DiagnosisStepKind, detail: string];
+  /**
+   * Orchestrator: the whole plan (PlanInput as JSON) in one transaction. With reviews, the tasks wait
+   * (waiting_review) and each reviewer's agent gets an info note; without, every assignee gets a
+   * "task" wakeup and the flagged conflicts open, waking both agents of each.
+   */
+  publish_plan: [requestId: number, summary: string, plan: string];
+  /** Orchestrator: planning failed or produced nothing usable. The requester's agent is told why. */
+  fail_request: [requestId: number, reason: string];
+  /**
+   * Dashboard: a person's answer to a review. Approve: once no review of the request is pending, its
+   * tasks go out and its conflicts open. Send back: the request's held tasks are cancelled and the
+   * requester's agent is told why.
+   */
+  decide_review: [reviewId: number, approve: boolean, answer: string];
+  /** MCP tool complete_task. Only the assignee; needs a current green check that includes it. */
+  complete_task: [taskId: number, agent: AgentName, summary: string];
+  /**
+   * MCP tools message_teammate, agree and escalate: one message in a conflict thread, which wakes the
+   * other agent. When both agents' latest messages are "agree" and a current green check covers
+   * them, the conflict resolves and the last agreement becomes a verified fact. "escalate", or 12
+   * messages without that, hands the conflict to both humans.
+   */
+  post_message: [conflictId: number, agent: AgentName, kind: AgentMessageKind, body: string];
+  /** Dashboard: both humans' decision on a conflict. Reopens it and wakes both agents with the decision. */
+  decide_conflict: [conflictId: number, decision: string];
 }
 export type ReducerName = keyof ReducerArgs;

@@ -1,0 +1,16 @@
+{
+  "name": "@cowork/orchestrator",
+  "private": true,
+  "type": "module",
+  "description": "WHAT THIS FILE IS FOR: the orchestrator package (replaced the watcher on branch feat/orchestrator; src/diagnose/ is C's Droid and Claude code, kept for its tests). One copy runs on one laptop for the whole team: it takes what humans ask for, has Droid plan it, applies the contract rule and publishes the plan to SpacetimeDB. Runs with tsx because the Droid SDK ships TypeScript types that need bundler resolution. Dependencies come from the root `npm run setup`.",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "test": "node --test src/rules.test.ts src/planner.test.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@factory/droid-sdk": "^0.10.0",
+    "zod": "^3.25.76"
+  }
+}

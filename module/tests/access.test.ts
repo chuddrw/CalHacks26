@@ -33,6 +33,12 @@ function setup() {
   return { h, owner, reader, editor, stranger, identity, tx, view, environment };
 }
 const conflict = { kind: 'pair', agentA: 'a', agentB: 'b', locA: 'a.ts:1', locB: 'b.ts:1', error: 'unit mismatch', fixer: 'b', runKey: 'a1+b1' };
+/** A plan with one task for a that b's human must review first (review #1, task #1). */
+const orchestratorPlan = JSON.stringify({
+  tasks: [{ agent: 'a', title: 'Store lastLogin in milliseconds', details: 'contract and users', files: ['src/contracts/user.ts'], major: true }],
+  reviews: [{ reviewer: 'b', summary: 'Sessions read lastLogin' }],
+  conflicts: [],
+});
 const mutations: Array<[string, (ctx: Ctx) => void]> = [
   ['register_agent', ctx => module.register_agent(ctx, { agent: 'a' })],
   ['post_snapshot', ctx => module.post_snapshot(ctx, { agent: 'a', sha: 'a1', baseSha: 'base', files: ['a.ts'], diff: 'diff' })],
@@ -46,9 +52,19 @@ const mutations: Array<[string, (ctx: Ctx) => void]> = [
   ['review_test_change', ctx => module.review_test_change(ctx, { conflictId: 1, approve: false, comment: 'send back' })],
   ['send_note', ctx => module.send_note(ctx, { agent: 'a', kind: 'info', message: 'note' })],
   ['mark_delivered', ctx => module.mark_delivered(ctx, { inboxIds: [1] })],
+  ['submit_request', ctx => module.submit_request(ctx, { agent: 'a', body: 'make lastLogin milliseconds' })],
+  ['start_request', ctx => module.start_request(ctx, { requestId: 1 })],
+  ['add_plan_step', ctx => module.add_plan_step(ctx, { requestId: 1, kind: 'status', detail: 'planning' })],
+  ['publish_plan', ctx => module.publish_plan(ctx, { requestId: 1, summary: 'plan', plan: orchestratorPlan })],
+  ['fail_request', ctx => module.fail_request(ctx, { requestId: 1, reason: 'no plan' })],
+  ['decide_review', ctx => module.decide_review(ctx, { reviewId: 1, approve: true, answer: '' })],
+  ['complete_task', ctx => module.complete_task(ctx, { taskId: 1, agent: 'a', summary: 'done' })],
+  ['post_message', ctx => module.post_message(ctx, { conflictId: 1, agent: 'a', kind: 'message', body: 'hi' })],
+  ['decide_conflict', ctx => module.decide_conflict(ctx, { conflictId: 1, decision: 'use milliseconds' })],
 ];
 function state(h: ReturnType<typeof setup>['h']) {
-  const names = ['agentData', 'snapshotData', 'intentData', 'checkRunData', 'conflictData', 'inboxData', 'diagnosisStepData', 'agent_connection', 'escalation_timer', 'accessMember', 'testReview'] as const;
+  const names = ['agentData', 'snapshotData', 'intentData', 'checkRunData', 'conflictData', 'inboxData', 'diagnosisStepData', 'agent_connection', 'escalation_timer', 'accessMember', 'testReview',
+    'requestData', 'taskData', 'reviewData', 'messageData', 'planStepData'] as const;
   return Object.fromEntries(names.map(name => [name, [...h.db[name].iter()]]));
 }
 function seed(s: ReturnType<typeof setup>) {
@@ -60,6 +76,11 @@ function seed(s: ReturnType<typeof setup>) {
     module.report_check(ctx, { runKey: conflict.runKey, agents: ['a', 'b'], result: 'red', log: 'failure' });
     module.report_conflict(ctx, conflict);
     module.add_diagnosis_step(ctx, { conflictId: 1, source: 'droid', kind: 'status', detail: 'started' });
+    module.submit_request(ctx, { agent: 'a', body: 'make lastLogin milliseconds' });
+    module.start_request(ctx, { requestId: 1 });
+    module.add_plan_step(ctx, { requestId: 1, kind: 'status', detail: 'planning' });
+    module.publish_plan(ctx, { requestId: 1, summary: 'plan', plan: orchestratorPlan });
+    module.post_message(ctx, { conflictId: 1, agent: 'a', kind: 'message', body: 'I changed the unit' });
   });
 }
 const views = {
@@ -70,6 +91,11 @@ const views = {
   conflict: { fn: module.conflict, backing: 'conflictData' },
   inbox: { fn: module.inbox, backing: 'inboxData' },
   diagnosis_step: { fn: module.diagnosis_step, backing: 'diagnosisStepData' },
+  request: { fn: module.request, backing: 'requestData' },
+  task: { fn: module.task, backing: 'taskData' },
+  review: { fn: module.review, backing: 'reviewData' },
+  message: { fn: module.message, backing: 'messageData' },
+  plan_step: { fn: module.plan_step, backing: 'planStepData' },
 } as const;
 
 it.each(mutations)('%s denies unsigned, nonmember and reader mutations without changing any rows', (_name, mutation) => {
@@ -114,7 +140,8 @@ it('editors can execute the existing coordination flow but cannot administer mem
   const s = setup();
   s.tx(s.editor, ctx => module.post_snapshot(ctx, { agent: 'b', sha: 'b1', baseSha: 'base', files: ['b.ts'], diff: 'evidence' }));
   for (const [name, mutate] of mutations) {
-    if (name === 'resolve_conflict' || name === 'flag_needs_human' || name === 'review_test_change') continue;
+    // complete_task needs a current green check; orchestrator.component.test.ts covers it with real state.
+    if (name === 'resolve_conflict' || name === 'flag_needs_human' || name === 'review_test_change' || name === 'complete_task') continue;
     expect(() => s.tx(s.editor, ctx => {
       if (name === 'report_conflict') seedRedConflict(ctx, conflict);
       else mutate(ctx);

@@ -1,5 +1,5 @@
 /**
- * watcher/src/localize.ts
+ * checks/src/localize.ts
  *
  * WHAT IT'S FOR
  *   When the full check (main + everyone's snapshot) is red, this finds out WHO clashes with WHOM.
@@ -104,7 +104,7 @@ export class Checker {
         return new Set(failureSignatures(outcome));
       }).catch((error: unknown) => {
         this.baselines.delete(main);
-        console.error(`[watcher] ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`[cowork] ${error instanceof Error ? error.message : String(error)}`);
         return null;
       });
       this.baselines.set(main, known);

@@ -1,5 +1,5 @@
 /**
- * watcher/src/diagnose/prompt.ts
+ * orchestrator/src/diagnose/prompt.ts
  *
  * WHAT IT'S FOR
  *   One prompt and one output shape for both diagnosis paths (Droid and the Claude fallback), so
@@ -16,8 +16,9 @@
  *   fact        one sentence that would have prevented this if both agents had known it,
  *               e.g. "User.lastLogin is milliseconds since the Unix epoch." Empty if there isn't one.
  *
- * Red or green and who fixes are decided by the watcher's rules, not by this prompt. The model
- * only explains.
+ * Red or green comes from the agents' checks, and who adapts is agreed between the two agents,
+ * not by this prompt. The model only explains. Not wired into the orchestrator's run time yet
+ * (branch feat/orchestrator): kept for C's tests and a possible "explain this conflict" tool.
  */
 import { truncateUtf8 } from "./text.ts";
 import type { AgentName, ConflictRow } from "../../../shared/src/schema.ts";
@@ -52,6 +53,7 @@ const KIND_TEXT: Record<ConflictRow["kind"], string> = {
   self: "One teammate's uncommitted change fails the type check or the tests on its own.",
   merge: "Two teammates' uncommitted changes edit the same lines, so git cannot merge them.",
   pair: "Two teammates' uncommitted changes each pass on their own, but the type check or tests fail when both are merged onto main.",
+  potential: "The orchestrator expects two teammates' work to clash, before any check has failed.",
 };
 
 export function buildPrompt(ctx: DiagnosisContext): string {
@@ -73,7 +75,7 @@ export function buildPrompt(ctx: DiagnosisContext): string {
     "You are diagnosing a break in a team's TypeScript repo. Each teammate has an AI coding agent working on its own laptop, and a checker merges everyone's uncommitted work onto main to catch breaks early.",
     "",
     `What happened: ${KIND_TEXT[ctx.conflict.kind]}`,
-    `The watcher's rule picked ${ctx.conflict.fixer} to fix it. Write your suggestion for ${ctx.conflict.fixer}, in ${ctx.conflict.fixer}'s own files.`,
+    `The team's rule picked ${ctx.conflict.fixer} to fix it. Write your suggestion for ${ctx.conflict.fixer}, in ${ctx.conflict.fixer}'s own files.`,
     "",
     sides,
     "",

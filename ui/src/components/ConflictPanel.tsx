@@ -7,8 +7,8 @@ import { absoluteTime, relativeTime } from "../time";
 import { useNow } from "../useNow";
 import { Icon } from "./Icon";
 const statusText: Record<ConflictRow["status"], string> = {
-  open: "Fix assigned",
-  escalated: "Escalated",
+  open: "Agents talking it out",
+  escalated: "Both humans decide",
   needs_human: "Human review required",
   resolved: "Resolved",
 };
@@ -16,6 +16,7 @@ const kindText: Record<ConflictRow["kind"], string> = {
   self: "This snapshot fails on its own.",
   merge: "The snapshots contain overlapping edits that Git cannot merge.",
   pair: "Each snapshot passes alone; the combined changes fail.",
+  potential: "The orchestrator expects these two agents' work to clash.",
 };
 function SourceExcerpt({
   agent,

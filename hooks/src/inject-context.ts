@@ -2,11 +2,12 @@
  * hooks/src/inject-context.ts
  *
  * WHAT IT'S FOR
- *   Delivers the quiet messages: teammates' intents (heads_up), conflicts that someone else is
- *   fixing (info), and verified facts (fact). It runs synchronously after every tool call and
- *   before every prompt, adds the notes to the agent's context, and marks them delivered.
- *   It also delivers "conflict" rows itself when no listener is alive for this agent, for
- *   example after the listener timed out during 25 quiet minutes.
+ *   Delivers the quiet messages: teammates' intents (heads_up), status notes (info: a request was
+ *   planned or sent back, a review is waiting, a conflict went to the humans) and verified facts
+ *   (fact). It runs synchronously after every tool call and before every prompt, adds the notes to
+ *   the agent's context, and marks them delivered. It also delivers wake rows (task, conflict,
+ *   message) itself when no listener is alive for this agent, for example after the listener timed
+ *   out during 25 quiet minutes.
  *
  * OWNER: A.
  * DONE WHEN: an intent posted by agent A shows up in agent B's context on B's next tool call
@@ -19,8 +20,8 @@
  * STEPS
  *   1. If settings are missing, exit 0.
  *   2. rows = undelivered inbox rows for this agent.
- *   3. If a listener is alive (lib/listener-lock.ts), leave the "conflict" rows to it. Any remaining
- *      "conflict" row is rendered in full with fixerMessage(), the rest with notes().
+ *   3. If a listener is alive (lib/listener-lock.ts), leave the wake rows to it. Any remaining wake
+ *      row is rendered in full with wakeText() (lib/wake-message.ts), the rest with notes().
  *   4. Nothing to say: exit 0 with no output, so the agent's context costs nothing.
  *   5. addContext(<this event>, text), then mark_delivered(ids). Marking AFTER printing means a note
  *      can show twice if we get killed in between, but never zero times.
@@ -29,13 +30,13 @@
  *   - Keep it fast. It runs on every tool call of every agent: one SQL call when the inbox is empty.
  */
 import { config, missingSettings } from "../../shared/src/config.ts";
+import { WAKE_KINDS, type InboxRow } from "../../shared/src/schema.ts";
 import { callReducer, selectRows, sqlString } from "../../shared/src/stdb-http.ts";
-import type { InboxRow } from "../../shared/src/schema.ts";
 import { notes } from "./lib/format.ts";
-import { fixerMessage } from "./lib/fixer-message.ts";
 import { addContext, runHook, type HookInput } from "./lib/hook-io.ts";
 import { listenerAlive } from "./lib/listener-lock.ts";
 import { gitDirOf } from "./lib/snapshot.ts";
+import { wakeText } from "./lib/wake-message.ts";
 
 async function main(input: HookInput): Promise<void> {
   if (missingSettings(["agent", "stdbDb"]).length > 0) return;
@@ -48,16 +49,15 @@ async function main(input: HookInput): Promise<void> {
   } catch {
     // not inside a git repo: there can't be a listener either
   }
-  if (listener) rows = rows.filter((row) => row.kind !== "conflict");
+  const wakes = (row: InboxRow) => WAKE_KINDS.includes(row.kind);
+  if (listener) rows = rows.filter((row) => !wakes(row));
   if (rows.length === 0) return;
   rows.sort((a, b) => a.createdAt - b.createdAt);
 
   const parts: string[] = [];
-  for (const row of rows.filter((r) => r.kind === "conflict")) {
-    const [conflict] = await selectRows("conflict", `id = ${Number(row.conflictId)}`);
-    if (conflict && (conflict.status === "open" || conflict.status === "escalated")) parts.push(await fixerMessage(conflict, row.message));
-  }
-  const quiet = rows.filter((row) => row.kind !== "conflict");
+  const loud = await wakeText(config.agent, rows.filter(wakes));
+  if (loud) parts.push(loud);
+  const quiet = rows.filter((row) => !wakes(row));
   if (quiet.length > 0) parts.push(notes(quiet));
 
   if (parts.length > 0) addContext(input.hook_event_name ?? "PostToolUse", parts.join("\n\n"));

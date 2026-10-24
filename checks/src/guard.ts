@@ -1,5 +1,5 @@
 /**
- * watcher/src/guard.ts
+ * checks/src/guard.ts
  *
  * WHAT IT'S FOR
  *   Catches the failure mode we tell judges about: an agent "fixing" a conflict by weakening or
@@ -12,8 +12,8 @@
  *            (Fixture: steps b-idle, a-ms, then b-cheat.)
  *
  * HOW
- *   When a new snapshot arrives from the fixer of an open conflict (index.ts calls guardFix before
- *   the check, so a green run can't resolve the conflict first):
+ *   Since branch feat/orchestrator, the agree tool (mcp/src/server.ts) calls guardFix before it
+ *   posts an agreement, so a fix that edited tests can't resolve a conflict:
  *     before  = the fixer's newest snapshot from before the conflict was opened
  *     changes = git diff --name-status --no-renames <before> <fixer's newest snapshot>
  *     if testEdits(changes) isn't empty: flag_needs_human(conflictId,
@@ -30,7 +30,6 @@
  */
 import type { AgentName, ConflictRow } from "../../shared/src/schema.ts";
 import { blobId, mergeBase, nameStatus } from "./git.ts";
-import { flagNeedsHuman } from "./stdb.ts";
 
 const TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/;
 
@@ -68,12 +67,15 @@ export async function fixerTestEdits(input: GuardInput): Promise<FileChange[]> {
   return own;
 }
 
-/** Flags the conflict for a person if the fix edited tests. Returns the edits it found. */
-export async function guardFix(input: GuardInput): Promise<FileChange[]> {
+/**
+ * Flags the conflict for a person if the fix edited tests. Returns the edits it found.
+ * `flag` is the flag_needs_human reducer call (conflict id, reason).
+ */
+export async function guardFix(input: GuardInput, flag: (conflictId: number, reason: string) => Promise<void>): Promise<FileChange[]> {
   const edits = await fixerTestEdits(input);
   if (edits.length === 0) return edits;
   const paths = edits.map((edit) => (edit.status === "D" ? `${edit.path} (deleted)` : edit.path)).join(", ");
-  await flagNeedsHuman(input.conflict.id, `The fix changed tests: ${paths}. A person needs to confirm the tests are still right.`);
+  await flag(input.conflict.id, `The fix changed tests: ${paths}. A person needs to confirm the tests are still right.`);
   return edits;
 }
 

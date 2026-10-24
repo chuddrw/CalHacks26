@@ -8,8 +8,8 @@ import { mkdtemp, readFile, rm, writeFile, access } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import database, * as reducers from '../src/index';
-import { createDiagnosisRunner, type DiagnosisInput, type WorktreeLease } from '../../watcher/src/diagnose/index.ts';
-import type { Diagnosis } from '../../watcher/src/diagnose/prompt.ts';
+import { createDiagnosisRunner, type DiagnosisInput, type WorktreeLease } from '../../orchestrator/src/diagnose/index.ts';
+import type { Diagnosis } from '../../orchestrator/src/diagnose/prompt.ts';
 import type { ConflictRow } from '../../shared/src/schema.ts';
 
 type Ctx = Parameters<typeof reducers.post_snapshot>[0];
@@ -83,7 +83,7 @@ it('persists a diagnosis through authorized callbacks, releases the lease, and p
         expectedError:f.input.conflict.error,expectedFixer:f.input.conflict.fixer,verifiedRunKey:'a1+fixed',verifiedFact:result!.fact});
     });
     expect([...f.h.db.agentData.iter()].every(row => row.status === 'green')).toBe(true);
-    expect([...f.h.db.intentData.iter()]).toMatchObject([{agent:'watcher',verified:true,summary:proposed.fact}]);
+    expect([...f.h.db.intentData.iter()]).toMatchObject([{agent:'orchestrator',verified:true,summary:proposed.fact}]);
     expect([...f.h.db.inboxData.iter()].filter(row => row.kind === 'fact').map(row => row.agent).sort()).toEqual(['a','b']);
     expect(f.h.db.escalation_timer.count()).toBe(0n);
   } finally { await Promise.all(f.leases.map(directory => rm(directory,{recursive:true,force:true}))); }

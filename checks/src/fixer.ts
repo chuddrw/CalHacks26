@@ -1,5 +1,5 @@
 /**
- * watcher/src/fixer.ts
+ * checks/src/fixer.ts
  *
  * WHAT IT'S FOR
  *   Decides which agent has to fix a conflict. It's the "Who fixes" rule from plan.md, kept as one

@@ -1,10 +1,12 @@
 /**
- * watcher/src/git.ts
+ * checks/src/git.ts
  *
  * WHAT IT'S FOR
- *   Every git operation the watcher needs: fetch the agents' wip branches, make throwaway
- *   worktrees, merge snapshots into them, read what each snapshot changed, and clean up. It works
- *   only in the watcher's own clone (DEMO_REPO_PATH), never in a clone someone is coding in.
+ *   Every git operation a combined check needs: fetch the agents' wip branches, make throwaway
+ *   worktrees, merge snapshots into them, read what each snapshot changed, and clean up. Written by
+ *   B for the watcher; since branch feat/orchestrator each agent's check_with_team tool runs it in
+ *   that agent's own clone (useRepo), and only ever touches temporary worktrees, never the clone's
+ *   own working tree or index. Without useRepo it works in DEMO_REPO_PATH.
  *
  * OWNER: B.
  * DONE WHEN: mergeInto() on two snapshots that edit different files succeeds, a textual conflict
@@ -97,9 +99,22 @@ export function git(args: string[], options: GitOptions = {}): Promise<GitResult
   });
 }
 
-function repo(): string {
+let repoOverride: string | null = null;
+
+/** Run every git command and check in this clone instead of DEMO_REPO_PATH (an agent's own clone). */
+export function useRepo(dir: string): void {
+  repoOverride = dir;
+}
+
+/** The clone this module works in. */
+export function repoPath(): string {
+  if (repoOverride) return repoOverride;
   if (!config.demoRepoPath) throw new Error("DEMO_REPO_PATH is not set (see .env.example)");
   return config.demoRepoPath;
+}
+
+function repo(): string {
+  return repoPath();
 }
 
 function remoteRef(branch: string): string {
@@ -244,7 +259,7 @@ export async function removeAllWorktrees(): Promise<void> {
   await git(["worktree", "prune"], { allowFail: true });
 }
 
-/** Removes cowork worktrees whose watcher process is gone (killed before it could clean up). */
+/** Removes cowork worktrees whose process is gone (killed before it could clean up). */
 export async function removeStaleWorktrees(): Promise<void> {
   await git(["worktree", "prune"], { allowFail: true });
   const { stdout } = await git(["worktree", "list", "--porcelain"]);

@@ -1,5 +1,5 @@
 /**
- * watcher/src/check.ts
+ * checks/src/check.ts
  *
  * WHAT IT'S FOR
  *   Runs the two checks that decide red or green, the type checker and the tests, inside one
@@ -55,7 +55,7 @@ import { execFile } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { config } from "../../shared/src/config.ts";
+import { repoPath } from "./git.ts";
 
 const TIMEOUT_MS = 60_000;
 const MAX_LOG = 20 * 1024;
@@ -406,6 +406,5 @@ function cut(text: string, max: number): string {
 }
 
 function repo(): string {
-  if (!config.demoRepoPath) throw new Error("DEMO_REPO_PATH is not set (.env).");
-  return config.demoRepoPath;
+  return repoPath();
 }

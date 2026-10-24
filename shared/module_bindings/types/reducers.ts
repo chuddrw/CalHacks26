@@ -7,11 +7,18 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import AddDiagnosisStepReducer from "../add_diagnosis_step_reducer";
+import AddPlanStepReducer from "../add_plan_step_reducer";
+import CompleteTaskReducer from "../complete_task_reducer";
+import DecideConflictReducer from "../decide_conflict_reducer";
+import DecideReviewReducer from "../decide_review_reducer";
+import FailRequestReducer from "../fail_request_reducer";
 import FlagNeedsHumanReducer from "../flag_needs_human_reducer";
 import GrantAccessReducer from "../grant_access_reducer";
 import MarkDeliveredReducer from "../mark_delivered_reducer";
 import PostIntentReducer from "../post_intent_reducer";
+import PostMessageReducer from "../post_message_reducer";
 import PostSnapshotReducer from "../post_snapshot_reducer";
+import PublishPlanReducer from "../publish_plan_reducer";
 import RegisterAgentReducer from "../register_agent_reducer";
 import ReportCheckReducer from "../report_check_reducer";
 import ReportConflictReducer from "../report_conflict_reducer";
@@ -23,13 +30,22 @@ import RevokeAccessReducer from "../revoke_access_reducer";
 import SendNoteReducer from "../send_note_reducer";
 import SetExplanationReducer from "../set_explanation_reducer";
 import SetExplanationIfCurrentReducer from "../set_explanation_if_current_reducer";
+import StartRequestReducer from "../start_request_reducer";
+import SubmitRequestReducer from "../submit_request_reducer";
 
 export type AddDiagnosisStepParams = __Infer<typeof AddDiagnosisStepReducer>;
+export type AddPlanStepParams = __Infer<typeof AddPlanStepReducer>;
+export type CompleteTaskParams = __Infer<typeof CompleteTaskReducer>;
+export type DecideConflictParams = __Infer<typeof DecideConflictReducer>;
+export type DecideReviewParams = __Infer<typeof DecideReviewReducer>;
+export type FailRequestParams = __Infer<typeof FailRequestReducer>;
 export type FlagNeedsHumanParams = __Infer<typeof FlagNeedsHumanReducer>;
 export type GrantAccessParams = __Infer<typeof GrantAccessReducer>;
 export type MarkDeliveredParams = __Infer<typeof MarkDeliveredReducer>;
 export type PostIntentParams = __Infer<typeof PostIntentReducer>;
+export type PostMessageParams = __Infer<typeof PostMessageReducer>;
 export type PostSnapshotParams = __Infer<typeof PostSnapshotReducer>;
+export type PublishPlanParams = __Infer<typeof PublishPlanReducer>;
 export type RegisterAgentParams = __Infer<typeof RegisterAgentReducer>;
 export type ReportCheckParams = __Infer<typeof ReportCheckReducer>;
 export type ReportConflictParams = __Infer<typeof ReportConflictReducer>;
@@ -41,4 +57,6 @@ export type RevokeAccessParams = __Infer<typeof RevokeAccessReducer>;
 export type SendNoteParams = __Infer<typeof SendNoteReducer>;
 export type SetExplanationParams = __Infer<typeof SetExplanationReducer>;
 export type SetExplanationIfCurrentParams = __Infer<typeof SetExplanationIfCurrentReducer>;
+export type StartRequestParams = __Infer<typeof StartRequestReducer>;
+export type SubmitRequestParams = __Infer<typeof SubmitRequestReducer>;
 

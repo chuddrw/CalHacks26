@@ -117,6 +117,61 @@ export const IntentData = __t.object("IntentData", {
 });
 export type IntentData = __Infer<typeof IntentData>;
 
+export const Message = __t.object("Message", {});
+export type Message = __Infer<typeof Message>;
+
+export const MessageData = __t.object("MessageData", {
+  id: __t.u32(),
+  conflictId: __t.u32(),
+  author: __t.string(),
+  kind: __t.string(),
+  body: __t.string(),
+  createdAt: __t.f64(),
+});
+export type MessageData = __Infer<typeof MessageData>;
+
+export const PlanStep = __t.object("PlanStep", {});
+export type PlanStep = __Infer<typeof PlanStep>;
+
+export const PlanStepData = __t.object("PlanStepData", {
+  id: __t.u32(),
+  requestId: __t.u32(),
+  kind: __t.string(),
+  detail: __t.string(),
+  createdAt: __t.f64(),
+});
+export type PlanStepData = __Infer<typeof PlanStepData>;
+
+export const Request = __t.object("Request", {});
+export type Request = __Infer<typeof Request>;
+
+export const RequestData = __t.object("RequestData", {
+  id: __t.u32(),
+  agent: __t.string(),
+  body: __t.string(),
+  status: __t.string(),
+  summary: __t.string(),
+  plan: __t.string(),
+  createdAt: __t.f64(),
+  updatedAt: __t.f64(),
+});
+export type RequestData = __Infer<typeof RequestData>;
+
+export const Review = __t.object("Review", {});
+export type Review = __Infer<typeof Review>;
+
+export const ReviewData = __t.object("ReviewData", {
+  id: __t.u32(),
+  requestId: __t.u32(),
+  reviewer: __t.string(),
+  summary: __t.string(),
+  status: __t.string(),
+  answer: __t.string(),
+  createdAt: __t.f64(),
+  decidedAt: __t.f64(),
+});
+export type ReviewData = __Infer<typeof ReviewData>;
+
 export const Snapshot = __t.object("Snapshot", {});
 export type Snapshot = __Infer<typeof Snapshot>;
 
@@ -130,6 +185,24 @@ export const SnapshotData = __t.object("SnapshotData", {
   createdAt: __t.f64(),
 });
 export type SnapshotData = __Infer<typeof SnapshotData>;
+
+export const Task = __t.object("Task", {});
+export type Task = __Infer<typeof Task>;
+
+export const TaskData = __t.object("TaskData", {
+  id: __t.u32(),
+  requestId: __t.u32(),
+  agent: __t.string(),
+  title: __t.string(),
+  details: __t.string(),
+  files: __t.array(__t.string()),
+  major: __t.bool(),
+  status: __t.string(),
+  note: __t.string(),
+  createdAt: __t.f64(),
+  updatedAt: __t.f64(),
+});
+export type TaskData = __Infer<typeof TaskData>;
 
 export const TestReview = __t.object("TestReview", {
   conflictId: __t.u32(),

@@ -28,6 +28,11 @@ export const emptyTables = (): Tables => ({
   conflict: [],
   inbox: [],
   diagnosis_step: [],
+  request: [],
+  task: [],
+  review: [],
+  message: [],
+  plan_step: [],
 });
 export const isActiveConflict = (c: ConflictRow): boolean =>
   c.status !== "resolved";

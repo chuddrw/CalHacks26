@@ -15,7 +15,7 @@ const env={...process.env};
 for(const key of Object.keys(env)) if(/TOKEN|SECRET|PASSWORD|API_KEY/.test(key)) delete env[key];
 delete env.NODE_OPTIONS;
 const files=[
-  ...globSync('watcher/src/diagnose/*.test.ts',{cwd:root}),
+  ...globSync('orchestrator/src/diagnose/*.test.ts',{cwd:root}),
   ...globSync('scripts/demo-reset*.test.ts',{cwd:root}),
   ...globSync('shared/src/*.test.ts',{cwd:root}),
   'module/tests/generate.test.mjs',
