@@ -23,20 +23,28 @@ WHAT install WRITES INTO .mcp.json
     }
   }
   Any other servers already in the file are kept. Why node + a script path: on Windows, .cmd shims
-  (npx, tsx.cmd) can't be started without a shell. tsx is needed because the server will import the
-  SpacetimeDB bindings C generates.
+  (npx, tsx.cmd) can't be started without a shell. tsx is needed because the server imports Part C's
+  generated SpacetimeDB bindings.
+
+PRESENCE
+  The server opens a WebSocket to the database as you (your `spacetime login` session) and calls
+  register_agent on it. Part C's module needs that live connection: it marks you online, and offline
+  again when the session ends. Your identity must be approved by the database owner first.
 
 CHECK IT WORKS
+  - npm run doctor -- --demo <your demo clone>   (sign-in, approval, hooks, .mcp.json, push rights)
   - Open the demo clone in Claude Code (VS Code: File > Open Folder). Trust the workspace when asked.
   - /mcp shows cowork as connected, with the tools post_intent, team_status and pull_teammate.
-  - Your agent's card in the UI turns online (the server calls register_agent when it starts).
+  - Your agent's card in the UI turns online.
   - Without Claude Code: `npm run test:a` starts the real server with an MCP client and calls all
     three tools against the mock database.
 
 IF IT FAILS
   - "Failed to connect": run the args line yourself (node <tsx cli> <server.ts>) in a terminal; our
     errors print to stderr.
-  - The server says "cowork isn't configured on this laptop": COWORK_NAME, STDB_DB or STDB_TOKEN is
-    missing in repo 1's .env.
+  - The server says "cowork isn't configured on this laptop": COWORK_NAME or STDB_DB is missing in
+    repo 1's .env.
+  - "presence WebSocket failed" or "register_agent failed": not signed in, or not approved yet.
+    npm run doctor says which.
   - Anything our server prints to stdout breaks the protocol. Log with console.error only.
   - Start over: delete <demo clone>/.mcp.json and run install again.

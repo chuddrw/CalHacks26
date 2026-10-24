@@ -29,7 +29,8 @@
     "test:part-c:coverage": "node module/tests/coverage.mjs",
     "mock-db": "node scripts/mock-stdb.ts",
     "test:a": "node hooks/test/e2e.ts",
-    "typecheck:a": "tsc -p hooks && tsc -p mcp"
+    "typecheck:a": "tsc -p hooks && tsc -p mcp",
+    "doctor": "node scripts/doctor.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -1,6 +1,6 @@
 # A checklist: hooks + MCP
 
-> **What this file is for:** the working checklist for role A (hooks + MCP server), kept on branch `feat/a-hooks-mcp`. Each item ends with how we know it's done. Anything that depends on C's real SpacetimeDB module runs against a mock for now and is listed under "Waiting on C".
+> This is the working checklist for role A (hooks + MCP server), kept on branch `feat/a-hooks-mcp`. Each item ends with how we know it's done. Anything that depends on C's real SpacetimeDB module runs against a mock for now and is listed under "Waiting on C".
 
 Status on Oct 24, about 4:40 AM: everything A can do without C is done. `npm run test:a` passes all 47 checks.
 
@@ -21,11 +21,12 @@ Status on Oct 24, about 4:40 AM: everything A can do without C is done. `npm run
 - [x] **Docs**: structure.md, external/mcp.txt, external/claude-code-hooks.txt and .env.example match what was built.
 - [x] **Commit** on the branch and push it: `f18ccd5`, pushed to `origin/feat/a-hooks-mcp`, no pull request (as the user asked).
 
-## Waiting on C
+## Waiting on C (updated during the integration, branch `integration`; see checklists/integration.md)
 
-- [ ] Point `STDB_HOST` / `STDB_DB` at the real maincloud database once C publishes the module, and run `npm run test:a` again with those settings instead of the mock.
-- [ ] MCP presence over WebSocket (lifecycle `client_disconnected`) needs C's generated bindings. Until then the server calls `register_agent` over HTTP on start, so agents show online but never go offline.
-- [ ] Check that the real module's SQL column names match what the hooks' WHERE clauses use: `agent`, `kind`, `delivered`, `fixer`, `status`, `id`, `pair`. All are single words, so camelCase and snake_case give the same names.
+- [ ] Run the hooks against the real database once this laptop is signed in and approved (`npm run doctor`).
+- [x] MCP presence over WebSocket with C's bindings: done on `integration`. `register_agent` needs a live connection in C's module.
+- [x] SQL column names: C's module keeps camelCase (`CaseConversionPolicy.None`), and the hooks only filter on one-word columns anyway.
+- [x] Tokens: C's rule is "no token in .env". The tools now read this laptop's `spacetime login` session (`shared/src/session-token.ts`).
 
 ## Found along the way
 
