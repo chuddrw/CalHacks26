@@ -2,10 +2,17 @@
   "name": "agent-cowork-module",
   "private": true,
   "type": "module",
-  "description": "WHAT THIS FILE IS FOR: the SpacetimeDB module's own package (owner C). It is not an npm workspace, because the spacetime CLI builds and publishes it. If `spacetime init --lang typescript` gives you a different package.json, keep its dependencies and scripts and copy this description over. Replace REPLACE_WITH_STDB_DB with our database name before publishing. Steps: external/spacetimedb-maincloud.txt.",
+  "description": "WHAT THIS FILE IS FOR: the SpacetimeDB module's own package (owner C). It is not an npm workspace, because the spacetime CLI builds and publishes it. Replace REPLACE_WITH_STDB_DB with our database name before publishing to maincloud. publish:local publishes to a `spacetime start` server on this laptop (database cowork-local, data wiped on every publish) for testing without maincloud. Steps: external/spacetimedb-maincloud.txt.",
   "scripts": {
-    "publish:cloud": "spacetime publish --project-path . --server maincloud REPLACE_WITH_STDB_DB",
-    "generate": "spacetime generate --lang typescript --out-dir ../shared/module_bindings --project-path .",
+    "publish:cloud": "spacetime publish --module-path . --server maincloud REPLACE_WITH_STDB_DB",
+    "publish:local": "spacetime publish --module-path . --server local --delete-data=always --yes cowork-local",
+    "generate": "spacetime generate --lang typescript --out-dir ../shared/module_bindings --module-path .",
     "logs": "spacetime logs --server maincloud REPLACE_WITH_STDB_DB"
+  },
+  "dependencies": {
+    "spacetimedb": "^2.13.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }

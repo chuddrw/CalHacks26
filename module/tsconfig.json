@@ -2,18 +2,20 @@
 //
 // WHAT IT'S FOR
 //   TypeScript settings for the SpacetimeDB module. The spacetime CLI bundles module/src/index.ts
-//   itself, so tsc only type-checks here. If `spacetime init --lang typescript` generates its own
-//   tsconfig.json, use that one and keep this comment at the top.
+//   itself, so tsc only type-checks here. target, lib, module, isolatedModules and noEmit are the
+//   values `spacetime init --lang typescript` marks as required by SpacetimeDB; keep them.
 //
 // OWNER: C.
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
     "strict": true,
-    "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "target": "ESNext",
+    "lib": ["ES2021", "dom"],
+    "module": "ESNext",
+    "isolatedModules": true,
+    "noEmit": true
   },
   "include": ["src/**/*.ts"]
 }
