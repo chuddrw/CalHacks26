@@ -1,6 +1,7 @@
 /** WHAT IT'S FOR: small, consistent SVG symbols for the dashboard. Owner: D. */
 import type { CSSProperties } from "react";
 const paths = {
+  sidebar: "M3 4h18v16H3zM9 4v16M5.5 8h1M5.5 12h1M5.5 16h1",
   agent:
     "M8 5h8a4 4 0 0 1 4 4v9H4V9a4 4 0 0 1 4-4ZM12 2v3M2 10v5m20-5v5M8 11v2m8-2v2M8 18v3m8-3v3",
   close: "m6 6 12 12M18 6 6 18",

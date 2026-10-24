@@ -1,5 +1,5 @@
 /** WHAT IT'S FOR: nonmodal inspector, revealing summaries before code evidence. Owner: D. */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   isActiveConflict,
   latestCombinedCheck,
@@ -21,13 +21,43 @@ export function Inspector({
   target,
   close,
   inspect,
+  collapsed = false,
+  collapse,
 }: {
   target: Inspection;
   close: () => void;
   inspect: (target: Inspection) => void;
+  collapsed?: boolean;
+  collapse?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const [exiting, setExiting] = useState(false);
+  const exitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const actions = useRef({ close, collapse });
+  actions.current = { close, collapse };
+  const requestDismiss = useCallback((minimize = false) => {
+    if (exitTimer.current) return;
+    const finish = () => {
+      exitTimer.current = undefined;
+      setExiting(false);
+      if (minimize) actions.current.collapse?.();
+      else actions.current.close();
+    };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) finish();
+    else {
+      setExiting(true);
+      exitTimer.current = setTimeout(finish, 160);
+    }
+  }, []);
+  useEffect(() => {
+    clearTimeout(exitTimer.current);
+    exitTimer.current = undefined;
+    setExiting(false);
+    return () => clearTimeout(exitTimer.current);
+  }, [target, collapsed]);
   const { connection } = useDashboard();
   useEffect(() => {
     const previous =
@@ -42,15 +72,20 @@ export function Inspector({
     };
   }, []);
   useEffect(() => {
+    const el = dialog.current;
+    if (collapsed) el?.close();
+    else if (!el?.open) el?.show();
+  }, [collapsed]);
+  useEffect(() => {
     const dismiss = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented) {
+      if (!collapsed && event.key === "Escape" && !event.defaultPrevented) {
         event.preventDefault();
-        close();
+        requestDismiss();
       }
     };
     document.addEventListener("keydown", dismiss);
     return () => document.removeEventListener("keydown", dismiss);
-  }, [close]);
+  }, [requestDismiss, collapsed]);
   const title =
     target.kind === "agent"
       ? `Agent ${target.name.toUpperCase()}`
@@ -65,7 +100,7 @@ export function Inspector({
               : "Connection";
   return (
     <dialog
-      className="inspector-drawer"
+      className={`inspector-drawer${exiting ? " inspector-exiting" : ""}`}
       ref={dialog}
       aria-labelledby="inspector-title"
     >
@@ -78,11 +113,22 @@ export function Inspector({
           {connection.phase === "demo" && (
             <span className="inspector-demo-label">SIMULATED DATA</span>
           )}
+          {collapse && (
+            <button
+              type="button"
+              className="drawer-close inspector-minimize"
+              onClick={() => requestDismiss(true)}
+              aria-label="Collapse inspector"
+              title="Minimize, keeping these details"
+            >
+              <Icon name="chevron" size={18} />
+            </button>
+          )}
           <button
             type="button"
             className="drawer-close"
             ref={closeButton}
-            onClick={close}
+            onClick={() => requestDismiss()}
             aria-label="Close details"
             autoFocus
           >
