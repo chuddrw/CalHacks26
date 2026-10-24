@@ -26,6 +26,26 @@
  *     module/ACCESS.md. `npm run doctor` checks both steps on a laptop.
  */
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+/**
+ * The spacetime CLI to run: SPACETIME_CLI, else `spacetime` on PATH, else the installer's default
+ * folder. The fallback matters because an editor opened before the install keeps the old PATH, and
+ * hooks started from it would otherwise find no CLI, get no token, and silently do nothing.
+ */
+export function spacetimeCli(): string {
+  if (process.env.SPACETIME_CLI) return process.env.SPACETIME_CLI;
+  const pathDirs = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+  const exe = process.platform === "win32" ? "spacetime.exe" : "spacetime";
+  if (pathDirs.some((dir) => existsSync(path.join(dir, exe)))) return "spacetime";
+  const defaults =
+    process.platform === "win32"
+      ? [path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), "AppData", "Local"), "SpacetimeDB", exe)]
+      : [path.join(os.homedir(), ".local", "bin", exe)];
+  return defaults.find((candidate) => existsSync(candidate)) ?? "spacetime";
+}
 
 const JWT = /[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/;
 let cached: Promise<string> | null = null;
@@ -47,7 +67,7 @@ async function lookup(): Promise<string> {
 }
 
 function fromCli(): Promise<string> {
-  const cli = process.env.SPACETIME_CLI || "spacetime";
+  const cli = spacetimeCli();
   return new Promise((resolve) => {
     execFile(cli, ["login", "show", "--token"], { timeout: 8000, windowsHide: true }, (error, stdout, stderr) => {
       if (error) {

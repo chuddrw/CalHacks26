@@ -33,7 +33,7 @@ import { parseArgs } from "node:util";
 import { config } from "../shared/src/config.ts";
 import { git } from "../shared/src/git.ts";
 import { wipBranch } from "../shared/src/schema.ts";
-import { tokenSource } from "../shared/src/session-token.ts";
+import { spacetimeCli, tokenSource } from "../shared/src/session-token.ts";
 import { callReducer, selectRows } from "../shared/src/stdb-http.ts";
 
 let failed = false;
@@ -76,7 +76,7 @@ if (existsSync(envFile) && /^STDB_TOKEN=.+$/m.test(readFileSync(envFile, "utf8")
 }
 
 // 3. CLI, token, identity
-const cli = process.env.SPACETIME_CLI || "spacetime";
+const cli = spacetimeCli();
 const version = await run(cli, ["--version"]);
 if (version.ok) {
   const v = /\d+\.\d+\.\d+/.exec(version.out)?.[0] ?? version.out.split("\n")[0];
