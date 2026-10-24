@@ -32,6 +32,7 @@ import {
   AutonomyLevel,
   createSdkMcpServer,
   createSession,
+  ProcessTransport,
   tool,
   ToolConfirmationOutcome,
   ToolConfirmationType,
@@ -145,6 +146,28 @@ function allowed(toolUses: Array<{ toolUse: { name: string }; details: { type: s
   });
 }
 
+/**
+ * The droid CLI, started so its sessions call tools directly. The CLI's default tool surface is
+ * "script_only": the model writes a script that calls the tools, which needs the Script tool, and
+ * we disable that (it runs code). createSession has no option for the mode, so the session's
+ * initialize request gets toolExecutionMode "direct_only" here; every tool call then goes through
+ * our permissionHandler one by one. Found on the first real run (Oct 24): with Script disabled,
+ * Droid reported that no tools were available.
+ */
+async function directToolTransport(cwd: string, apiKey: string): Promise<ProcessTransport> {
+  const transport = new ProcessTransport({ cwd, env: { FACTORY_API_KEY: apiKey, FACTORY_UPSTREAM_CLIENT_TYPE: "sdk" } });
+  await transport.connect();
+  const send = transport.send.bind(transport);
+  transport.send = (message) => {
+    const request = message as { method?: string; params?: Record<string, unknown> };
+    if (request.method === "droid.initialize_session" && request.params) {
+      return send({ ...message, params: { ...request.params, toolExecutionMode: "direct_only" } } as typeof message);
+    }
+    return send(message);
+  };
+  return transport;
+}
+
 /** Injectable SDK seam for tests; production uses the installed SDK and FACTORY_API_KEY. */
 export function createDroidPlanner(options: { create?: typeof createSession; apiKey?: string; timeoutMs?: number } = {}): Planner {
   return async (input, onStep) => {
@@ -159,7 +182,10 @@ export function createDroidPlanner(options: { create?: typeof createSession; api
     let session: Awaited<ReturnType<typeof createSession>> | undefined;
     let lastText = "";
     try {
+      // Tests inject `create` (a fake session); the real one gets the direct-tools transport.
+      const transport = options.create ? undefined : await directToolTransport(input.worktree, apiKey);
       session = await (options.create ?? createSession)({
+        ...(transport ? { transport } : {}),
         cwd: input.worktree,
         apiKey,
         ...(config.droidModelId ? { modelId: config.droidModelId } : {}),
