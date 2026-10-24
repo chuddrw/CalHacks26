@@ -6,6 +6,7 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "spike": "tsx src/spike.ts",
+    "fixture": "tsx src/fixture.ts",
     "typecheck": "tsc -p ."
   },
   "dependencies": {

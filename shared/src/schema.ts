@@ -16,7 +16,8 @@
  *   - SQL over HTTP returns each row as a positional array in the table's column order.
  *     Each Row interface lists its fields in column order, and `Columns` repeats that order so
  *     shared/src/stdb-http.ts can turn arrays into objects. Keep all three in sync with the module.
- *   - Times are milliseconds since the Unix epoch, stored as plain numbers (u64 in the module).
+ *   - Times are milliseconds since the Unix epoch, stored as plain numbers (f64 in the module;
+ *     u64 would come out of the generated bindings as bigint). Ids are u32 for the same reason.
  *   - Lists are string arrays. If array columns give us trouble in the chosen SpacetimeDB
  *     version, switch them to comma-joined strings here AND in the module, together.
  *   - Table and column names avoid SQL keywords (no "check", "key", "read", "text", "output").

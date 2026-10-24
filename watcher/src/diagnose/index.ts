@@ -22,12 +22,35 @@
  *      watcher's memory for resolve_conflict. If not: add an "error" step "diagnosis unavailable".
  *   6. finally: remove the worktree.
  *
+ * HOW THE WATCHER CALLS IT (signature agreed between B and C; the body is C's)
+ *   diagnose(request): Promise<Diagnosis | null>
+ *     index.ts calls it for every new conflict, and again only when the conflict's error text
+ *     changes. It never runs two at once for the same conflict: a newer request waits for the
+ *     running one. A returned fact is kept in memory and passed to resolve_conflict later.
+ *     request.shas are the failing combination's snapshots: merge them in that order onto
+ *     request.mainSha to rebuild the failing tree (git.makeWorktree, then git.mergeInto per sha).
+ *
  * NOTES
- *   - One diagnosis at a time per conflict. If the same conflict is updated (still red after a fix
- *     attempt), don't start a second one unless the error text changed.
  *   - onStep writes add_diagnosis_step rows. Send at most 5 per second so the database and the UI
  *     stay smooth.
+ *   - Resolve with null instead of throwing; the watcher logs a rejection and moves on.
  */
+import type { ConflictRow } from "../../../shared/src/schema.ts";
+import type { Diagnosis } from "./prompt.ts";
 
-// TODO (C): steps 1-6 above.
-export {};
+export interface DiagnoseRequest {
+  /** The conflict row as report_conflict left it (id, pair, kind, fixer, locations, error). */
+  conflict: ConflictRow;
+  /** main's commit when the conflict was found. */
+  mainSha: string;
+  /** The failing combination's snapshot shas, in merge order. */
+  shas: string[];
+  /** check.describeFailures() of the failing run (cut to 4 KB), or the merge conflict's message. */
+  failingOutput: string;
+}
+
+export async function diagnose(request: DiagnoseRequest): Promise<Diagnosis | null> {
+  // TODO (C): steps 1-6 above.
+  void request;
+  return null;
+}

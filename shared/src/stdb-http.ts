@@ -8,7 +8,7 @@
  *
  * OWNER: A (the hooks depend on it). USED BY: hooks/, scripts/.
  *
- * ENDPOINTS (SpacetimeDB 1.12 docs, /docs/1.12.0/http/database; confirm again at hour 0)
+ * ENDPOINTS (SpacetimeDB 2.13; both checked against a local 2.13 server on Oct 24)
  *   POST {host}/v1/database/{db}/call/{reducer}   body: JSON array of the reducer's arguments
  *   POST {host}/v1/database/{db}/sql              body: SQL text; returns [{ schema, rows }]
  *   Both need "Authorization: Bearer <STDB_TOKEN>". Getting a token: external/spacetimedb-maincloud.txt.
@@ -16,10 +16,15 @@
  * NOTES
  *   - Rows come back as positional arrays. toObjects() maps them with Columns from schema.ts,
  *     which is why every query here selects whole rows (SELECT * FROM <table>).
- *   - WHERE clauses must use the module's real column names. If the chosen SpacetimeDB version
- *     renames camelCase columns to snake_case, change the callers' WHERE strings, not Columns.
+ *   - WHERE clauses must use the module's real column names. SpacetimeDB 2.13 stores camelCase
+ *     fields as snake_case columns (agent_a, conflict_id, created_at), so WHERE strings use
+ *     snake_case while Columns keeps the camelCase field names.
+ *   - Each HTTP reducer call is its own short connection. register_agent over HTTP marks the agent
+ *     online and then offline again when that connection closes; presence comes from the MCP
+ *     server's WebSocket.
  *   - Every call has a 3-second timeout. A hook must stay fast and must never hang an agent.
- *   - Status: written from the docs, not yet run against a live database. A runs it first thing.
+ *   - Status: both run against a live 2.13 database. watcher/src/fixture.ts posts every test
+ *     snapshot with callReducer(), and scripts/seed-fake.ts finds its conflict with selectRows().
  */
 import { config } from "./config.ts";
 import { Columns, type ReducerArgs, type ReducerName, type TableName, type TableRows } from "./schema.ts";

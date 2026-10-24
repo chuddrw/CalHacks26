@@ -1,9 +1,9 @@
 shared/module_bindings/README.txt
 
 WHAT THIS IS FOR
-  This folder will hold the TypeScript client bindings that `spacetime generate` writes from
-  module/src/index.ts. The watcher, the MCP server and the UI import them to get typed tables
-  and reducers over the WebSocket SDK. It stays empty until C publishes the module.
+  This folder holds the TypeScript client bindings that `spacetime generate` writes from
+  module/src/index.ts (spacetime CLI 2.13). The watcher, the MCP server and the UI import them to
+  get typed tables and reducers over the WebSocket SDK.
 
 HOW TO FILL IT (C, after every module change)
   npm run module:generate        (run from the repo root)

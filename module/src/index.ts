@@ -51,8 +51,9 @@
  *     Insert an intent with verified = false. Set agent.intent = summary. For every OTHER agent,
  *     insert an inbox row: kind "heads_up", message "<agent> plans: <summary> (files: ...)".
  *   report_check(runKey, agents, result, log)
- *     Upsert the check_run row. If green: set each listed agent to "green", unless it still has
- *     an unresolved conflict.
+ *     Upsert the check_run row. Each listed agent with an unresolved conflict goes back to "red"
+ *     (a new snapshot had set it to "working"); if the result is green, every other listed agent
+ *     goes "green".
  *   report_conflict(kind, agentA, agentB, locA, locB, error, fixer, runKey)
  *     ONE TRANSACTION, the reason SpacetimeDB is the right place for this:
  *       - find the unresolved conflict with this pair (pairKey)
@@ -325,9 +326,9 @@ export const reportCheck = spacetimedb.reducer(
     const row = { runKey, agents, result, log: clip(log, MAX_LOG), createdAt: nowMs(ctx) };
     if (ctx.db.checkRun.runKey.find(runKey)) ctx.db.checkRun.runKey.update(row);
     else ctx.db.checkRun.insert(row);
-    if (result !== 'green') return;
     for (const name of agents) {
-      if (!hasUnresolvedConflict(ctx, name)) setAgentStatus(ctx, name, 'green');
+      if (hasUnresolvedConflict(ctx, name)) setAgentStatus(ctx, name, 'red');
+      else if (result === 'green') setAgentStatus(ctx, name, 'green');
     }
   }
 );

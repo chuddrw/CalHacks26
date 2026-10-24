@@ -9,22 +9,28 @@ WHO / WHEN
   C, tonight.
 
 WRITE THESE DOWN HERE TONIGHT
-  SpacetimeDB version: ________   (1.12 or 2.0; the reducer syntax differs, see module/src/index.ts)
+  SpacetimeDB version: 2.13   (2.x syntax; the module, the bindings and the npm SDK are on 2.13.0)
   Database name (STDB_DB): ________
   Host (STDB_HOST): https://maincloud.spacetimedb.com   (confirm in the quickstart)
 
 STEPS
-  1. Install the spacetime CLI from the official install page. Run `spacetime version` and write it above.
+  1. Install the spacetime CLI from the official install page. Check it with `spacetime --version`
+     (in 2.x, `spacetime version` is a command group, not the version).
   2. spacetime login   (opens the browser)
-  3. Run the official TypeScript module quickstart once in a throwaway folder, then delete it.
-  4. In module/: spacetime init --lang typescript. If it wants an empty folder, init in a temp
-     folder and copy its package.json dependencies, scripts and tsconfig over; keep our header notes.
-  5. Replace REPLACE_WITH_STDB_DB in module/package.json, then `npm run publish:cloud` in module/.
-     Check the flags with `spacetime publish --help` first.
-  6. `npm run module:generate` at the repo root writes shared/module_bindings/. Commit the result.
-  7. Token for the hooks' HTTP calls: create an identity over HTTP (POST {host}/v1/identity returns an
-     identity and a token; check the HTTP authorization docs for our version), or reuse the token the
-     CLI saved at login. Put it in every laptop's .env as STDB_TOKEN. Treat it like a password.
+  3. module/ is already set up for 2.13 (package.json, tsconfig.json, src/index.ts); `npm run setup`
+     at the repo root installs its dependencies, including the typescript the CLI needs to build it.
+  4. Replace REPLACE_WITH_STDB_DB in module/package.json, then `npm run publish:cloud` in module/.
+     In 2.x the folder flag is --module-path (1.x's --project-path is gone); see `spacetime publish --help`.
+  5. `npm run module:generate` at the repo root writes shared/module_bindings/. Commit the result.
+  6. Token for the hooks' HTTP calls: create an identity over HTTP (POST {host}/v1/identity returns an
+     identity and a token), or reuse the token the CLI saved at login. Put it in every laptop's .env
+     as STDB_TOKEN. Treat it like a password.
+
+TESTING WITHOUT MAINCLOUD
+  spacetime start                     (a local server on http://127.0.0.1:3000; --in-memory keeps nothing)
+  npm run publish:local               (in module/; publishes to the database cowork-local, wiping its data)
+  Then STDB_HOST=http://127.0.0.1:3000 and STDB_DB=cowork-local. watcher/src/fixture.ts uses this
+  to run the whole watcher loop on a copy of the demo scenario.
 
 CHECK IT WORKS
   - spacetime sql <database> "SELECT * FROM agent"   (check `spacetime sql --help`)
