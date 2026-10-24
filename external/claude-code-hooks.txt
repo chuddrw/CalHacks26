@@ -20,9 +20,14 @@ WHAT GETS REGISTERED
   Stop               (none)                                  stop.ts                timeout 5
   SessionStart       (none)                                  session-start.ts       timeout 10
   Each one in exec form: "command": "node", "args": ["<absolute path to the .ts file>"].
-  Print the exact block for your laptop with:  node hooks/src/install.ts
+  Install it:  npm run install-hooks -- --demo <your demo clone> --name <you>
+  See every file it would write first, without writing:  add --dry-run
+  It keeps settings already in the file, replaces its own old entries, and is safe to run twice.
+  It also writes .mcp.json for the MCP server (mcp.txt) and adds "enabledMcpjsonServers": ["cowork"].
 
 CHECK IT WORKS
+  - Without Claude Code: `npm run test:a` runs every hook the way Claude Code would, against a
+    throwaway git remote and the mock database, and checks the timings (47 checks, passing Oct 24).
   - In a Claude session in the clone, /hooks lists all of them.
   - Make an edit: a wip/<you> branch appears on GitHub within about 2 seconds.
   - Debugging: set COWORK_DEBUG=1 in repo 1's .env so hook errors print to stderr, and start

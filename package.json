@@ -26,6 +26,14 @@
     "reset": "tsx scripts/demo-reset.ts",
     "test:part-c": "node module/tests/run-part-c.mjs",
     "test:part-c:integration": "node module/tests/run-network.mjs",
-    "test:part-c:coverage": "node module/tests/coverage.mjs"
+    "test:part-c:coverage": "node module/tests/coverage.mjs",
+    "mock-db": "node scripts/mock-stdb.ts",
+    "test:a": "node hooks/test/e2e.ts",
+    "typecheck:a": "tsc -p hooks && tsc -p mcp"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }
