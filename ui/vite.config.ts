@@ -15,7 +15,22 @@ import react from "@vitejs/plugin-react";
 import { localSessionPlugin } from "./session-server.ts";
 
 export default defineConfig({
-  plugins: [react(), localSessionPlugin()],
+  plugins: [
+    {
+      name: "presentation-directory-index",
+      configureServer(server) {
+        // Vite's public directory serves explicit files; resolve the presentation index only.
+        server.middlewares.use((req, _res, next) => {
+          if (req.url === "/presentation" || req.url?.startsWith("/presentation?") || req.url === "/presentation/" || req.url?.startsWith("/presentation/?")) {
+            req.url = req.url.replace(/^\/presentation\/?(?=\?|$)/, "/presentation/index.html");
+          }
+          next();
+        });
+      },
+    },
+    react(),
+    localSessionPlugin(),
+  ],
   envDir: "..",
   server: {
     fs: { allow: [".."] },

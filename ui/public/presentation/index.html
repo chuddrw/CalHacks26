@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Agent Cowork — a seven-section hackathon presentation." />
+  <title>Agent Cowork — Presentation</title>
+  <link rel="stylesheet" href="./presentation.css" />
+  <script src="./presentation.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#slides">Skip to presentation</a>
+  <header class="deck-header">
+    <a class="wordmark" href="#summary">cowork<span>Presentation draft</span></a>
+    <nav aria-label="Table of contents">
+      <a href="#summary" aria-current="location">Summary</a>
+      <a href="#problem">Problem</a>
+      <a href="#solution">Solution</a>
+      <a href="#benchmark">Benchmark</a>
+      <a href="#demo">Demo</a>
+      <a href="#technical">Technical details</a>
+      <a href="#closing">Closing</a>
+    </nav>
+    <span class="page-count" aria-label="Current section">01 / 07</span>
+  </header>
+  <main id="slides">
+    <section class="slide" id="summary" aria-labelledby="summary-title" tabindex="-1">
+      <div class="slide-content">
+        <p class="eyebrow">01 / Summary</p>
+        <h1 id="summary-title">Agent Cowork</h1>
+        <p class="headline">Your agents finished.<br />Does their code work together?</p>
+        <p class="lede">Cowork checks work from your teammates’ coding agents before anyone commits. When the combined code fails, it sends the error and repair context to the assigned agent.</p>
+        <div class="summary-line"><span>For developers working with agents on separate laptops.</span></div>
+        <a class="next-link" href="#problem">Here’s the problem <span aria-hidden="true">↓</span></a>
+      </div>
+    </section>
+    <section class="slide" id="problem" aria-labelledby="problem-title" tabindex="-1">
+      <div class="slide-content">
+        <p class="eyebrow">02 / Problem</p>
+        <h2 id="problem-title">Git merges it.<br />The app still breaks.</h2>
+        <p class="lede">One agent changes an API. Another writes code that expects the old behavior. Both finish their tasks, but someone on the team has to figure out why the app no longer works.</p>
+        <div class="comparison">
+          <article><span class="label">Agent A</span><h3>Switches to milliseconds</h3><p>Changes the units stored in <code>lastLogin</code>.</p></article>
+          <article><span class="label">Agent B</span><h3>Still expects seconds</h3><p>Uses that timestamp to calculate how long someone has been idle.</p></article>
+        </div>
+        <p class="section-note">This is our controlled demo scenario. The agents edit different files, so Git reports no conflict. Both values are numbers; the integration test catches the unit mismatch.</p>
+      </div>
+    </section>
+    <section class="slide" id="solution" aria-labelledby="solution-title" tabindex="-1">
+      <div class="slide-content">
+        <p class="eyebrow">03 / Solution</p>
+        <h2 id="solution-title">Check their work together<br />while they’re still coding.</h2>
+        <p class="lede">Agents share what they plan to change. Cowork also runs their latest code together, so the team can catch mistakes the plans didn’t account for.</p>
+        <ol class="process">
+          <li><span>01</span><h3>Save the work in progress</h3><p>Each laptop pushes a snapshot to its own WIP branch. The developer doesn’t need to make a feature commit.</p></li>
+          <li><span>02</span><h3>Run the combined code</h3><p>The watcher brings those snapshots into a temporary worktree and runs the project’s checks.</p></li>
+          <li><span>03</span><h3>Give the fixer the error</h3><p>When a check fails, Cowork records the conflict and sends the assigned agent the diagnosis.</p></li>
+          <li><span>04</span><h3>Check the next snapshot</h3><p>After a repair, the watcher runs again. The team sees whether the combined tests pass.</p></li>
+        </ol>
+      </div>
+    </section>
+    <section class="slide" id="benchmark" aria-labelledby="benchmark-title" tabindex="-1">
+      <div class="slide-content">
+        <p class="eyebrow">04 / Benchmark</p>
+        <h2 id="benchmark-title">How much help<br />does the team still need?</h2>
+        <p class="lede">We’ll measure how many minutes a person spends getting the agents’ work to pass integration tests. Each setup gets the same tasks and tests.</p>
+        <div class="table-scroll"><table>
+          <caption>Benchmark plan · results pending</caption>
+          <thead><tr><th scope="col">Metric</th><th scope="col">A · One agent</th><th scope="col">B · Parallel agents + Git/CI</th><th scope="col">C · Same team + Cowork</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Minutes of human attention</th><td>To measure</td><td>To measure</td><td>To measure</td></tr>
+            <tr><th scope="row">Time until all integration tests pass</th><td>To measure</td><td>To measure</td><td>To measure</td></tr>
+            <tr><th scope="row">Times a person steps in</th><td>To measure</td><td>To measure</td><td>To measure</td></tr>
+            <tr><th scope="row">Conflicts fixed without human help / total</th><td>To measure</td><td>To measure</td><td>To measure</td></tr>
+          </tbody>
+        </table></div>
+        <p class="section-note">We haven’t collected these results yet. We’ll use the same model versions, starting code, and budgets, and report how many runs we measured.</p>
+      </div>
+    </section>
+    <section class="slide" id="demo" aria-labelledby="demo-title" tabindex="-1">
+      <div class="slide-content">
+        <p class="eyebrow">05 / Demo</p>
+        <h2 id="demo-title">Watch the timestamp bug<br />get caught and fixed.</h2>
+        <div class="video-frame">
+          <video controls playsinline preload="metadata" aria-label="Agent Cowork demo video" hidden></video>
+          <div class="video-placeholder"><span class="play-symbol" aria-hidden="true">▷</span><h3>Demo video goes here</h3><p>The recording will follow one failure through diagnosis, repair, and a passing test run.</p><span class="draft-label">Recorded demo pending</span></div>
+        </div>
+        <p class="section-note">Recording pending. The dashboard link below uses simulated data.</p>
+        <a class="text-link" href="/?demo&scene=conflict" target="_blank" rel="noopener">Open the simulated dashboard <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+    <section class="slide" id="technical" aria-labelledby="technical-title" tabindex="-1">
+      <div class="slide-content">
+        <p class="eyebrow">06 / Technical details</p>
+        <h2 id="technical-title">What runs where?</h2>
+        <div class="technical-grid">
+          <article><span class="label">On each laptop</span><h3>Hooks + MCP</h3><p>Hooks push snapshots to GitHub branches named wip/&lt;agent&gt;. Through MCP, an agent can share its plans and read updates from teammates.</p></article>
+          <article><span class="label">Integration</span><h3>Watcher + checks</h3><p>The watcher combines snapshots with main in a temporary worktree. It runs TypeScript and Vitest, then checks individual agents and pairs to narrow down a failure.</p></article>
+          <article><span class="label">Shared state</span><h3>SpacetimeDB</h3><p>SpacetimeDB stores the team’s live state. Creating a conflict, assigning its fixer, and notifying the agents happen in one transaction. Subscribers receive the updates.</p></article>
+          <article><span class="label">What the team sees</span><h3>Diagnosis + dashboard</h3><p>Droid investigates the failure. The dashboard shows its explanation beside the test output, along with who is fixing it and whether a person needs to review the changes.</p></article>
+        </div>
+        <p class="section-note">A passing check covers the behavior the tests exercise. Cowork doesn’t automatically merge the result into main.</p>
+      </div>
+    </section>
+    <section class="slide closing" id="closing" aria-labelledby="closing-title" tabindex="-1">
+      <div class="slide-content">
+        <p class="eyebrow">07 / Closing</p>
+        <h2 id="closing-title">Let the agents code.<br />Spend less time chasing the break.</h2>
+        <p class="lede">That’s what we’re building Cowork for: catching problems between agents’ changes and getting the repair back to the agent that needs to make it.</p>
+        <div class="closing-footer"><strong>Agent Cowork</strong><span>Thank you · Questions?</span><a href="https://github.com/chuddrw/CalHacks26" target="_blank" rel="noopener">View repository ↗</a></div>
+      </div>
+    </section>
+  </main>
+  <footer class="deck-controls" aria-label="Presentation controls">
+    <span>Scroll one slide at a time <span class="keyboard-hint">· ↑ ↓ or Page Up / Down</span></span>
+    <div><button type="button" id="previous" aria-label="Previous section">←</button><button type="button" id="next" aria-label="Next section">→</button></div>
+  </footer>
+</body>
+</html>
