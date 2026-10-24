@@ -21,7 +21,7 @@ import { config, missingSettings } from "../shared/src/config.ts";
 import { callReducer, selectRows, sqlString } from "../shared/src/stdb-http.ts";
 import { pairKey, runKey } from "../shared/src/schema.ts";
 
-const missing = missingSettings(["stdbDb", "stdbToken"]);
+const missing = missingSettings(["stdbDb"]);
 if (missing.length > 0) {
   console.error(`Fill in ${missing.join(", ")} in .env first (see .env.example).`);
   process.exit(1);
@@ -42,8 +42,9 @@ const diffB = [
   "+  return (now.getTime() / 1000 - user.lastLogin) / 60;",
 ].join("\n");
 
-await callReducer("register_agent", ["c"]);
-await callReducer("register_agent", ["d"]);
+// register_agent needs a live WebSocket in Part C's module; a note creates the agent rows instead.
+await callReducer("send_note", ["c", "info", "[cowork] Seeded demo note for c."]);
+await callReducer("send_note", ["d", "info", "[cowork] Seeded demo note for d."]);
 await callReducer("post_snapshot", ["a", "fake-a1", "fake-main", ["src/users/user.ts", "src/sessions/session.ts"], diffA]);
 await callReducer("post_snapshot", ["b", "fake-b1", "fake-main", ["src/sessions/idle.ts", "src/sessions/idle.test.ts"], diffB]);
 await callReducer("post_intent", [

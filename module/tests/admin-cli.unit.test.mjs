@@ -10,7 +10,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {coverageChildEnvironment} from './coverage-source.mjs';
 const command = fileURLToPath(new URL('../access.mjs',import.meta.url));
-const loader = fileURLToPath(new URL('./register-dependencies.mjs',import.meta.url));
+// --import needs a file:// URL; a plain absolute Windows path fails.
+const loader = new URL('./register-dependencies.mjs',import.meta.url).href;
 const identity = 'ab'.repeat(32);
 function fixture() {
   const directory=mkdtempSync(path.join(os.tmpdir(),'cowork-admin-cli-'));

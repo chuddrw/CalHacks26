@@ -44,7 +44,7 @@
 import { config, missingSettings } from "../../shared/src/config.ts";
 import { pairKey, runKey, type AgentName, type ConflictRow, type SnapshotRow } from "../../shared/src/schema.ts";
 import { describeFailures, firstError } from "./check.ts";
-import { diagnose, type DiagnoseRequest } from "./diagnose/index.ts";
+import { diagnose, invalidateDiagnosis, type DiagnoseRequest } from "./diagnosis.ts";
 import { pickFixer } from "./fixer.ts";
 import * as git from "./git.ts";
 import { guardFix } from "./guard.ts";
@@ -141,29 +141,40 @@ async function runOnce(): Promise<void> {
   await guardFixes(main, shaOf);
 
   if (latest.length === 0) {
-    if (unchanged.length > 0) {
-      await stdb.reportCheck(runKey(unchanged.map((s) => s.sha)), unchanged.map((s) => s.agent), "green", "No changes compared with main.");
-    }
-    await resolveAll("nothing left to check", unseen);
+    const key = unchanged.length > 0 ? runKey(unchanged.map((s) => s.sha)) : "";
+    if (key) await stdb.reportCheck(key, unchanged.map((s) => s.agent), "green", "No changes compared with main.");
+    await resolveAll("nothing left to check", unseen, key);
     return;
   }
 
+  // Part C only treats a check as current when its runKey is exactly the latest snapshot shas of
+  // the agents it lists. So the full run is reported for the changed agents, and, when some agents
+  // match main, once more for everyone: their snapshots change nothing, so the result is the same.
   const { result: full } = await checker.check(main, latest);
-  const reported = [...full.agents, ...unchanged.map((s) => s.agent)].sort();
-  await stdb.reportCheck(full.key, reported, full.red ? "red" : "green", logOf(full));
+  await stdb.reportCheck(full.key, full.agents, full.red ? "red" : "green", logOf(full));
+  const everyone = [...latest, ...unchanged];
+  const everyoneKey = runKey(everyone.map((s) => s.sha));
+  if (unchanged.length > 0) {
+    await stdb.reportCheck(everyoneKey, everyone.map((s) => s.agent).sort(), full.red ? "red" : "green", logOf(full));
+  }
   if (!full.red) {
     log(`green: ${full.agents.join(", ")} (${seconds(started)})`);
-    await resolveAll("everything checks green together", unseen);
+    await resolveAll("everything checks green together", unseen, everyoneKey);
     return;
   }
 
   log(`red: ${summary(full)}. Finding who clashes with whom...`);
+  // report_conflict needs its red check already in the database, so wait for every report.
+  const reports: Array<Promise<void>> = [];
   const failures = await localize(main, latest, full, checker, (run) => {
     log(`  ${run.agents.join(" + ")}: ${run.red ? `red, ${summary(run)}` : "green"} (${run.seconds.toFixed(1)} s)`);
-    stdb.reportCheck(run.key, run.agents, run.red ? "red" : "green", logOf(run)).catch((error) => {
-      console.error(`[watcher] report_check failed: ${errorMessage(error)}`);
-    });
+    reports.push(
+      stdb.reportCheck(run.key, run.agents, run.red ? "red" : "green", logOf(run)).catch((error) => {
+        console.error(`[watcher] report_check failed: ${errorMessage(error)}`);
+      }),
+    );
   });
+  await Promise.all(reports);
   for (const failure of failures) {
     try {
       await recordFailure(main, failure);
@@ -287,9 +298,22 @@ function requestDiagnosis(request: DiagnoseRequest): void {
 
 // ---- Resolving --------------------------------------------------------------------------------
 
-async function resolve(conflict: ConflictRow, why: string): Promise<void> {
+/**
+ * Resolves through Part C's guarded reducer: it only takes effect for this exact version of the
+ * conflict (run, error, fixer) and a current green check covering both agents (verifiedRunKey).
+ */
+async function resolve(conflict: ConflictRow, why: string, verifiedRunKey: string): Promise<void> {
   const fact = facts.get(conflict.id) ?? "";
-  await stdb.resolveConflict(conflict.id, fact);
+  if (!verifiedRunKey) {
+    log(`conflict #${conflict.id} (${conflict.pair}) stays open: no green check covers it (${why})`);
+    return;
+  }
+  await stdb.resolveConflictIfCurrent(conflict.id, conflict.runKey, conflict.error, conflict.fixer, verifiedRunKey, fact);
+  if (stdb.conflictById(conflict.id)?.status !== "resolved") {
+    log(`conflict #${conflict.id} (${conflict.pair}) stays open: the database didn't accept check ${verifiedRunKey.slice(0, 17)} as current, covering evidence`);
+    return;
+  }
+  invalidateDiagnosis(conflict.id);
   log(`conflict #${conflict.id} (${conflict.pair}) resolved: ${why}${fact ? `. Fact: ${fact}` : ""}`);
   facts.delete(conflict.id);
   diagnosedFor.delete(conflict.id);
@@ -303,9 +327,9 @@ function involves(conflict: ConflictRow, agents: Set<AgentName>): boolean {
 }
 
 /** Green full check: every open conflict is over. needs_human ones wait for a person. */
-async function resolveAll(why: string, unseen: Set<AgentName>): Promise<void> {
+async function resolveAll(why: string, unseen: Set<AgentName>, verifiedRunKey: string): Promise<void> {
   for (const conflict of stdb.openConflicts()) {
-    if (!involves(conflict, unseen)) await resolve(conflict, why);
+    if (!involves(conflict, unseen)) await resolve(conflict, why, verifiedRunKey);
   }
   for (const conflict of stdb.unresolvedConflicts()) {
     if (conflict.status === "needs_human") log(`conflict #${conflict.id} (${conflict.pair}) still needs a person`);
@@ -322,12 +346,14 @@ async function resolveStale(main: string, latest: Snapshot[], failures: Failure[
       .filter((agent) => agent !== "")
       .map((agent) => byAgent.get(agent))
       .filter((snapshot): snapshot is Snapshot => snapshot !== undefined);
-    if (snapshots.length > 0) {
-      const { result, fresh } = await checker.check(main, snapshots);
-      if (fresh) await stdb.reportCheck(result.key, result.agents, result.red ? "red" : "green", logOf(result));
-      if (result.red) continue;
+    if (snapshots.length === 0) {
+      await resolve(conflict, "no changes left", "");
+      continue;
     }
-    await resolve(conflict, snapshots.length > 0 ? "its snapshots check green together" : "no changes left");
+    const { result, fresh } = await checker.check(main, snapshots);
+    if (fresh) await stdb.reportCheck(result.key, result.agents, result.red ? "red" : "green", logOf(result));
+    if (result.red) continue;
+    await resolve(conflict, "its snapshots check green together", result.key);
   }
 }
 

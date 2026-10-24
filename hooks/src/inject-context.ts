@@ -37,7 +37,7 @@ import { listenerAlive } from "./lib/listener-lock.ts";
 import { gitDirOf } from "./lib/snapshot.ts";
 
 async function main(input: HookInput): Promise<void> {
-  if (missingSettings(["agent", "stdbDb", "stdbToken"]).length > 0) return;
+  if (missingSettings(["agent", "stdbDb"]).length > 0) return;
   let rows: InboxRow[] = await selectRows("inbox", `agent = ${sqlString(config.agent)} AND delivered = false`);
   if (rows.length === 0) return;
 

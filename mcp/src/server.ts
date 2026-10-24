@@ -20,10 +20,13 @@
  *   unstaged. When the teammate later commits that change to main, `git stash -u && git pull &&
  *   git stash pop` folds the identical lines back in cleanly (tested).
  *
- * PRESENCE (waiting on C)
- *   The plan is a WebSocket connection with C's generated bindings, so the module's
- *   client_disconnected reducer marks the agent offline when this server exits. Until those bindings
- *   exist, the server calls register_agent over HTTP when it starts (online, but never marked offline).
+ * PRESENCE
+ *   A WebSocket connection with Part C's generated bindings, authenticated as this laptop's user
+ *   (shared/src/session-token.ts), calls register_agent on connect and again after every automatic
+ *   reconnect. Part C's module then marks the agent online, and its client_disconnected marks it
+ *   offline when this server exits. If the WebSocket can't connect (the mock database has none), it
+ *   falls back to register_agent over HTTP: the mock accepts that; the real module rejects it,
+ *   because it needs a live connection.
  *
  * NOTES
  *   - stdout belongs to the MCP protocol. Log ONLY to stderr (console.error).
@@ -37,10 +40,12 @@ import { config, missingSettings } from "../../shared/src/config.ts";
 import { git } from "../../shared/src/git.ts";
 import { wipBranch } from "../../shared/src/schema.ts";
 import { callReducer, selectRows, sqlString } from "../../shared/src/stdb-http.ts";
+import { sessionToken } from "../../shared/src/session-token.ts";
+import { DbConnection } from "../../shared/module_bindings/index.ts";
 import { teamStatus } from "../../hooks/src/lib/format.ts";
 
-const NOT_CONFIGURED = "cowork isn't configured on this laptop: COWORK_NAME, STDB_DB or STDB_TOKEN is missing in repo 1's .env (see external/mcp.txt).";
-const configured = missingSettings(["agent", "stdbDb", "stdbToken"]).length === 0;
+const NOT_CONFIGURED = "cowork isn't configured on this laptop: COWORK_NAME or STDB_DB is missing in repo 1's .env (see external/mcp.txt).";
+const configured = missingSettings(["agent", "stdbDb"]).length === 0;
 
 function reply(text: string, isError = false) {
   return { content: [{ type: "text" as const, text }], isError };
@@ -128,8 +133,31 @@ server.registerTool(
   },
 );
 
+/** Keeps a WebSocket open as this agent so the module shows it online, and offline once we exit. */
+async function startPresence(): Promise<void> {
+  const token = await sessionToken();
+  if (!token) console.error("[cowork] No SpacetimeDB session token: run `spacetime login` (see module/ACCESS.md).");
+  const register = (connection: DbConnection) => {
+    connection.reducers.registerAgent({ agent: config.agent }).catch((error: unknown) => {
+      console.error(`[cowork] register_agent failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  };
+  DbConnection.builder()
+    .withUri(config.stdbHost)
+    .withDatabaseName(config.stdbDb)
+    .withToken(token || undefined)
+    .withAutomaticReconnect()
+    .onConnect((connection) => register(connection))
+    .onAutomaticReconnect((connection) => register(connection))
+    .onConnectError((_ctx, error) => {
+      console.error(`[cowork] presence WebSocket failed (${error.message}); trying register_agent over HTTP instead.`);
+      callReducer("register_agent", [config.agent]).catch(() => undefined);
+    })
+    .build();
+}
+
 if (configured) {
-  callReducer("register_agent", [config.agent]).catch((error) => console.error(`[cowork] register_agent failed: ${String(error)}`));
+  startPresence().catch((error: unknown) => console.error(`[cowork] presence failed: ${String(error)}`));
 } else {
   console.error(`[cowork] ${NOT_CONFIGURED}`);
 }

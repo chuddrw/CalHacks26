@@ -26,7 +26,7 @@ import { blockStop, runHook, type HookInput } from "./lib/hook-io.ts";
 
 async function main(input: HookInput): Promise<void> {
   if (input.stop_hook_active) return;
-  if (missingSettings(["agent", "stdbDb", "stdbToken"]).length > 0) return;
+  if (missingSettings(["agent", "stdbDb"]).length > 0) return;
   const open = await selectRows("conflict", `fixer = ${sqlString(config.agent)} AND status = 'open'`);
   const first = open.sort((a, b) => a.createdAt - b.createdAt)[0];
   if (first) blockStop(stopReason(first));

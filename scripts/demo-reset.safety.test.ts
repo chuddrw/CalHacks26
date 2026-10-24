@@ -13,7 +13,7 @@ import type { ResetActions } from "./demo-reset.ts";
 
 const isolated = realpathSync(mkdtempSync(path.join(os.tmpdir(), "cowork-reset-source-")));
 for (const directory of ["scripts", "shared/src"]) mkdirSync(path.join(isolated, directory), { recursive: true });
-for (const file of ["scripts/demo-reset.ts", "shared/src/config.ts", "shared/src/schema.ts", "shared/src/stdb-http.ts"]) {
+for (const file of ["scripts/demo-reset.ts", "shared/src/config.ts", "shared/src/schema.ts", "shared/src/stdb-http.ts", "shared/src/session-token.ts"]) {
   copyFileSync(path.resolve(import.meta.dirname, "..", file), path.join(isolated, file));
   recordCoverageCopy(path.resolve(import.meta.dirname, "..", file), path.join(isolated, file));
 }

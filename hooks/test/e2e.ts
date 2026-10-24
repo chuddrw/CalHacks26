@@ -171,11 +171,17 @@ try {
   const snapB = await waitFor("b's snapshot row", () => db.snapshot.find((s) => s.agent === "b"));
   await waitFor("b's listener", () => existsSync(path.join(cloneB, ".git", "cowork-listener.pid")));
   await sleep(300);
-  const reportedAt = Date.now();
-  await callReducer(mock, "report_conflict", [
+  // Part C's rule: a conflict needs a red check covering both agents already in the database.
+  const pairKeyAB = runKey([snapA.sha, snapB.sha]);
+  const conflictArgs = [
     "pair", "a", "b", "src/users/user.ts:23", "src/sessions/idle.ts:4",
-    "FAIL src/sessions/idle.test.ts\nAssertionError: expected -29850839249 to be 31", "b", runKey([snapA.sha, snapB.sha]),
-  ]);
+    "FAIL src/sessions/idle.test.ts\nAssertionError: expected -29850839249 to be 31", "b", pairKeyAB,
+  ];
+  const rejected = await callReducer(mock, "report_conflict", conflictArgs).then(() => false, () => true);
+  check("report_conflict without a red check is rejected (Part C rule)", rejected && !db.conflict.some((c) => c.pair === "a+b"));
+  await callReducer(mock, "report_check", [pairKeyAB, ["a", "b"], "red", "1 failed: src/sessions/idle.test.ts"]);
+  const reportedAt = Date.now();
+  await callReducer(mock, "report_conflict", conflictArgs);
   const b1Run = await b1.done;
   const wakeMs = Date.now() - reportedAt;
   check("idle agent b is woken (exit code 2)", b1Run.code === 2, `code ${b1Run.code}`);
@@ -203,7 +209,9 @@ try {
   const inject3 = await startHook("inject-context.ts", { hook_event_name: "UserPromptSubmit", cwd: cloneB }, envFor("b")).done;
   const event3 = inject3.stdout.trim() ? (JSON.parse(inject3.stdout) as { hookSpecificOutput: { hookEventName: string } }).hookSpecificOutput.hookEventName : "";
   check("UserPromptSubmit gets its own event name back", event3 === "UserPromptSubmit");
-  await callReducer(mock, "report_conflict", ["self", "a", "", "src/users/user.ts:23", "", "error TS2322: example", "a", "self-a"]);
+  const selfKeyA = runKey([snapA.sha]);
+  await callReducer(mock, "report_check", [selfKeyA, ["a"], "red", "error TS2322: example"]);
+  await callReducer(mock, "report_conflict", ["self", "a", "", "src/users/user.ts:23", "", "error TS2322: example", "a", selfKeyA]);
   const inject4 = await startHook("inject-context.ts", { hook_event_name: "PostToolUse", cwd: cloneA }, envFor("a")).done;
   check("with no listener alive, inject-context delivers the conflict itself", contextOf(inject4).includes("[cowork] CONFLICT #"));
 
@@ -217,8 +225,14 @@ try {
   check("an agent with no conflict can stop", stop3.stdout.trim() === "");
 
   // ---- 6. session-start -------------------------------------------------------------------------
+  // Resolve the way the watcher does: a green check covering both agents, then Part C's guarded reducer.
   const conflictAB = db.conflict.find((c) => c.pair === "a+b");
-  await callReducer(mock, "resolve_conflict", [conflictAB?.id ?? 0, "User.lastLogin is milliseconds since the Unix epoch."]);
+  await callReducer(mock, "report_check", [pairKeyAB, ["a", "b"], "green", "all tests passed"]);
+  await callReducer(mock, "resolve_conflict_if_current", [
+    conflictAB?.id ?? 0, conflictAB?.runKey ?? "", conflictAB?.error ?? "", conflictAB?.fixer ?? "", pairKeyAB,
+    "User.lastLogin is milliseconds since the Unix epoch.",
+  ]);
+  check("resolve_conflict_if_current resolves with current green evidence", db.conflict.find((c) => c.pair === "a+b")?.status === "resolved");
   const start = await startHook("session-start.ts", { hook_event_name: "SessionStart", cwd: cloneC }, envFor("c")).done;
   const startText = contextOf(start);
   check("SessionStart gives the team status with the verified fact", startText.includes("Team status") && startText.includes("User.lastLogin is milliseconds since the Unix epoch."));
@@ -294,7 +308,7 @@ try {
   const intentsBefore = db.intent.length;
   await client.callTool({ name: "post_intent", arguments: { summary: "Adding minutesSinceLastLogin.", files: ["src/sessions/idle.ts"] } });
   check("post_intent stores the intent", db.intent.length === intentsBefore + 1 && db.intent.at(-1)?.agent === "b");
-  check("post_intent sends a heads-up to the others", db.inbox.some((r) => r.agent === "a" && r.kind === "heads_up" && r.message.startsWith("b plans:")));
+  check("post_intent sends a heads-up to the others", db.inbox.some((r) => r.agent === "a" && r.kind === "heads_up" && r.message.includes("b plans:")));
   const status = textOf(await client.callTool({ name: "team_status", arguments: {} }));
   check("team_status returns the team picture", status.includes("Team status") && status.includes("User.lastLogin is milliseconds"));
 

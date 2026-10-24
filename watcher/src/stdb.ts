@@ -29,7 +29,7 @@
  *
  * NOTES
  *   - SpacetimeDB 2.13 SDK: DbConnection.builder().withUri(STDB_HOST).withDatabaseName(STDB_DB)
- *     .withToken(STDB_TOKEN or anonymous).withAutomaticReconnect(). The SDK only retries a
+ *     .withToken(this user's session token, shared/src/session-token.ts).withAutomaticReconnect(). The SDK only retries a
  *     connection that worked once, so connect() retries the first one itself (1 s up to 30 s).
  *   - Subscriptions: SELECT * FROM snapshot, conflict, intent. After a reconnect the SDK replays
  *     them and onResync fires, so snapshots pushed while the socket was down still trigger a run.
@@ -37,8 +37,11 @@
  *     reportConflict reads the new conflict's id from the cache right after it.
  */
 import { DbConnection } from "../../shared/module_bindings/index.ts";
-import type { Conflict, Intent, Snapshot } from "../../shared/module_bindings/types.ts";
+// Part C's bindings expose the team tables as authenticated views. Their rows have exactly the
+// fields of the *Data backing types (the view types themselves are empty placeholders).
+import type { ConflictData as Conflict, IntentData as Intent, SnapshotData as Snapshot } from "../../shared/module_bindings/types.ts";
 import { config } from "../../shared/src/config.ts";
+import { sessionToken } from "../../shared/src/session-token.ts";
 import {
   pairKey,
   type AgentName,
@@ -59,8 +62,11 @@ let closing = false;
 const snapshotListeners: Array<(row: SnapshotRow) => void> = [];
 const resyncListeners: Array<() => void> = [];
 
-export function connect(): Promise<void> {
+export async function connect(): Promise<void> {
   closing = false;
+  // The watcher's own signed-in identity, which Part C's owner must approve as an Editor.
+  const token = await sessionToken();
+  if (!token) console.warn("[watcher] No SpacetimeDB session token: run `spacetime login` (see module/ACCESS.md).");
   return new Promise((resolve) => {
     let attempt = 0;
     const retry = (reason: string) => {
@@ -73,7 +79,7 @@ export function connect(): Promise<void> {
       DbConnection.builder()
         .withUri(config.stdbHost)
         .withDatabaseName(config.stdbDb)
-        .withToken(config.stdbToken || undefined)
+        .withToken(token || undefined)
         .withAutomaticReconnect()
         .onConnect((conn) => {
           connection = conn;
@@ -219,6 +225,25 @@ export async function setExplanation(...[conflictId, explanation]: ReducerArgs["
 
 export async function resolveConflict(...[conflictId, verifiedFact]: ReducerArgs["resolve_conflict"]): Promise<void> {
   await conn().reducers.resolveConflict({ conflictId, verifiedFact });
+}
+
+/** Part C's guarded write: ignored unless the conflict still has this run, error and fixer. */
+export async function setExplanationIfCurrent(
+  ...[conflictId, expectedRunKey, expectedError, expectedFixer, explanation]: ReducerArgs["set_explanation_if_current"]
+): Promise<void> {
+  await conn().reducers.setExplanationIfCurrent({ conflictId, expectedRunKey, expectedError, expectedFixer, explanation });
+}
+
+/** Part C's guarded resolution: needs this exact conflict version and a current green check covering it. */
+export async function resolveConflictIfCurrent(
+  ...[conflictId, expectedRunKey, expectedError, expectedFixer, verifiedRunKey, verifiedFact]: ReducerArgs["resolve_conflict_if_current"]
+): Promise<void> {
+  await conn().reducers.resolveConflictIfCurrent({ conflictId, expectedRunKey, expectedError, expectedFixer, verifiedRunKey, verifiedFact });
+}
+
+/** The conflict row as the local cache has it right now, or undefined. */
+export function conflictById(id: number): ConflictRow | undefined {
+  return conflicts().find((row) => row.id === id);
 }
 
 export async function flagNeedsHuman(...[conflictId, reason]: ReducerArgs["flag_needs_human"]): Promise<void> {

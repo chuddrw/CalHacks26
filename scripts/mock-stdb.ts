@@ -2,29 +2,31 @@
  * scripts/mock-stdb.ts
  *
  * WHAT IT'S FOR
- *   A stand-in for our SpacetimeDB database until C publishes the real module. It serves the same
- *   two HTTP endpoints the hooks and scripts use, keeps every table from shared/src/schema.ts in
- *   memory, and runs each reducer the way module/src/index.ts describes it. A tests the hooks and
- *   the MCP server against it; B and D can point at it too (npm run seed works); and C can read it
- *   as a runnable version of the module spec.
+ *   A stand-in for our SpacetimeDB database for work without a server: the same two HTTP endpoints
+ *   the hooks and scripts use, every table from shared/src/schema.ts in memory, and every reducer
+ *   behaving the way Part C's module (module/src/index.ts) does: the same validation, the same
+ *   "current, covering check" rules, the same inbox wording. A's end-to-end test runs against it,
+ *   and B and D can point at it too (npm run seed works).
  *
- * OWNER: A wrote it. Whoever changes a reducer in module/src/index.ts changes it here too, until we
- *        switch to the real database.
+ * OWNER: A. Kept in step with module/src/index.ts by hand: when a reducer changes there, change it
+ *        here too. Updated during the A+B+C integration (Oct 24) to Part C's guarded reducers.
  * USAGE: npm run mock-db        (listens on http://127.0.0.1:3077; set MOCK_STDB_PORT to change it)
- *   then in repo 1's .env:  STDB_HOST=http://127.0.0.1:3077  STDB_DB=mock  STDB_TOKEN=anything
- *   hooks/test/e2e.ts starts its own copy on a random port with startMockStdb().
+ *   then run the hooks/scripts with STDB_HOST=http://127.0.0.1:3077 STDB_DB=mock STDB_TOKEN=anything
+ *   in the process environment. hooks/test/e2e.ts starts its own copy with startMockStdb().
  *
  * ENDPOINTS
  *   POST /v1/database/mock/call/<reducer>   JSON array of arguments, same order as ReducerArgs
  *   POST /v1/database/mock/sql              only `SELECT * FROM <table> [WHERE col = value AND ...]`
  *   GET  /v1/database/mock/dump             mock only: every table as JSON, for debugging
- *   Calls without "Authorization: Bearer <anything>" get 401, like the real database.
+ *   Calls without "Authorization: Bearer <anything>" get 401. A reducer error is a 400 with its message.
  *
- * WHAT IT DOESN'T DO
- *   - No WebSocket subscriptions, so the UI and the watcher's live updates need the real database
- *     (or polling against this one).
- *   - No persistence: restarting it empties every table.
- *   - No identities: register_agent marks the agent online, but nothing ever marks it offline.
+ * WHERE IT DIFFERS FROM THE REAL MODULE
+ *   - No identities or roles: any bearer token is an Editor and the Owner. grant_access and
+ *     revoke_access are accepted and do nothing.
+ *   - No connections: register_agent marks the agent online over HTTP (the real module rejects it
+ *     without a live WebSocket), and nothing ever marks an agent offline.
+ *   - No WebSocket subscriptions, so the watcher and the UI need a real server (local or cloud).
+ *   - No persistence: restarting it empties every table. Escalation uses a timer in memory.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -33,11 +35,7 @@ import { fileURLToPath } from "node:url";
 import {
   Columns,
   WATCHER_NAME,
-  pairKey,
-  type AgentName,
-  type AgentRow,
   type ConflictRow,
-  type InboxKind,
   type ReducerArgs,
   type ReducerName,
   type TableName,
@@ -55,10 +53,13 @@ export interface MockStdb {
   port: number;
   /** The live tables, for tests to inspect. */
   db: Tables;
-  /** Every reducer call, in order. */
+  /** Every reducer call that succeeded, in order. */
   calls: Array<{ reducer: string; args: unknown[] }>;
   close(): Promise<void>;
 }
+
+/** A reducer error: the real module's SenderError. */
+class SenderError extends Error {}
 
 class HttpError extends Error {
   status: number;
@@ -69,6 +70,8 @@ class HttpError extends Error {
 }
 
 const ARITY: Record<ReducerName, number> = {
+  grant_access: 2,
+  revoke_access: 1,
   register_agent: 1,
   post_snapshot: 5,
   post_intent: 4,
@@ -76,7 +79,9 @@ const ARITY: Record<ReducerName, number> = {
   report_conflict: 8,
   add_diagnosis_step: 4,
   set_explanation: 2,
+  set_explanation_if_current: 5,
   resolve_conflict: 2,
+  resolve_conflict_if_current: 6,
   flag_needs_human: 2,
   send_note: 3,
   mark_delivered: 1,
@@ -87,6 +92,27 @@ function emptyTables(): Tables {
   return { agent: [], snapshot: [], intent: [], check_run: [], conflict: [], inbox: [], diagnosis_step: [] };
 }
 
+// ---- Validation helpers, as in module/src/index.ts ---------------------------------------------
+
+function name(value: string): void {
+  if (!/^[a-z0-9][a-z0-9_-]*$/.test(value)) throw new SenderError("Invalid agent name");
+}
+function oneOf(value: string, values: readonly string[]): void {
+  if (!values.includes(value)) throw new SenderError(`Invalid value: ${value}`);
+}
+/** Cuts to a UTF-8 byte limit without splitting characters. */
+function cut(value: string, limit: number): string {
+  let bytes = 0;
+  let result = "";
+  for (const char of value) {
+    const code = char.codePointAt(0)!;
+    bytes += code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
+    if (bytes > limit) break;
+    result += char;
+  }
+  return result;
+}
+
 export async function startMockStdb(options: { port?: number; escalateMs?: number } = {}): Promise<MockStdb> {
   const db = emptyTables();
   const calls: MockStdb["calls"] = [];
@@ -95,105 +121,195 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
   let nextId = 1;
   const now = () => Date.now();
 
-  const agentRow = (name: AgentName): AgentRow => {
-    let row = db.agent.find((a) => a.name === name);
+  const ensureAgent = (value: string) => {
+    name(value);
+    let row = db.agent.find((a) => a.name === value);
     if (!row) {
-      row = { name, online: false, status: "green", intent: "", files: [], lastSnapshotAt: 0 };
+      row = { name: value, online: false, status: "green", intent: "", files: [], lastSnapshotAt: 0 };
       db.agent.push(row);
     }
     return row;
   };
-  const note = (agent: AgentName, kind: InboxKind, conflictId: number, message: string) => {
-    db.inbox.push({ id: nextId++, agent, kind, conflictId, message, delivered: false, createdAt: now() });
+  const active = (status: string) => status !== "resolved";
+  const refresh = (value: string) => {
+    if (!value) return;
+    const row = ensureAgent(value);
+    const blocked = db.conflict.some((c) => active(c.status) && (c.agentA === value || c.agentB === value));
+    row.status = blocked ? "red" : "green";
   };
-  const isActive = (c: ConflictRow) => c.status === "open" || c.status === "escalated";
-  const hasActiveConflict = (agent: AgentName) => db.conflict.some((c) => isActive(c) && (c.agentA === agent || c.agentB === agent));
-  const conflictById = (id: number): ConflictRow => {
-    const conflict = db.conflict.find((c) => c.id === id);
-    if (!conflict) throw new HttpError(400, `no conflict with id ${id}`);
-    return conflict;
+  const note = (recipient: string, kind: TableRows["inbox"]["kind"], conflictId: number, message: string) => {
+    ensureAgent(recipient);
+    db.inbox.push({ id: nextId++, agent: recipient, kind, conflictId, message, delivered: false, createdAt: now() });
+  };
+  const getConflict = (id: number): ConflictRow => {
+    const row = db.conflict.find((c) => c.id === id);
+    if (!row) throw new SenderError(`Unknown conflict #${id}`);
+    return row;
+  };
+  /** Snapshot ids define posting order. */
+  const currentRun = (run: { runKey: string; agents: string[] }): boolean => {
+    const agents = new Set(run.agents);
+    if (!agents.size || agents.size !== run.agents.length) return false;
+    const latest = new Map<string, { id: number; sha: string }>();
+    for (const snapshot of db.snapshot) {
+      if (!agents.has(snapshot.agent)) continue;
+      const previous = latest.get(snapshot.agent);
+      if (!previous || snapshot.id > previous.id) latest.set(snapshot.agent, snapshot);
+    }
+    return latest.size === agents.size && [...latest.values()].map((row) => row.sha).sort().join("+") === run.runKey;
+  };
+  const covers = (run: { agents: string[] }, conflict: { agentA: string; agentB: string }) =>
+    run.agents.includes(conflict.agentA) && (!conflict.agentB || run.agents.includes(conflict.agentB));
+  const mutableConflict = (row: ConflictRow) => row.status === "open" || row.status === "escalated";
+  const matchesVersion = (row: ConflictRow, expected: { expectedRunKey: string; expectedError: string; expectedFixer: string }) =>
+    mutableConflict(row) && row.runKey === expected.expectedRunKey && row.error === expected.expectedError && row.fixer === expected.expectedFixer;
+  const greenEvidence = (conflict: ConflictRow, runKey?: string) => {
+    const runs = runKey === undefined ? db.check_run : db.check_run.filter((r) => r.runKey === runKey);
+    return runs.some((run) => run.result === "green" && covers(run, conflict) && currentRun(run));
+  };
+  const retireWakeups = (id: number) => {
+    for (const message of db.inbox) if (message.conflictId === id && message.kind === "conflict") message.delivered = true;
   };
   const stopTimer = (id: number) => {
     clearTimeout(timers.get(id));
     timers.delete(id);
   };
+  const writeExplanation = (row: ConflictRow, explanation: string) => {
+    if (row.explanation === explanation) return;
+    row.explanation = explanation;
+    const latestWakeup = db.inbox
+      .filter((m) => m.conflictId === row.id && m.agent === row.fixer && m.kind === "conflict")
+      .sort((a, b) => b.id - a.id)[0];
+    if (latestWakeup?.delivered) note(row.fixer, "info", row.id, `[cowork] Diagnosis for conflict #${row.id}: ${explanation}`);
+  };
+  const finishResolution = (row: ConflictRow, verifiedFact: string) => {
+    row.status = "resolved";
+    row.resolvedAt = now();
+    retireWakeups(row.id);
+    stopTimer(row.id);
+    refresh(row.agentA);
+    if (row.agentB) refresh(row.agentB);
+    if (verifiedFact.trim()) {
+      const files = [...new Set([
+        ...(db.agent.find((a) => a.name === row.agentA)?.files ?? []),
+        ...(db.agent.find((a) => a.name === row.agentB)?.files ?? []),
+      ])];
+      db.intent.push({ id: nextId++, agent: WATCHER_NAME, summary: verifiedFact, files, symbols: [], verified: true, createdAt: now() });
+      for (const recipient of [...db.agent]) note(recipient.name, "fact", row.id, `[cowork] Verified fact: ${verifiedFact}`);
+    }
+  };
 
   const reducers: { [R in ReducerName]: (args: ReducerArgs[R]) => void } = {
+    grant_access: () => {},
+    revoke_access: () => {},
     register_agent: ([agent]) => {
-      agentRow(agent).online = true;
+      ensureAgent(agent).online = true;
     },
     post_snapshot: ([agent, sha, baseSha, files, diff]) => {
-      db.snapshot.push({ id: nextId++, agent, sha, baseSha, files, diff, createdAt: now() });
-      Object.assign(agentRow(agent), { status: "working", files, lastSnapshotAt: now() });
+      const row = ensureAgent(agent);
+      const createdAt = now();
+      db.snapshot.push({ id: nextId++, agent, sha, baseSha, files, diff: cut(diff, 50 * 1024), createdAt });
+      const blocked = db.conflict.some((c) => c.status === "needs_human" && (c.agentA === agent || c.agentB === agent));
+      Object.assign(row, { status: blocked ? "red" : "working", files, lastSnapshotAt: createdAt });
     },
     post_intent: ([agent, summary, files, symbols]) => {
+      const row = ensureAgent(agent);
       db.intent.push({ id: nextId++, agent, summary, files, symbols, verified: false, createdAt: now() });
-      agentRow(agent).intent = summary;
-      const where = files.length ? ` (files: ${files.join(", ")})` : "";
-      for (const other of db.agent) if (other.name !== agent) note(other.name, "heads_up", 0, `${agent} plans: ${summary}${where}`);
+      row.intent = summary;
+      for (const other of [...db.agent]) {
+        if (other.name !== agent) note(other.name, "heads_up", 0, `[cowork] ${agent} plans: ${summary} (files: ${files.join(", ")})`);
+      }
     },
     report_check: ([runKey, agents, result, log]) => {
-      const row = { runKey, agents, result, log, createdAt: now() };
+      oneOf(result, ["green", "red"]);
+      agents.forEach(name);
+      const row = { runKey, agents, result, log: cut(log, 20 * 1024), createdAt: now() };
       const index = db.check_run.findIndex((r) => r.runKey === runKey);
       if (index >= 0) db.check_run[index] = row;
       else db.check_run.push(row);
-      if (result === "green") for (const agent of agents) if (!hasActiveConflict(agent)) agentRow(agent).status = "green";
+      if (result === "green" && currentRun(row)) for (const agent of agents) refresh(agent);
     },
     report_conflict: ([kind, agentA, agentB, locA, locB, error, fixer, runKey]) => {
-      const pair = pairKey(agentA, agentB);
-      const existing = db.conflict.find((c) => c.pair === pair && isActive(c));
+      oneOf(kind, ["self", "merge", "pair"]);
+      name(agentA);
+      if (kind === "self" ? agentB !== "" : !agentB || agentA === agentB) {
+        throw new SenderError("self requires one agent; merge/pair require two distinct agents");
+      }
+      if (agentB) name(agentB);
+      if (fixer !== agentA && fixer !== agentB) throw new SenderError("Fixer must belong to conflict");
+      const check = db.check_run.find((r) => r.runKey === runKey);
+      if (!check || check.result !== "red" || !covers(check, { agentA, agentB })) {
+        throw new SenderError("Conflict requires a red check covering its agents");
+      }
+      if (!currentRun(check)) return;
+      const pair = agentB ? [agentA, agentB].sort().join("+") : agentA;
+      const existing = db.conflict.find((c) => c.pair === pair && active(c.status));
+      const cutError = cut(error, 4 * 1024);
+      const other = fixer === agentA ? agentB : agentA;
       if (existing) {
-        const errorChanged = existing.error !== error;
-        Object.assign(existing, { kind, agentA, agentB, locA, locB, error, fixer, runKey });
-        if (errorChanged) note(fixer, "conflict", existing.id, `Still red after your last change. Conflict #${existing.id}: you are the fixer.`);
+        const changed = existing.error !== cutError || existing.fixer !== fixer;
+        const keepExplanation = existing.error === cutError && existing.fixer === fixer;
+        Object.assign(existing, { kind, agentA, agentB, locA, locB, error: cutError, fixer, runKey, explanation: keepExplanation ? existing.explanation : "" });
+        if (changed && existing.status !== "needs_human") {
+          retireWakeups(existing.id);
+          note(fixer, "conflict", existing.id, `[cowork] Still red after your last change. Conflict #${existing.id}: you are the fixer`);
+          if (other) note(other, "info", existing.id, `[cowork] Conflict #${existing.id}: ${fixer} is the fixer`);
+        }
       } else {
         const id = nextId++;
         db.conflict.push({
-          id, pair, kind, agentA, agentB, locA, locB, error, explanation: "", fixer,
+          id, pair, kind: kind as ConflictRow["kind"], agentA, agentB, locA, locB, error: cutError, explanation: "", fixer,
           status: "open", runKey, createdAt: now(), resolvedAt: 0,
         });
-        note(fixer, "conflict", id, `Conflict #${id}: you are the fixer.`);
-        const other = fixer === agentA ? agentB : agentA;
-        if (other) note(other, "info", id, `Conflict #${id} between ${agentA} and ${agentB}: ${fixer} is fixing it.`);
+        note(fixer, "conflict", id, `[cowork] Conflict #${id}: you are the fixer`);
+        if (other) note(other, "info", id, `[cowork] Conflict #${id}: ${fixer} is the fixer`);
         const timer = setTimeout(() => {
-          const conflict = db.conflict.find((c) => c.id === id);
-          if (conflict?.status === "open") conflict.status = "escalated";
+          const row = db.conflict.find((c) => c.id === id);
+          if (row?.status === "open") row.status = "escalated";
         }, escalateMs);
         timer.unref();
         timers.set(id, timer);
       }
-      agentRow(agentA).status = "red";
-      if (agentB) agentRow(agentB).status = "red";
+      refresh(agentA);
+      if (agentB) refresh(agentB);
     },
     add_diagnosis_step: ([conflictId, source, kind, detail]) => {
-      db.diagnosis_step.push({ id: nextId++, conflictId, source, kind, detail, createdAt: now() });
+      getConflict(conflictId);
+      oneOf(source, ["droid", "claude"]);
+      oneOf(kind, ["status", "tool_call", "tool_result", "thought", "final", "error"]);
+      db.diagnosis_step.push({ id: nextId++, conflictId, source, kind, detail: cut(detail, 2 * 1024), createdAt: now() });
     },
     set_explanation: ([conflictId, explanation]) => {
-      const conflict = conflictById(conflictId);
-      conflict.explanation = explanation;
-      const alreadyTold = db.inbox.some((r) => r.conflictId === conflictId && r.kind === "conflict" && r.agent === conflict.fixer && r.delivered);
-      if (alreadyTold) note(conflict.fixer, "info", conflictId, `Diagnosis for conflict #${conflictId}: ${explanation}`);
+      const row = getConflict(conflictId);
+      if (active(row.status)) writeExplanation(row, explanation);
+    },
+    set_explanation_if_current: ([conflictId, expectedRunKey, expectedError, expectedFixer, explanation]) => {
+      const row = db.conflict.find((c) => c.id === conflictId);
+      if (row && matchesVersion(row, { expectedRunKey, expectedError, expectedFixer })) writeExplanation(row, explanation);
     },
     resolve_conflict: ([conflictId, verifiedFact]) => {
-      const conflict = conflictById(conflictId);
-      conflict.status = "resolved";
-      conflict.resolvedAt = now();
-      stopTimer(conflictId);
-      for (const agent of [conflict.agentA, conflict.agentB]) if (agent && !hasActiveConflict(agent)) agentRow(agent).status = "green";
-      if (verifiedFact) {
-        db.intent.push({ id: nextId++, agent: WATCHER_NAME, summary: verifiedFact, files: [], symbols: [], verified: true, createdAt: now() });
-        for (const agent of db.agent) note(agent.name, "fact", conflictId, verifiedFact);
+      const row = getConflict(conflictId);
+      if (mutableConflict(row) && greenEvidence(row)) finishResolution(row, verifiedFact);
+    },
+    resolve_conflict_if_current: ([conflictId, expectedRunKey, expectedError, expectedFixer, verifiedRunKey, verifiedFact]) => {
+      const row = db.conflict.find((c) => c.id === conflictId);
+      if (row && matchesVersion(row, { expectedRunKey, expectedError, expectedFixer }) && greenEvidence(row, verifiedRunKey)) {
+        finishResolution(row, verifiedFact);
       }
     },
     flag_needs_human: ([conflictId, reason]) => {
-      const conflict = conflictById(conflictId);
-      conflict.status = "needs_human";
-      stopTimer(conflictId);
-      for (const agent of [conflict.agentA, conflict.agentB]) {
-        if (agent) note(agent, "info", conflictId, `Conflict #${conflictId} needs a person: ${reason} Keep every existing test as it is.`);
+      const row = getConflict(conflictId);
+      if (row.status === "resolved" || row.status === "needs_human") return;
+      row.status = "needs_human";
+      retireWakeups(row.id);
+      stopTimer(row.id);
+      for (const recipient of [row.agentA, row.agentB].filter(Boolean)) {
+        note(recipient, "info", row.id, `[cowork] Conflict #${row.id} needs a person: ${reason}. Do not edit tests to make checks pass.`);
+        refresh(recipient);
       }
     },
     send_note: ([agent, kind, message]) => {
+      oneOf(kind, ["info", "heads_up", "fact"]);
       note(agent, kind, 0, message);
     },
     mark_delivered: ([inboxIds]) => {
@@ -223,7 +339,7 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
           conditions.every(([column, value]) => row[column] === value),
         );
         return {
-          schema: { elements: columns.map((name) => ({ name: { some: name } })) },
+          schema: { elements: columns.map((column) => ({ name: { some: column } })) },
           rows: rows.map((row) => columns.map((column) => row[column])),
         };
       });
@@ -231,7 +347,7 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
 
   const server = createServer((req, res) => {
     handle(req, res).catch((error: unknown) => {
-      const status = error instanceof HttpError ? error.status : 500;
+      const status = error instanceof HttpError ? error.status : error instanceof SenderError ? 400 : 500;
       send(res, status, error instanceof Error ? error.message : String(error));
     });
   });
@@ -251,8 +367,8 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
     if (!(reducer in ARITY)) return send(res, 404, `no such reducer: ${reducer}`);
     const args: unknown = JSON.parse(body || "[]");
     if (!Array.isArray(args) || args.length !== ARITY[reducer]) return send(res, 400, `${reducer} takes ${ARITY[reducer]} arguments`);
-    calls.push({ reducer, args });
     (reducers[reducer] as (args: unknown[]) => void)(args);
+    calls.push({ reducer, args });
     send(res, 200, "");
   }
 
@@ -310,6 +426,6 @@ const runDirectly = process.argv[1] && path.resolve(fileURLToPath(import.meta.ur
 if (runDirectly) {
   const mock = await startMockStdb({ port: Number(process.env.MOCK_STDB_PORT ?? DEFAULT_PORT) });
   console.log(`Mock SpacetimeDB on ${mock.url}, database "${MOCK_DB_NAME}". Tables live in memory; Ctrl+C stops it.`);
-  console.log(`In repo 1's .env:  STDB_HOST=${mock.url}  STDB_DB=${MOCK_DB_NAME}  STDB_TOKEN=anything`);
+  console.log(`Run hooks/scripts with:  STDB_HOST=${mock.url}  STDB_DB=${MOCK_DB_NAME}  STDB_TOKEN=anything  (process environment, not .env)`);
   console.log(`See every table:   ${mock.url}/v1/database/${MOCK_DB_NAME}/dump`);
 }

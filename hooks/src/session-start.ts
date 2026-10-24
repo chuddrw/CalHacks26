@@ -26,7 +26,7 @@ import { teamStatus } from "./lib/format.ts";
 import { addContext, runHook, type HookInput } from "./lib/hook-io.ts";
 
 async function main(_input: HookInput): Promise<void> {
-  if (missingSettings(["agent", "stdbDb", "stdbToken"]).length > 0) return;
+  if (missingSettings(["agent", "stdbDb"]).length > 0) return;
   const [agents, intents, mine] = await Promise.all([
     selectRows("agent"),
     selectRows("intent"),

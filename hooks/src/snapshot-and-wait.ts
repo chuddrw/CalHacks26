@@ -19,7 +19,7 @@
  *   PostToolUse, matcher "Edit|Write|MultiEdit|NotebookEdit|Bash", asyncRewake: true, timeout: 1800
  *
  * STEPS
- *   1. If COWORK_NAME, STDB_DB or STDB_TOKEN is missing, exit 0.
+ *   1. If COWORK_NAME or STDB_DB is missing, exit 0. (The token comes from shared/src/session-token.ts.)
  *   2. takeSnapshot() (lib/snapshot.ts). If it returns a snapshot, call post_snapshot. An error here
  *      is logged under COWORK_DEBUG and we carry on to step 3.
  *   3. claimListener(). From now on, any older listener for this agent exits by itself.
@@ -53,7 +53,7 @@ function debug(message: string): void {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main(input: HookInput): Promise<void> {
-  if (missingSettings(["agent", "stdbDb", "stdbToken"]).length > 0) return;
+  if (missingSettings(["agent", "stdbDb"]).length > 0) return;
   const me = config.agent;
   const cwd = input.cwd ?? process.cwd();
   const gitDir = await gitDirOf(cwd);

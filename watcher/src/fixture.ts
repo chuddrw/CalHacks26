@@ -354,7 +354,7 @@ async function main(): Promise<void> {
 
   if (command === "setup") return setup(dir);
 
-  const missing = missingSettings(["stdbDb", "stdbToken"]);
+  const missing = missingSettings(["stdbDb"]);
   if (missing.length > 0) throw new Error(`Set ${missing.join(", ")} first (.env or the environment).`);
   if (command === "reset") return reset(dir);
   if (command === "play" && steps.length > 0) {

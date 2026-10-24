@@ -9,7 +9,8 @@ import { fileURLToPath } from 'node:url';
 const modulePath=fileURLToPath(new URL('..',import.meta.url));
 const root=path.dirname(modulePath);
 const require=createRequire(new URL('../package.json',import.meta.url));
-const loader=fileURLToPath(new URL('./register-dependencies.mjs',import.meta.url));
+// --import needs a file:// URL: a plain absolute path like c:... fails on Windows.
+const loader=new URL('./register-dependencies.mjs',import.meta.url).href;
 const env={...process.env};
 for(const key of Object.keys(env)) if(/TOKEN|SECRET|PASSWORD|API_KEY/.test(key)) delete env[key];
 delete env.NODE_OPTIONS;

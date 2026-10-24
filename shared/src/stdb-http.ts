@@ -11,23 +11,24 @@
  * ENDPOINTS (SpacetimeDB 2.13; both checked against a local 2.13 server on Oct 24)
  *   POST {host}/v1/database/{db}/call/{reducer}   body: JSON array of the reducer's arguments
  *   POST {host}/v1/database/{db}/sql              body: SQL text; returns [{ schema, rows }]
- *   Both need "Authorization: Bearer <STDB_TOKEN>". Getting a token: external/spacetimedb-maincloud.txt.
+ *   Both send "Authorization: Bearer <token>", where the token is this laptop user's own signed-in
+ *   session (shared/src/session-token.ts). Part C's module only answers approved identities
+ *   (module/ACCESS.md): an unapproved laptop gets 401/403, and `npm run doctor` says so.
  *
  * NOTES
  *   - Rows come back as positional arrays. toObjects() maps them with Columns from schema.ts,
  *     which is why every query here selects whole rows (SELECT * FROM <table>).
- *   - WHERE clauses must use the module's real column names. SpacetimeDB 2.13 stores camelCase
- *     fields as snake_case columns (agent_a, conflict_id, created_at), so WHERE strings use
- *     snake_case while Columns keeps the camelCase field names.
- *   - Each HTTP reducer call is its own short connection. register_agent over HTTP marks the agent
- *     online and then offline again when that connection closes; presence comes from the MCP
- *     server's WebSocket.
+ *   - WHERE clauses must use the module's real column names. Part C's module sets
+ *     CaseConversionPolicy.None, so SQL names are the camelCase field names (conflictId, agentA).
+ *     The hooks only filter on one-word columns (agent, kind, delivered, fixer, status, id, pair),
+ *     which read the same under either naming policy.
+ *   - Each HTTP reducer call is its own short connection, so register_agent can't be called over
+ *     HTTP (Part C requires a live connection). Presence comes from the MCP server's WebSocket.
  *   - Every call has a 3-second timeout. A hook must stay fast and must never hang an agent.
- *   - Status: both run against a live 2.13 database. watcher/src/fixture.ts posts every test
- *     snapshot with callReducer(), and scripts/seed-fake.ts finds its conflict with selectRows().
  */
 import { config } from "./config.ts";
 import { Columns, type ReducerArgs, type ReducerName, type TableName, type TableRows } from "./schema.ts";
+import { sessionToken } from "./session-token.ts";
 
 const TIMEOUT_MS = 3000;
 
@@ -36,15 +37,16 @@ function endpoint(suffix: string): string {
   return `${host}/v1/database/${encodeURIComponent(config.stdbDb)}/${suffix}`;
 }
 
-function headers(contentType: string): Record<string, string> {
-  return { Authorization: `Bearer ${config.stdbToken}`, "Content-Type": contentType };
+async function headers(contentType: string): Promise<Record<string, string>> {
+  const token = await sessionToken();
+  return token ? { Authorization: `Bearer ${token}`, "Content-Type": contentType } : { "Content-Type": contentType };
 }
 
 /** Calls a reducer. Throws on a non-2xx response or a timeout. */
 export async function callReducer<R extends ReducerName>(name: R, args: ReducerArgs[R]): Promise<void> {
   const res = await fetch(endpoint(`call/${name}`), {
     method: "POST",
-    headers: headers("application/json"),
+    headers: await headers("application/json"),
     body: JSON.stringify(args),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
@@ -56,7 +58,7 @@ export async function selectRows<T extends TableName>(table: T, where = ""): Pro
   const query = `SELECT * FROM ${table}${where ? ` WHERE ${where}` : ""}`;
   const res = await fetch(endpoint("sql"), {
     method: "POST",
-    headers: headers("text/plain"),
+    headers: await headers("text/plain"),
     body: query,
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });

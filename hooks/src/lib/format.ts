@@ -86,7 +86,8 @@ const KIND_LABEL: Record<InboxRow["kind"], string> = {
 
 /** Quiet notes delivered on the next tool call or prompt. */
 export function notes(rows: InboxRow[]): string {
-  const lines = rows.map((row) => `- [${KIND_LABEL[row.kind]}] ${row.message}`);
+  // Part C's module already starts each message with MESSAGE_PREFIX; the header line carries it once.
+  const lines = rows.map((row) => `- [${KIND_LABEL[row.kind]}] ${row.message.replace(/^\[cowork\]\s*/, "")}`);
   return clip([`${MESSAGE_PREFIX} ${rows.length} new note(s) from your team:`, ...lines].join("\n"));
 }
 
