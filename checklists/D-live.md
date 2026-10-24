@@ -21,6 +21,7 @@ Branch: `codex/work-d-live-integration`, based on integration `8092c4e`.
 - [x] Resolved seed produces a current green check and verified memory.
 - [x] Human-review seed remains prominent; unapproved/revoked identities cannot show healthy live state.
 - [x] Browser inspection of actual subscribed conflict/diffs/output, verified memory and human review.
+- [x] This laptop completed official CLI sign-in; public identity verified without printing a session token.
 
 The seed content is simulated. Transport, permissions and reducer execution are
 real. Screenshots `artifacts/work-d/live-local-*.jpg` identify isolated seeded
@@ -39,7 +40,10 @@ verification. These tests do not run Claude/Droid models or prove autonomous fix
 
 D cannot grant membership or publish as the owner from a Reader account. No
 credentials are requested in chat or committed to the project. This laptop was
-checked with the official CLI: it is currently signed out.
+checked with the official CLI: sign-in succeeded. A subsequent authenticated,
+read-only `SELECT * FROM agent` request to shared `agent-cowork` returned HTTP
+403. Owner-approved access/deployment still needs C's confirmation; do not
+assume other laptops or the shared database are ready from successful login alone.
 
 ## Reproduce
 

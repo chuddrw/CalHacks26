@@ -69,7 +69,8 @@ interviews, measured results, recordings, and submissions require real evidence.
 ## Current dependencies
 
 The user selected one CLI sign-in per laptop for rehearsal; D's local session
-bridge is implemented. This laptop is signed out. C owns publishing the shared
+bridge is implemented. This laptop is signed in, but its authenticated read-only
+query to shared `agent-cowork` returned HTTP 403. C owns publishing the shared
 database module and granting each public identity Reader/Editor access. The
 dashboard needs Reader access; an agent laptop needs Editor access. No external
 OIDC client is needed for this local flow. Maincloud and the physical four-laptop
