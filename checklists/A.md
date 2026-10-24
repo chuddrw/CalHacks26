@@ -19,7 +19,7 @@ Status on Oct 24, about 4:40 AM: everything A can do without C is done. `npm run
 - [x] **End-to-end test** (`hooks/test/e2e.ts`, `npm run test:a`): a temporary bare remote, three clones and the mock database, running the real hooks and the real MCP server. Leaves no files behind (checked).
 - [x] **Type check**: `npm run typecheck:a` (hooks and mcp) passes with TypeScript 7.0.2.
 - [x] **Docs**: structure.md, external/mcp.txt, external/claude-code-hooks.txt and .env.example match what was built.
-- [ ] **Commit** on the branch and push it (the user said: push, no pull request).
+- [x] **Commit** on the branch and push it: `f18ccd5`, pushed to `origin/feat/a-hooks-mcp`, no pull request (as the user asked).
 
 ## Waiting on C
 
