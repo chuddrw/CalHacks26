@@ -2,7 +2,7 @@
  * shared/src/schema.ts
  *
  * WHAT IT'S FOR
- *   The frozen interface between every part of Agent Cowork: the row shape of each table,
+ *   The frozen interface between every part of Agent Cowork: the row shape of each query,
  *   every reducer's name and argument order, and the string formats that cross a boundary
  *   (hook -> SpacetimeDB -> watcher -> UI). Everyone codes against this file, so we freeze it
  *   tonight (plan.md, "Freeze tonight") and change it only when all four of us agree.
@@ -16,7 +16,7 @@
  *   - SQL over HTTP returns each row as a positional array in the table's column order.
  *     Each Row interface lists its fields in column order, and `Columns` repeats that order so
  *     shared/src/stdb-http.ts can turn arrays into objects. Keep all three in sync with the module.
- *   - Times are milliseconds since the Unix epoch, stored as plain numbers (u64 in the module).
+ *   - Times are milliseconds since the Unix epoch, stored as validated safe-integer f64 values in the module.
  *   - Lists are string arrays. If array columns give us trouble in the chosen SpacetimeDB
  *     version, switch them to comma-joined strings here AND in the module, together.
  *   - Table and column names avoid SQL keywords (no "check", "key", "read", "text", "output").
@@ -24,6 +24,12 @@
  * The generated bindings in ../module_bindings are the typed WebSocket client for the watcher,
  * the MCP server and the UI. If they disagree with this file, fix the module.
  */
+
+/** Query names expose authenticated views over private backing tables. Existing row shapes and
+ * reducer argument orders are unchanged. Only admin-approved signed-in identities receive access.
+ * Readers can query; Editors can call existing mutators; Owner manages membership and reset_all.
+ */
+export type AccessRole = "reader" | "editor";
 
 // ---- Formats ------------------------------------------------------------------------
 
@@ -62,7 +68,7 @@ export function pairKey(a: AgentName, b: AgentName | ""): string {
 /** Check state shown on the agent's card. Whether the agent is connected is `online`. */
 export type AgentStatus = "working" | "green" | "red";
 
-/** Table `agent`. One row per teammate. Primary key: name. */
+/** Authenticated view `agent`. One row per teammate. Primary key: name. */
 export interface AgentRow {
   name: AgentName;
   online: boolean;
@@ -74,7 +80,7 @@ export interface AgentRow {
   lastSnapshotAt: Millis;
 }
 
-/** Table `snapshot`. One row per pushed wip commit. Primary key: id (auto-increment). */
+/** Authenticated view `snapshot`. One row per pushed wip commit. Primary key: id (auto-increment). */
 export interface SnapshotRow {
   id: number;
   agent: AgentName;
@@ -88,7 +94,7 @@ export interface SnapshotRow {
   createdAt: Millis;
 }
 
-/** Table `intent`. Shared memory: what agents plan to do, plus facts the watcher verified. Primary key: id. */
+/** Authenticated view `intent`. Shared memory: what agents plan to do, plus facts the watcher verified. Primary key: id. */
 export interface IntentRow {
   id: number;
   /** Who posted it. Verified facts use WATCHER_NAME. */
@@ -104,7 +110,7 @@ export interface IntentRow {
 
 export type RunResult = "green" | "red";
 
-/** Table `check_run`. One row per combination of snapshots the watcher checked. Primary key: runKey. */
+/** Authenticated view `check_run`. One row per combination of snapshots the watcher checked. Primary key: runKey. */
 export interface CheckRunRow {
   runKey: string;
   agents: AgentName[];
@@ -118,7 +124,7 @@ export interface CheckRunRow {
 export type ConflictKind = "self" | "merge" | "pair";
 export type ConflictStatus = "open" | "resolved" | "escalated" | "needs_human";
 
-/** Table `conflict`. At most one open conflict per pair. Primary key: id (auto-increment). */
+/** Authenticated view `conflict`. At most one open conflict per pair. Primary key: id (auto-increment). */
 export interface ConflictRow {
   id: number;
   /** pairKey(agentA, agentB). Lets reducers find the open conflict for a pair. */
@@ -149,8 +155,10 @@ export interface ConflictRow {
  * fact     = a verified fact, sent to everyone
  */
 export type InboxKind = "conflict" | "info" | "heads_up" | "fact";
+/** One-off notes cannot create actionable conflict wakeups without a real conflict ID. */
+export type NoteKind = Exclude<InboxKind, "conflict">;
 
-/** Table `inbox`. One row per message per recipient. Primary key: id (auto-increment). */
+/** Authenticated view `inbox`. One row per message per recipient. Primary key: id (auto-increment). */
 export interface InboxRow {
   id: number;
   /** Recipient. */
@@ -167,7 +175,7 @@ export interface InboxRow {
 export type DiagnosisSource = "droid" | "claude";
 export type DiagnosisStepKind = "status" | "tool_call" | "tool_result" | "thought" | "final" | "error";
 
-/** Table `diagnosis_step`. What Droid (or Claude) did, streamed to the UI's Droid panel. Primary key: id. */
+/** Authenticated view `diagnosis_step`. What Droid (or Claude) did, streamed to the UI's Droid panel. Primary key: id. */
 export interface DiagnosisStepRow {
   id: number;
   conflictId: number;
@@ -211,18 +219,22 @@ export type TableName = keyof TableRows;
 
 /** Arguments of each reducer, in call order. Over HTTP the request body is this tuple as a JSON array. */
 export interface ReducerArgs {
+  /** Database owner only. Identity is a public 64-hex string, never an auth token. */
+  grant_access: [identity: string, role: AccessRole];
+  /** Database owner only. Revocation removes access and retires that identity's presence. */
+  revoke_access: [identity: string];
   /** MCP server, on connect. Marks the agent online and remembers its connection for client_disconnected. */
   register_agent: [agent: AgentName];
   /** Snapshot hook, after a successful push. Sets the agent to "working" and updates its files. */
   post_snapshot: [agent: AgentName, sha: string, baseSha: string, files: string[], diff: string];
   /** MCP tool post_intent. Also writes a heads_up inbox row for every other agent. */
   post_intent: [agent: AgentName, summary: string, files: string[], symbols: string[]];
-  /** Watcher, after every run. Green marks those agents green unless they still have an open conflict. */
+  /** Historical runs are stored; only current snapshot combinations can change live green status. */
   report_check: [runKey: string, agents: AgentName[], result: RunResult, log: string];
   /**
    * Watcher, when a run is red. One transaction: upsert the open conflict for this pair, set both
    * agents red, write a "conflict" inbox row for the fixer and an "info" row for the other agent,
-   * and schedule escalation.
+   * and schedule escalation. Requires a previously reported, current red check covering the pair.
    */
   report_conflict: [
     kind: ConflictKind,
@@ -241,16 +253,21 @@ export interface ReducerArgs {
    * at delivery time, so an undelivered message picks it up by itself. If the fixer already got the
    * message, the module also sends the explanation as an "info" note.
    */
+  /** @deprecated Concurrent diagnosis must use set_explanation_if_current to reject stale writes atomically. */
   set_explanation: [conflictId: number, explanation: string];
-  /** Watcher, when the pair checks green again. A non-empty fact becomes a verified intent and a "fact" for everyone. */
+  /** Atomic diagnosis publication; a changed run, error, fixer, or nonactive status is ignored. */
+  set_explanation_if_current: [conflictId: number, expectedRunKey: string, expectedError: string, expectedFixer: AgentName, explanation: string];
+  /** Legacy resolution requires a current covering green check. Prefer the explicit version-checked call below. */
   resolve_conflict: [conflictId: number, verifiedFact: string];
+  /** Resolve only this conflict version using an explicitly named, current covering green check. */
+  resolve_conflict_if_current: [conflictId: number, expectedRunKey: string, expectedError: string, expectedFixer: AgentName, verifiedRunKey: string, verifiedFact: string];
   /** Watcher's guard: the fix edited or deleted a test. */
   flag_needs_human: [conflictId: number, reason: string];
   /** Watcher's dependency heads-up (watcher/src/deps.ts), or any one-off note to one agent. */
-  send_note: [agent: AgentName, kind: InboxKind, message: string];
+  send_note: [agent: AgentName, kind: NoteKind, message: string];
   /** Hooks, right after showing messages to the agent. */
   mark_delivered: [inboxIds: number[]];
-  /** scripts/demo-reset.ts only. Deletes every row. */
+  /** Owner-only scripts/demo-reset.ts call. Clears team state while preserving access membership. */
   reset_all: [];
 }
 export type ReducerName = keyof ReducerArgs;

@@ -1,53 +1,86 @@
-/**
- * watcher/src/diagnose/droid.ts
- *
- * WHAT IT'S FOR
- *   The Factory prize path. When the watcher reports a conflict, a Droid session investigates it
- *   in a disposable worktree that holds the failing combination: it can read files and run tsc,
- *   the tests, grep and git diff, but it can't edit anything. Every step it takes is streamed into
- *   SpacetimeDB (add_diagnosis_step), so the UI's Droid panel shows the work live. Its final answer
- *   is a Diagnosis (prompt.ts).
- *
- * OWNER: C. WHEN: Sat 14:00-19:00.
- * DONE WHEN: on the demo conflict, the Droid panel shows at least one tool call (e.g. running the
- *            failing test) and a final explanation within about 60 s, and the worktree is gone after.
- *
- * FACTORY'S JUDGING (external/factory-droid.txt), AND HOW WE MEET IT
- *   - Droid does work inside a running product: the watcher starts it with no human involved.
- *   - Our own trigger: a red check.
- *   - Permission control: edit tools disabled, risky commands rejected, disposable worktree.
- *   - Visible plan, steps and results: the Droid panel in the UI.
- *   - The README says where Droid is used.
- *
- * SDK (from docs.factory.com/sdk/typescript; check names against the installed version)
- *   import from "@factory/droid-sdk/node"; auth with FACTORY_API_KEY.
- *   createSession({ cwd, apiKey, modelId, disabledToolIds, permissionHandler, ... }) for a session,
- *   session.stream() to read messages (assistant text, tool calls and results, final result),
- *   session.close() in a finally block. listTools() shows the tool ids to disable; listModels()
- *   shows which models our account can pick (put the choice in DROID_MODEL_ID).
- *
- * STEPS
- *   1. createSession in ctx.worktree, with every edit/create/patch/write tool in disabledToolIds.
- *   2. permissionHandler: allow read-only commands (tsc, vitest, grep, cat, ls, git diff/show/log).
- *      Cancel everything else, git push / git commit / rm / npm install included.
- *   3. Send buildPrompt(ctx) plus "End with ONLY a JSON object with the fields summary, cause,
- *      suggestion, fact."
- *   4. For each streamed message, call onStep(kind, detail): assistant text is "thought", a tool
- *      call is "tool_call" (name plus short args), a tool result is "tool_result" (first 300
- *      characters), and the final result is "final". Cut each detail to 2 KB.
- *   5. Parse the JSON at the end of the final text. If it doesn't parse, use the whole text as the
- *      summary and leave the other fields empty.
- *   6. Stop after 90 s: close the session and return null, and index.ts falls back to Claude.
+/** Part C Factory diagnosis: disposable worktree, edit tools disabled, explicit read/check permissions,
+ * streamed UI steps, 90-second session deadline and guaranteed session close. API verified against
+ * @factory/droid-sdk's installed declarations and https://docs.factory.com/sdk/typescript.
  */
+import { AutonomyLevel, createSession, ToolConfirmationOutcome, ToolConfirmationType } from "@factory/droid-sdk/node";
 import type { DiagnosisStepKind } from "../../../shared/src/schema.ts";
-import type { Diagnosis, DiagnosisContext } from "./prompt.ts";
+import { config } from "../../../shared/src/config.ts";
+import { buildPrompt, type Diagnosis, type DiagnosisContext } from "./prompt.ts";
+import { truncateUtf8 } from "./text.ts";
+import { isReadOnlyCommand, READ_TOOLS } from "./permissions.ts";
 
 export type OnStep = (kind: DiagnosisStepKind, detail: string) => void;
 
-/** Returns null on timeout, SDK error, or a missing FACTORY_API_KEY. */
+export function parseDiagnosis(text: string): Diagnosis | null {
+  if (!text.trim()) return null;
+  const clean = text.trim().replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+  try {
+    const value: unknown = JSON.parse(clean);
+    if (typeof value === "object" && value !== null && ["summary", "cause", "suggestion", "fact"].every(key => typeof (value as Record<string, unknown>)[key] === "string")) {
+      return value as Diagnosis;
+    }
+  } catch { /* The documented fallback retains a useful plain-text explanation. */ }
+  return { summary: text.slice(0, 8000), cause: "", suggestion: "", fact: "" };
+}
+
+/** Injectable SDK seam for timeout/permission regression checks; production uses the installed SDK. */
+export function createDroidDiagnoser(options: { create?: typeof createSession; apiKey?: string; timeoutMs?: number } = {}) {
+return async function diagnose(ctx: DiagnosisContext, onStep: OnStep): Promise<Diagnosis | null> {
+  const apiKey = options.apiKey ?? config.factoryApiKey;
+  if (!apiKey) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new Error("Droid diagnosis timed out")), options.timeoutMs ?? 90_000);
+  let session: Awaited<ReturnType<typeof createSession>> | undefined;
+  const step: OnStep = (kind, detail) => onStep(kind, truncateUtf8(detail, 2048));
+  try {
+    session = await (options.create ?? createSession)({
+      cwd: ctx.worktree,
+      apiKey,
+      ...(config.droidModelId ? { modelId: config.droidModelId } : {}),
+      abortSignal: controller.signal,
+      autonomyLevel: AutonomyLevel.Off,
+      disableBuiltinSkills: true,
+      disabledToolIds: ["Edit", "Create", "ApplyPatch", "Task", "Skill"],
+      permissionHandler({ toolUses, options }) {
+        const allowed = toolUses.length > 0 && toolUses.every(({ toolUse, details }) => {
+          if (READ_TOOLS.has(toolUse.name)) return details.type !== ToolConfirmationType.SandboxViolation;
+          if (toolUse.name !== "Execute" || details.type !== ToolConfirmationType.Execute) return false;
+          return isReadOnlyCommand(details.command) && isReadOnlyCommand(details.fullCommand);
+        });
+        return allowed && options.some(option => option.value === ToolConfirmationOutcome.ProceedOnce)
+          ? ToolConfirmationOutcome.ProceedOnce : ToolConfirmationOutcome.Cancel;
+      },
+    });
+    // Disable every undiscovered write/connector tool as well as the known editing tools, before a turn starts.
+    const tools = await session.listTools();
+    await session.updateSettings({ disabledToolIds: tools.filter(tool => !READ_TOOLS.has(tool.id) && tool.id !== "Execute").map(tool => tool.id) });
+    const prompt = `${buildPrompt(ctx)}\nRead only. For checks use ./node_modules/.bin/tsc --noEmit --incremental false or ./node_modules/.bin/vitest run. For git reads append --no-ext-diff --no-textconv immediately after diff/show/log. Never change files or run shell compound commands. End with ONLY a JSON object containing summary, cause, suggestion, fact.`;
+    for await (const message of session.stream(prompt, { abortSignal: controller.signal })) {
+      switch (message.type) {
+        case "assistant": step("thought", message.text); break;
+        case "tool_call": step("tool_call", `${message.name} ${JSON.stringify(message.input)}`); break;
+        case "tool_result": step("tool_result", JSON.stringify(message.content).slice(0, 300)); break;
+        case "error": step("error", message.message); break;
+        case "result":
+          if (!message.success) return null;
+          step("final", message.text);
+          return parseDiagnosis(message.text);
+      }
+    }
+    return null;
+  } catch {
+    step("error", controller.signal.aborted ? "Droid diagnosis timed out" : "Droid diagnosis unavailable");
+    return null;
+  } finally {
+    clearTimeout(timer);
+    await session?.close();
+  }
+}
+
+}
+
+const defaultDiagnoser = createDroidDiagnoser();
+/** Returns null on timeout, SDK error or missing API key. Always closes its own session. */
 export async function diagnoseWithDroid(ctx: DiagnosisContext, onStep: OnStep): Promise<Diagnosis | null> {
-  // TODO (C): steps 1-6 above.
-  void ctx;
-  void onStep;
-  return null;
+  return defaultDiagnoser(ctx, onStep);
 }

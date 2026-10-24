@@ -35,8 +35,8 @@ laptops: hooks + MCP server ──git push──▶ GitHub  wip/<name> ◀──
 
 ### SpacetimeDB
 
-TODO (C): list the final tables and reducers. Planned:
-- Every piece of team state lives in one SpacetimeDB module: agents, snapshots, intents, checks, conflicts, inboxes, Droid steps.
+Implemented in [module/src/index.ts](module/src/index.ts) for SpacetimeDB **2.13.0**, using the frozen [shared interface](shared/src/schema.ts). Local transactional and HTTP integration checks pass:
+- Seven authenticated views over private backing tables hold team state: `agent`, `snapshot`, `intent`, `check_run`, `conflict`, `inbox`, and `diagnosis_step`. The twelve business reducers preserve the shared argument order. Owner-only grant/revoke reducers manage Reader/Editor membership; signing in alone grants no access. See [access setup](module/ACCESS.md). Public IDs and millisecond timestamps remain JavaScript numbers.
 - `report_conflict` creates the conflict, assigns the fixer and writes both inboxes in a single transaction, so two agents never both try to fix the same break.
 - A schedule table escalates a conflict to a human if it stays open for 5 minutes.
 - Lifecycle reducers track which agents are online.
@@ -44,11 +44,11 @@ TODO (C): list the final tables and reducers. Planned:
 
 ### Factory Droid SDK
 
-TODO (C): link to `watcher/src/diagnose/droid.ts` and describe the final behavior. Planned:
-- **Trigger:** the watcher starts a Droid session only when a check turns red.
-- **Permissions:** Droid works in a disposable worktree with its edit tools disabled, and `git push` is blocked by a permission handler.
+Implemented in [watcher/src/diagnose/droid.ts](watcher/src/diagnose/droid.ts), behind the [injected diagnosis contract](watcher/src/diagnose/README.md):
+- **Trigger:** Part B can invoke the diagnosis runner after recording a red conflict, supplying that run’s evidence, database callbacks, and a dedicated disposable worktree. Part B’s orchestration remains a separate implementation.
+- **Permissions:** Droid has autonomy off, editing and connector tools disabled, and a deny-by-default command grammar that permits specific reads and checks. Its session closes after success, failure, or a 90-second timeout. This is SDK permission control, not an operating-system sandbox.
 - **Visible work:** every Droid step is streamed into SpacetimeDB and shown live in the dashboard's Droid panel.
-- **Output:** a plain-language cause, the agent who should fix it, a suggested fix, and a one-sentence fact for shared memory.
+- **Output:** a plain-language cause and suggested fix for the deterministically chosen fixer, plus a proposed fact. Only a later green check publishes that fact as verified memory. Claude is the bounded fallback; missing credentials produce an unavailable step. SDK types and mocked regressions pass; paid live model calls have not been run.
 
 ### Claude
 
@@ -58,12 +58,12 @@ TODO (C): link to `watcher/src/diagnose/droid.ts` and describe the final behavio
 
 ## Run it
 
-TODO (C): confirm every step on a clean laptop.
+Part C’s reproducible checks and database commands are in [module/README.md](module/README.md); the separate local demo app and five-run scenario are in [demo-app/README.md](demo-app/README.md). Parts A, B, and D still contain their own skeletons, so a complete live edit → wake → fix rehearsal remains dependent on those implementations. No API keys are included in this project.
 
 1. Node 24 or newer, git, and the `spacetime` CLI.
 2. `npm run setup` from this folder.
 3. Copy `.env.example` to `.env` and fill it in ([external/api-keys.txt](external/api-keys.txt)).
-4. `npm run module:generate` once the module is published.
+4. `npm run module:generate` regenerates public bindings from the local module. Its verified generation wrapper preserves the frozen SQL names; see [module/generate.mjs](module/generate.mjs).
 5. On each laptop: `npm run install-hooks -- --demo <path to demo-app> --name <you>`.
 6. On one machine: `npm run watcher`. On the big screen: `npm run ui`.
 

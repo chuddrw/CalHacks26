@@ -27,3 +27,6 @@ demo-app/
 Thumbs.db
 .vscode/
 .idea/
+
+# Generated Part C test coverage reports
+coverage/
