@@ -6,6 +6,14 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "spike": "tsx src/spike.ts",
+    "fixture": "tsx src/fixture.ts",
     "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@factory/droid-sdk": "^0.10.0",
+    "madge": "^8.0.0",
+    "spacetimedb": "^2.13.0",
+    "zod": "^3.25.76"
   }
 }

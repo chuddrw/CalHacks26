@@ -70,7 +70,7 @@ Anything that isn't a file (accounts, keys, the hosted database, the MCP registr
 ## Freeze tonight
 
 - [shared/src/schema.ts](shared/src/schema.ts): tables, row shapes, reducer names and argument order.
-- SpacetimeDB version (1.12 or 2.0) and database name ([external/spacetimedb-maincloud.txt](external/spacetimedb-maincloud.txt)).
+- SpacetimeDB version (picked: 2.x, CLI and SDK 2.13) and database name ([external/spacetimedb-maincloud.txt](external/spacetimedb-maincloud.txt)).
 - Formats: branch `wip/<name>`, env var `COWORK_NAME`, location `path:line`, timestamps in milliseconds.
 - Repos: this folder is repo 1 (the tool, our submission). `demo-app/` is repo 2 with its own git, and repo 1 ignores it.
 

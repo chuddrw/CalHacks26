@@ -7,6 +7,7 @@
  *
  * OWNER: B. WHEN: Sat 14:00-19:00.
  * DONE WHEN: the demo scenario picks b (the error is in b's new file), even though a pushed last.
+ *            (Fixture: picks b.)
  *
  * THE RULE
  *   1. kind "self":  the snapshot's author.
