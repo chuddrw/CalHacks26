@@ -18,7 +18,10 @@
  *      identity (never the token) is what you send the database owner to be approved.
  *   4. Read access: SELECT * FROM agent. 401/403 means not signed in or not approved yet.
  *   5. Write access: mark_delivered([]), which changes nothing but needs the Editor role.
- *   6. With --demo: our hooks in .claude/settings.local.json, "cowork" in .mcp.json, and
+ *   6. The deployed module has every reducer this code calls (names from the generated bindings).
+ *      A missing one means the owner hasn't published module/ from this branch yet.
+ *   7. Droid (warning only; only the watcher laptop needs it): the droid CLI and FACTORY_API_KEY.
+ *   8. With --demo: our hooks in .claude/settings.local.json, "cowork" in .mcp.json, and
  *      `git push --dry-run` to wip/<name>, which checks push rights without pushing anything.
  *
  * It never prints a token. Exit code 1 if anything failed.
@@ -114,7 +117,37 @@ if (config.stdbDb) {
   }
 }
 
-// 6. Demo clone
+// 6. The deployed module has every reducer this code calls (the generated bindings list them).
+if (config.stdbDb) {
+  const bindings = readFileSync(path.join(config.repoRoot, "shared", "module_bindings", "index.ts"), "utf8");
+  const expected = [...bindings.matchAll(/__reducerSchema\("([a-z_]+)"/g)].map((match) => match[1] ?? "");
+  try {
+    const url = `${config.stdbHost.replace(/\/$/, "")}/v1/database/${encodeURIComponent(config.stdbDb)}/schema?version=9`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const schema = (await res.json()) as { reducers?: Array<{ name?: string }> };
+    const deployed = new Set((schema.reducers ?? []).map((reducer) => reducer.name));
+    const missing = expected.filter((name) => !deployed.has(name));
+    if (missing.length === 0) pass("deployed module is up to date", `all ${expected.length} reducers this code calls are on ${config.stdbDb}`);
+    else fail(`the deployed module is older than this code (missing: ${missing.join(", ")})`, "The database owner publishes module/ from this branch: npm run publish:cloud --prefix module (module/README.md).");
+  } catch (error) {
+    warn("couldn't read the deployed module's schema", `${error instanceof Error ? error.message : String(error)}. Check STDB_HOST and your network.`);
+  }
+}
+
+// 7. Droid, for the diagnosis. Only the laptop that runs the watcher needs it.
+if (config.diagnoseWith === "droid") {
+  const droid = await run(process.platform === "win32" ? "where" : "which", ["droid"]);
+  if (droid.ok && config.factoryApiKey) pass("Droid", "droid CLI found and FACTORY_API_KEY set (needed on the watcher laptop only)");
+  else {
+    warn(
+      `Droid isn't ready here (${[droid.ok ? "" : "no droid CLI", config.factoryApiKey ? "" : "no FACTORY_API_KEY"].filter(Boolean).join(", ")})`,
+      "Only the watcher laptop needs it. Install the CLI (PowerShell: irm https://app.factory.ai/cli/windows | iex; Mac: curl -fsSL https://app.factory.ai/cli | sh), then put FACTORY_API_KEY=<key> in repo 1's .env.",
+    );
+  }
+}
+
+// 8. Demo clone
 if (values.demo) {
   const demo = path.resolve(values.demo);
   const settingsFile = path.join(demo, ".claude", "settings.local.json");
