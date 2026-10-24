@@ -1070,6 +1070,50 @@ select {
   margin-top: 6px;
   color: #e4bec8;
 }
+.review-actions {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+.review-comment {
+  width: 100%;
+  background: #101b2f;
+  border: 1px solid #a55a6590;
+  border-radius: 6px;
+  padding: 7px 9px;
+  color: #f1dbe0;
+  font-size: 0.78rem;
+}
+.review-comment::placeholder {
+  color: #b9909a;
+}
+.review-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.review-accept {
+  border-color: #33695790;
+  color: var(--green);
+}
+.review-reject {
+  border-color: #a55a65;
+  color: #ffb0ba;
+}
+.review-actions .button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.human-callout p.review-error {
+  color: #ffd7dd;
+  font-weight: 600;
+  margin-top: 0;
+}
+.human-callout p.review-hint {
+  margin-top: 0;
+  font-size: 0.72rem;
+  color: #c79da7;
+}
 .conflict-tabs {
   display: flex;
   flex-wrap: wrap;

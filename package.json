@@ -32,6 +32,7 @@
     "typecheck:a": "tsc -p hooks && tsc -p mcp",
     "doctor": "node scripts/doctor.ts",
     "review": "node scripts/review.ts",
+    "local-db": "node scripts/local-db.ts",
     "test:live": "node scripts/live-e2e.ts"
   },
   "devDependencies": {

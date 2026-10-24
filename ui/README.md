@@ -61,16 +61,21 @@ and approves the user's reader identity.
 7. Verify inserts, updates, deletes, socket interruptions, and reconnects against
    the real module. Then use C's agreed reset procedure before a real rehearsal.
 
-The browser does not read `STDB_TOKEN` or other server keys. It establishes its
-own SDK connection and calls no reducers. C's separate `catherine_part_c` branch
-uses authenticated views with owner-approved reader access. The current adapter
-startup does not yet supply a signed-in user's token, so it is not ready for that protected
-module. The transport accepts an optional session `getToken` callback, re-reads it
-on reconnect, and refuses anonymous fallback when that session is absent or fails.
-Tokens are not written to dashboard state. Wiring this callback to the team's
-approved sign-in provider remains open. Dashboard cookies alone do not authenticate an SDK connection. Coordinate
-the user's sign-in flow and reader approval with C; never put an owner token or
-server credential in a Vite environment variable.
+Sign-in: the dashboard connects as whoever is signed in on the laptop that runs it
+(`spacetime login`). The Vite dev server (`ui/dev-session.ts`) answers
+`GET /__cowork/session` with that session's token, only to a page on the same
+laptop (loopback address, localhost Host and Origin, and a custom header that other
+sites' pages can't send). `connect()` fetches it once and passes it to the
+transport's `getToken` callback. The token stays in memory: not in `.env`, a
+`VITE_` variable, the bundle, or dashboard state. That account needs at least
+reader access from C. Use a teammate account on the dashboard laptop, not the
+owner's. A production build (`vite build` / `preview`) has no such endpoint and
+stays on "Sign in with an approved reader account".
+
+The dashboard calls one reducer: `review_test_change`, from the Accept / Send back
+buttons on a conflict that needs a person (the fix changed existing tests). That
+needs editor access. In `?demo` the buttons change only the simulated rows.
+`npm run review` does the same from a terminal.
 
 The adapter validates all expected fields and safe integer conversions from SDK
 bigints. Missing tables or incompatible shapes stay visibly disconnected rather

@@ -5,7 +5,7 @@ import type {
   DiagnosisStepRow,
 } from "../../shared/src/schema.ts";
 import { emptyTables, type Tables } from "./dashboard";
-import { replaceTables, setConnection } from "./store";
+import { getSnapshot, replaceTables, setConnection } from "./store";
 
 export const demoScenes = [
   "working",
@@ -224,4 +224,17 @@ export function startDemo(): () => void {
   return () => {
     /* no background connection and no writes */
   };
+}
+
+/** Simulated answer to the test-edit guard: approve resolves, send back reopens. This page only. */
+export function reviewDemoConflict(conflictId: number, approve: boolean, now = Date.now()): void {
+  const { tables } = getSnapshot();
+  replaceTables({
+    ...tables,
+    conflict: tables.conflict.map((c) =>
+      c.id === conflictId && c.status === "needs_human"
+        ? { ...c, status: approve ? "resolved" : "open", resolvedAt: approve ? now : 0 }
+        : c,
+    ),
+  });
 }

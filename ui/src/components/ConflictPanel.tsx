@@ -1,7 +1,8 @@
 /** WHAT IT'S FOR: conflict selection, both source excerpts, fixer assignment, and human-review state. Owner: D. */
+import { useState } from "react";
 import type { ConflictRow } from "../../../shared/src/schema.ts";
 import { excerptFromDiff } from "../diff";
-import { useRows } from "../stdb";
+import { reviewTestChange, useRows } from "../stdb";
 import { absoluteTime, relativeTime } from "../time";
 import { useNow } from "../useNow";
 import { Icon } from "./Icon";
@@ -67,6 +68,71 @@ function SourceExcerpt({
     </div>
   );
 }
+/** A person's answer to a fix that changed existing tests (Part C's review_test_change). Owner: A. */
+function ReviewActions({ conflict }: { conflict: ConflictRow }) {
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState<"" | "approve" | "reject">("");
+  const [error, setError] = useState("");
+  const decide = async (approve: boolean) => {
+    setBusy(approve ? "approve" : "reject");
+    setError("");
+    try {
+      await reviewTestChange(conflict.id, approve, comment.trim());
+      setComment("");
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "The database refused the review.",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+  return (
+    <div className="review-actions">
+      <input
+        className="review-comment"
+        value={comment}
+        onChange={(event) => setComment(event.target.value)}
+        placeholder={`Note for ${conflict.fixer} (optional)`}
+        maxLength={500}
+        aria-label={`Note for ${conflict.fixer}`}
+        disabled={busy !== ""}
+      />
+      <div className="review-buttons">
+        <button
+          type="button"
+          className="button compact review-accept"
+          disabled={busy !== ""}
+          onClick={() => void decide(true)}
+        >
+          <Icon name="check" size={14} />
+          {busy === "approve" ? "Accepting…" : "Accept test change"}
+        </button>
+        <button
+          type="button"
+          className="button compact review-reject"
+          disabled={busy !== ""}
+          onClick={() => void decide(false)}
+        >
+          <Icon name="arrow" size={14} />
+          {busy === "reject" ? "Sending back…" : `Send back to ${conflict.fixer}`}
+        </button>
+      </div>
+      {error && (
+        <p className="review-error" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="review-hint">
+        Accept keeps the changed tests and needs the combined check to be green.
+        Send back wakes {conflict.fixer} to put the tests back and fix the code.
+      </p>
+    </div>
+  );
+}
+
 export function ConflictPanel({
   conflicts,
   selected,
@@ -174,6 +240,9 @@ export function ConflictPanel({
                       "The proposed fix touched existing tests. Review those changes before accepting the result."
                     : "The conflict is still unresolved. Coordinate with the assigned fixer on the next step."}
                 </p>
+                {selected.status === "needs_human" && (
+                  <ReviewActions key={selected.id} conflict={selected} />
+                )}
               </div>
             </div>
           )}

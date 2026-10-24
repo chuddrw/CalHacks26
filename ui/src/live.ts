@@ -100,8 +100,16 @@ interface SubscriptionBuilder {
 }
 interface Connection {
   db: Record<string, ClientTable>;
+  /** Generated reducer calls. The dashboard uses only reviewTestChange (the review buttons). */
+  reducers?: Record<string, ((args: Record<string, unknown>) => Promise<void>) | undefined>;
   disconnect(): void;
   subscriptionBuilder(): SubscriptionBuilder;
+}
+
+let liveConn: Connection | undefined;
+/** The connection while the dashboard is live, for the one action a person takes (review buttons). */
+export function liveConnection(): Connection | undefined {
+  return liveConn;
 }
 export interface ConnectionBuilder {
   withUri(host: string): ConnectionBuilder;
@@ -139,6 +147,7 @@ export function startLive(
     let failed = false;
     const alive = () => !disposed && current === generation && !failed;
     release = () => {
+      if (connection && liveConn === connection) liveConn = undefined;
       for (const remove of cleanup) {
         try {
           remove();
@@ -265,6 +274,7 @@ export function startLive(
                 if (!alive()) return;
                 if (deadline) clearTimeout(deadline);
                 attempt = 0;
+                liveConn = conn;
                 setConnection({
                   phase: "live",
                   detail: `Subscribed to ${database}. All team tables are synchronized.`,

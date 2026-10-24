@@ -76,11 +76,13 @@ Calhacks/                          repo 1: the tool (our Devpost submission)
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── vite.config.ts
+│   ├── dev-session.ts             signs the dashboard in with this laptop's spacetime login
 │   ├── index.html
 │   └── src/
 │       ├── main.tsx               mounts the app
 │       ├── App.tsx                layout and big-screen mode
 │       ├── stdb.ts                SpacetimeDB connection and subscriptions
+│       ├── session.ts             fetches the sign-in token from the dev server
 │       ├── styles.css             look and feel
 │       └── components/
 │           ├── AgentCard.tsx      one card per agent
@@ -93,6 +95,8 @@ Calhacks/                          repo 1: the tool (our Devpost submission)
 │   ├── mock-stdb.ts               in-memory stand-in for SpacetimeDB, following Part C's rules
 │   ├── doctor.ts                  checks a laptop: settings, sign-in, approval, hooks, push rights
 │   ├── live-e2e.ts                the whole system on a temporary real SpacetimeDB server
+│   ├── local-db.ts                a throwaway local SpacetimeDB for rehearsals and manual tests
+│   ├── review.ts                  accept or send back a fix that changed tests
 │   └── demo-reset.ts              clean slate before every demo run
 ├── pitch/
 │   ├── demo-script.md             the 2-minute script, word for word
@@ -223,13 +227,15 @@ Calhacks/                          repo 1: the tool (our Devpost submission)
 | `package.json` | UI package. Scaffold with `npm create vite@latest` and keep our notes. | D | Tonight |
 | `tsconfig.json` | TypeScript settings for the browser | D | Tonight |
 | `vite.config.ts` | Vite config; lets the UI import `../shared` | D | Tonight |
+| `dev-session.ts` | Dev-server endpoint `/__cowork/session`: hands this laptop's `spacetime login` token to a page on the same laptop only, so the dashboard signs in with no token in `.env` | A (for D) | Done Oct 24 |
 | `index.html` | Page shell | D | Tonight |
 | `src/main.tsx` | Mounts React | D | Tonight |
 | `src/App.tsx` | Layout, and big-screen mode for the demo | D | Sat 9:20 |
-| `src/stdb.ts` | Connects to SpacetimeDB, subscribes to every table, exposes the rows to React | D | Tonight |
+| `src/stdb.ts` | Connects to SpacetimeDB, subscribes to every table, exposes the rows to React; `reviewTestChange` for the review buttons | D | Tonight |
+| `src/session.ts` | The page side of `dev-session.ts`: fetches the token once and keeps it in memory | A (for D) | Done Oct 24 |
 | `src/styles.css` | Styles. Readable from across a table on a big screen. | D | Sat 14:00 |
 | `src/components/AgentCard.tsx` | Name, online, current intent, files touched, red or green | D | Sat 9:20 |
-| `src/components/ConflictPanel.tsx` | `file:line × file:line`, both snippets, explanation, fixer, status | D | Sat 9:20 |
+| `src/components/ConflictPanel.tsx` | `file:line × file:line`, both snippets, explanation, fixer, status; Accept / Send back buttons when a fix changed tests | D (review buttons: A) | Sat 9:20 |
 | `src/components/DroidPanel.tsx` | Droid's steps as they stream in | D | Sat 14:00 |
 | `src/components/MemoryPanel.tsx` | Intents and verified facts | D | Sat 20:00 |
 | `src/components/Timeline.tsx` | Snapshots, checks, intents and conflicts in order | D | Sat 14:00 |
@@ -240,7 +246,9 @@ Calhacks/                          repo 1: the tool (our Devpost submission)
 |---|---|---|---|
 | `seed-fake.ts` | Inserts fake agents, snapshots and a conflict, so the UI and checkpoint 1 don't wait on real hooks | D | Sat 9:20 (runs against the mock already) |
 | `mock-stdb.ts` | `npm run mock-db`: in-memory SpacetimeDB stand-in with the same HTTP endpoints and reducer rules as Part C's module (guarded reducers included) | A | Done Oct 24 |
-| `live-e2e.ts` | `npm run test:live`: a temporary in-memory SpacetimeDB 2.13 server with C's module, B's watcher and fixture, A's hooks and MCP server, playing the demo scenario end to end (19 checks) | A (integration) | Oct 24 |
+| `live-e2e.ts` | `npm run test:live`: a temporary in-memory SpacetimeDB 2.13 server with C's module, B's watcher and fixture, A's hooks and MCP server, playing the demo scenario end to end (20 checks) | A (integration) | Oct 24 |
+| `local-db.ts` | `npm run local-db [-- --scene review]`: a throwaway local SpacetimeDB with C's module and editor accounts for a, b, c, d, the watcher and the dashboard. For rehearsals and manual tests; Ctrl+C deletes it | A | Done Oct 24 |
+| `review.ts` | `npm run review [-- <id> approve|reject "note"]`: a person's answer when a fix changed tests (needs_human). Same as the dashboard buttons | A | Done Oct 24 |
 | `doctor.ts` | `npm run doctor [-- --demo <clone>]`: is this laptop ready? Settings, CLI, sign-in, read and write access, hooks, MCP, push rights; says what to do for each failure | A (integration) | Oct 24 |
 | `demo-reset.ts` | Clears the tables, deletes the remote `wip/*` branches, resets each demo-app clone | C | Sat 19:00 |
 

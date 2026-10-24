@@ -3,8 +3,9 @@ import { useSyncExternalStore } from "react";
 import type { TableName, TableRows } from "../../shared/src/schema.ts";
 import { emptyTables } from "./dashboard";
 import { getSnapshot, replaceTables, setConnection, subscribe } from "./store";
-import { startLive, type Bindings } from "./live";
-import { startDemo } from "./demo";
+import { liveConnection, startLive, type Bindings } from "./live";
+import { reviewDemoConflict, startDemo } from "./demo";
+import { fetchSessionToken } from "./session";
 export { setRows } from "./store";
 
 export function useDashboard() {
@@ -46,15 +47,19 @@ export function connect(): () => void {
         phase: "connecting",
         detail: "Loading the database client…",
       });
-      void load()
-        .then((module) => {
+      // Sign in as this laptop's `spacetime login` user (ui/dev-session.ts). No token: live.ts
+      // shows "Sign in with an approved reader account" instead of connecting anonymously.
+      void Promise.all([load(), fetchSessionToken()])
+        .then(([module, token]) => {
           if (current !== epoch) return;
           const bindings = module as Partial<Bindings>;
           if (!bindings.DbConnection?.builder)
             throw new Error(
               "Generated bindings must export DbConnection.builder().",
             );
-          stop = startLive(bindings as Bindings, host, database);
+          stop = startLive(bindings as Bindings, host, database, {
+            getToken: () => token,
+          });
         })
         .catch((error) => {
           if (current === epoch)
@@ -75,4 +80,26 @@ export function connect(): () => void {
       stop = undefined;
     }
   };
+}
+
+/**
+ * A person's answer to a fix that changed existing tests (conflict status needs_human).
+ * Live: Part C's review_test_change; approve needs a green check, reject wakes the fixer.
+ * Demo (?demo): changes only the simulated rows on this page.
+ */
+export async function reviewTestChange(
+  conflictId: number,
+  approve: boolean,
+  comment: string,
+): Promise<void> {
+  if (getSnapshot().connection.phase === "demo") {
+    reviewDemoConflict(conflictId, approve);
+    return;
+  }
+  const call = liveConnection()?.reducers?.reviewTestChange;
+  if (!call)
+    throw new Error(
+      "The dashboard isn't connected. Run `npm run review` on a signed-in laptop instead.",
+    );
+  await call({ conflictId, approve, comment });
 }

@@ -7,5 +7,5 @@
 // OWNER: A.
 {
   "extends": "../tsconfig.base.json",
-  "include": ["src/**/*.ts", "test/**/*.ts", "../shared/src/**/*.ts", "../scripts/mock-stdb.ts", "../scripts/doctor.ts", "../scripts/review.ts", "../scripts/live-e2e.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "../shared/src/**/*.ts", "../scripts/mock-stdb.ts", "../scripts/doctor.ts", "../scripts/review.ts", "../scripts/local-db.ts", "../scripts/live-e2e.ts"]
 }
