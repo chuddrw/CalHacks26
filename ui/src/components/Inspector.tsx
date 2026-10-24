@@ -340,16 +340,20 @@ function InspectorContent({
         <summary>Connection setup</summary>
         <div>
           <p>
-            Configure the root .env and restart the dashboard after C generates
-            the database bindings.
+            On each dashboard laptop, sign in with SpacetimeDB's CLI and ask the
+            database owner to approve your public identity for reader access.
           </p>
           <pre>
+            spacetime login{"\n"}
+            spacetime login show{"\n\n"}
             VITE_STDB_HOST=https://maincloud.spacetimedb.com{"\n"}
             VITE_STDB_DB=your-database
           </pre>
           <p>
-            The client expects shared/module_bindings/index.ts from the team's
-            published module.
+            Set the VITE settings in the root .env and restart Vite. Open this
+            laptop's localhost dashboard; its server reads your own CLI session.
+            Never paste a token into .env or share the login show --token
+            output.
           </p>
         </div>
       </details>

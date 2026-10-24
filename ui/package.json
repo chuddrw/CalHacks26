@@ -9,8 +9,9 @@
     "preview": "vite preview",
     "typecheck": "tsc -p . && tsc -p tsconfig.tests.json",
     "test": "tsx --test tests/*.test.ts",
-    "format": "prettier --write src tests",
-    "format:check": "prettier --check src tests"
+    "test:live": "tsx tests/live-network.ts",
+    "format": "prettier --write src tests session-server.ts vite.config.ts",
+    "format:check": "prettier --check src tests session-server.ts vite.config.ts"
   },
   "dependencies": {
     "react": "^19.3.1",

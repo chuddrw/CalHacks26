@@ -5,6 +5,7 @@ import { emptyTables } from "./dashboard";
 import { getSnapshot, replaceTables, setConnection, subscribe } from "./store";
 import { startLive, type Bindings } from "./live";
 import { startDemo } from "./demo";
+import { getLocalSessionToken } from "./session";
 export { setRows } from "./store";
 
 export function useDashboard() {
@@ -54,7 +55,9 @@ export function connect(): () => void {
             throw new Error(
               "Generated bindings must export DbConnection.builder().",
             );
-          stop = startLive(bindings as Bindings, host, database);
+          stop = startLive(bindings as Bindings, host, database, {
+            getToken: getLocalSessionToken,
+          });
         })
         .catch((error) => {
           if (current === epoch)

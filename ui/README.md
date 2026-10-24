@@ -41,42 +41,78 @@ The current development server is bound only to `127.0.0.1`.
 
 ## Live integration with C
 
-The user confirmed that browser authentication is not configured yet. Keep using
-the labeled local simulator until the team supplies its public auth configuration
-and approves the user's reader identity.
+The integrated branch includes C's 2.13.0 module and generated bindings. The
+user selected one SpacetimeDB CLI login per laptop for the hackathon rehearsal.
+No external browser auth provider is needed for this local presentation setup.
 
-1. Agree on the SpacetimeDB SDK/module version with C. The UI currently locks SDK
-   2.13.0 in package-lock.json. Do not assume bindings generated for a different
-   major version will work.
-2. C implements and publishes `module/src/index.ts`, preserving the contract in
-   `shared/src/schema.ts`, then generates and commits `shared/module_bindings/index.ts`.
-3. Set `VITE_STDB_HOST` and `VITE_STDB_DB` in the root `.env`. Optional:
-   `VITE_PROJECT_LABEL` is the monitored project's display label.
-4. Restart Vite after generation or environment changes. For production, rebuild;
-   Vite discovers generated bindings at build time.
-5. Open `/` without `?demo`. The status progresses through connecting and syncing
-   to live only after the subscription is applied.
-6. On a development database, run `npm run seed -- --dry-run` first. Inspect it,
-   then `npm run seed -- --scene conflict` to exercise the real HTTP/reducer path.
-7. Verify inserts, updates, deletes, socket interruptions, and reconnects against
-   the real module. Then use C's agreed reset procedure before a real rehearsal.
+On **each** laptop that runs the dashboard:
 
-The browser does not read `STDB_TOKEN` or other server keys. It establishes its
-own SDK connection and calls no reducers. C's separate `catherine_part_c` branch
-uses authenticated views with owner-approved reader access. The current adapter
-startup does not yet supply a signed-in user's token, so it is not ready for that protected
-module. The transport accepts an optional session `getToken` callback, re-reads it
-on reconnect, and refuses anonymous fallback when that session is absent or fails.
-Tokens are not written to dashboard state. Wiring this callback to the team's
-approved sign-in provider remains open. Dashboard cookies alone do not authenticate an SDK connection. Coordinate
-the user's sign-in flow and reader approval with C; never put an owner token or
-server credential in a Vite environment variable.
+1. Install Node 24+, the locked dependencies (`npm ci`), and the official
+   SpacetimeDB CLI 2.13.0.
+2. Run `spacetime login`, then `spacetime login show`. Send C only your public
+   identity. C grants reader access for a dashboard, or editor access if this
+   laptop also runs an agent. Signing in alone does not grant access.
+3. In the root `.env`, set only public dashboard settings:
+
+   ```dotenv
+   VITE_STDB_HOST=https://maincloud.spacetimedb.com
+   VITE_STDB_DB=agent-cowork
+   ```
+
+   `VITE_PROJECT_LABEL` optionally names the monitored project. Never add tokens
+   to `.env`, a `VITE_*` variable, source, URLs or shared setup documents.
+4. Run `npm run ui -- --host 127.0.0.1 --port 5173 --strictPort` and open
+   `http://127.0.0.1:5173/` without `?demo`. If the CLI is not on PATH, set
+   `SPACETIME_CLI` in the server process to its executable path.
+5. The status becomes Live only after all seven views synchronize. If sign-in
+   is missing, open Connection, follow its setup instructions, and Retry after
+   signing in. For permission errors, ask C to approve the matching identity.
+6. Agent laptops also run `npm run doctor -- --demo <demo-clone>`; a dashboard
+   reader does not need Editor access just to display state.
+
+The local Vite server reads **this laptop's own** CLI session on every connection
+attempt. Its credential endpoint accepts only loopback, exact-origin POST
+requests with a custom header; it returns `no-store` responses and no CORS grant.
+The token lives in process/browser memory only, never dashboard state or browser
+storage. Demo mode never requests a session. The UI only subscribes; it calls no
+application reducers and does not register itself as an agent.
+
+This setup is for local Vite development or `npm run preview -w ui -- --host
+127.0.0.1` after a build. A static/public website has no CLI-session bridge and
+needs its own future browser sign-in flow. Do not expose this local server to a
+LAN or use it to share one person's login with other laptops. Each screen uses
+its own laptop's server/session. Retry after switching CLI accounts.
 
 The adapter validates all expected fields and safe integer conversions from SDK
-bigints. Missing tables or incompatible shapes stay visibly disconnected rather
-than producing a false green. On interruption, cached data is labeled stale;
-retries back off from one to thirty seconds, and the UI waits for fresh sync.
-Table changes are batched into one immutable store update per microtask.
+bigints. Missing tables or incompatible shapes remain disconnected. On an
+interruption cached data is labeled stale, retries back off from one to thirty
+seconds, and the UI waits for fresh sync. Table events batch into one immutable
+store update per microtask. A late credential response after teardown cannot
+create a connection.
+
+### Isolated real-server verification
+
+Install module dependencies with `npm ci --prefix module`. Set `SPACETIME_CLI`
+and `SPACETIMEDB_STANDALONE` to official 2.13 binaries, then run:
+
+```sh
+npm run test:live -w ui
+```
+
+This starts a temporary real database, publishes C's module, creates throwaway
+identities, and exercises D's actual adapter/generated bindings. It never reads
+user login credentials or touches Maincloud. Seed writes cover open conflicts,
+resolution/verified memory, and human review. Checks also cover four agent
+connections, presence loss, three synchronized subscribers, reconnect, deletion,
+revocation and unauthorized access. Rows are simulated; the database transport
+and reducer execution are real.
+
+For rendered browser checks, add `-- --browser` in an interactive terminal. Open
+`http://127.0.0.1:5174/`. Its label identifies the isolated seeded verification.
+Press Enter in the terminal to advance from conflict to resolution to human
+review, then finish and clean up. The test bridge supplies only a throwaway Reader
+session in memory. It does not use any user's CLI login. Three SDK clients on one
+machine do **not** prove three physical screens on the venue network.
 
 ## Working with A and B
 

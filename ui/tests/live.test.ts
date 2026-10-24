@@ -206,6 +206,22 @@ test("interrupted connection is visibly stale, reconnects, and waits for fresh s
     stop();
   }
 });
+test("a session arriving after teardown cannot create a socket or change connection state", async () => {
+  const fake = fakeTransport();
+  let deliver!: (token: string) => void;
+  const pending = new Promise<string>((resolve) => {
+    deliver = resolve;
+  });
+  const stop = startLive(fake.bindings, "ws://localhost:3000", "test", {
+    getToken: () => pending,
+  });
+  stop();
+  const before = getSnapshot();
+  deliver("late-session");
+  await setImmediate();
+  assert.equal(fake.builds(), 0);
+  assert.equal(getSnapshot(), before);
+});
 test("invalid SDK rows and subscription errors never report live", async () => {
   const fake = fakeTransport();
   const stop = startLive(fake.bindings, "ws://localhost:3000", "test");

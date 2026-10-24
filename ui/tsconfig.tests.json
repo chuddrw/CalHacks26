@@ -2,5 +2,5 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "types": ["node", "vite/client"] },
-  "include": ["tests", "../scripts/seed-fake.ts"]
+  "include": ["tests", "../scripts/seed-fake.ts", "session-server.ts", "vite.config.ts"]
 }
