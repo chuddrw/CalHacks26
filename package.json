@@ -23,6 +23,14 @@
     "mcp": "npm run start -w mcp",
     "ui": "npm run dev -w ui",
     "seed": "tsx scripts/seed-fake.ts",
-    "reset": "tsx scripts/demo-reset.ts"
+    "reset": "tsx scripts/demo-reset.ts",
+    "mock-db": "node scripts/mock-stdb.ts",
+    "test:a": "node hooks/test/e2e.ts",
+    "typecheck:a": "tsc -p hooks && tsc -p mcp"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }

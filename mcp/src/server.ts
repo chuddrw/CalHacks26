@@ -2,65 +2,137 @@
  * mcp/src/server.ts
  *
  * WHAT IT'S FOR
- *   The MCP server each agent talks to. Claude Code starts one per session over stdio. It gives
- *   the agent three tools, and it keeps a live SpacetimeDB connection open so the UI knows the
- *   agent is online (the module's client_disconnected reducer marks it offline when we exit).
+ *   The MCP server each agent talks to. Claude Code starts one per session over stdio (registered
+ *   in the demo clone's .mcp.json by hooks/src/install.ts). It gives the agent three tools:
+ *     post_intent    tell teammates' agents what you're about to change, before you change it
+ *     team_status    the team's live state, for when the agent wants more than the hooks injected
+ *     pull_teammate  bring a teammate's uncommitted change into your working tree, to fix a conflict
  *
- * OWNER: A. WHEN: Sat 20:00-24:00.
- * DONE WHEN: in a Claude session in demo-app, /mcp shows "cowork" connected, the agent's card
- *            turns online in the UI, and calling post_intent makes a heads-up reach the others.
+ * OWNER: A.
+ * DONE WHEN: an MCP client lists the 3 tools, post_intent reaches the other agents' inboxes, and
+ *            pull_teammate brings a teammate's wip change into a clone (hooks/test/e2e.ts checks all three).
  *
- * TOOLS (the descriptions are prompts, so keep them short and concrete)
- *   post_intent
- *     description: "Tell your teammates' agents what you are about to change and why, BEFORE you
- *       change anything other files import: exported functions, types, or the meaning or unit of
- *       a field. summary: one sentence, e.g. 'Changing User.lastLogin from seconds to milliseconds
- *       because the frontend needs ms.' files: paths you will touch. symbols: exported names affected."
- *     input: { summary: string, files: string[], symbols: string[] }
- *     does:  post_intent(COWORK_NAME, summary, files, symbols); returns "Sent to <n> teammates."
- *   team_status
- *     description: "Get the team's live state: who is working on what, verified facts, recent
- *       plans, and any conflict you must fix. Call it when a [cowork] note tells you to, or before
- *       a change that crosses into another module."
- *     input: {}
- *     does:  returns teamStatus(...) text (reuse hooks/src/lib/format.ts) built from the local cache.
- *   pull_teammate
- *     description: "Bring a teammate's in-progress (uncommitted) change into your working tree, so
- *       you can run the tests on both changes together. Use it when a [cowork] conflict names you as
- *       the fixer, with the teammate's name from that message."
- *     input: { agent: string }
- *     does:  in the session's folder (process.cwd(), the demo-app clone; confirm that Claude Code
- *            starts stdio servers there):
- *              git fetch <remote> wip/<agent>
- *              base = git merge-base <remote>/<main> FETCH_HEAD
- *              git diff <base> FETCH_HEAD | git apply --3way
- *            Returns the files it changed. If it can't apply cleanly, it undoes the partial apply
- *            and answers "you both edited the same lines in <files>; ask your human to coordinate".
- *     why:   the fixer's laptop doesn't have the teammate's uncommitted change, so without this the
- *            fixer would "fix" blind and its own tests would go red. Found by simulating the demo.
- *     tested (Oct 24, real git): applied a's 4 files cleanly into b's clone (they show as staged),
- *            b's local tests then showed the same failure, b fixed only its own file, and the watcher
- *            merged wip/a + wip/b with no conflict and 6/6 tests green.
- *     later: when the teammate commits that change to main, `git stash -u && git pull && git stash pop`
- *            folds the identical pulled lines back in cleanly (also tested).
+ * WHY pull_teammate EXISTS
+ *   The fixer's laptop doesn't have the teammate's uncommitted change, so without it the fixer would
+ *   "fix" blind and its own tests would go red. Found by simulating the demo with real git on Oct 24.
+ *   How it works: git fetch <remote> wip/<agent>; diff from merge-base(<remote>/<main>, FETCH_HEAD);
+ *   `git apply --check` first, so a patch that doesn't fit changes nothing. Applied changes are left
+ *   unstaged. When the teammate later commits that change to main, `git stash -u && git pull &&
+ *   git stash pop` folds the identical lines back in cleanly (tested).
  *
- * STEPS
- *   1. Read COWORK_NAME and STDB_* through shared/src/config.ts. If any is missing, still start,
- *      but make both tools answer "cowork is not configured on this laptop (see external/mcp.txt)".
- *   2. Connect to SpacetimeDB with the generated bindings in shared/module_bindings. On connect,
- *      call register_agent(COWORK_NAME). Subscribe to agent, intent and conflict, so team_status
- *      answers from the local cache without a round trip.
- *   3. Register the three tools with @modelcontextprotocol/sdk (McpServer + StdioServerTransport) and
- *      zod input schemas. Check the SDK README for the current registerTool signature before writing it.
- *      pull_teammate runs git with execFile (no shell), piping git diff into git apply.
- *   4. Connect the stdio transport.
+ * PRESENCE (waiting on C)
+ *   The plan is a WebSocket connection with C's generated bindings, so the module's
+ *   client_disconnected reducer marks the agent offline when this server exits. Until those bindings
+ *   exist, the server calls register_agent over HTTP when it starts (online, but never marked offline).
  *
  * NOTES
- *   - stdout belongs to the MCP protocol. Log ONLY to stderr (console.error). Anything else on
- *     stdout corrupts the protocol and Claude Code drops the server.
- *   - When Claude Code ends the session it closes our stdin. Exit then, so the WebSocket closes
- *     and the agent shows as offline.
+ *   - stdout belongs to the MCP protocol. Log ONLY to stderr (console.error).
+ *   - process.cwd() is the folder Claude Code started us in: the demo-app clone.
+ *   - Tool descriptions are prompts. Keep them short and concrete: when to call it, what to pass.
  */
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import { config, missingSettings } from "../../shared/src/config.ts";
+import { git } from "../../shared/src/git.ts";
+import { wipBranch } from "../../shared/src/schema.ts";
+import { callReducer, selectRows, sqlString } from "../../shared/src/stdb-http.ts";
+import { teamStatus } from "../../hooks/src/lib/format.ts";
 
-// TODO (A): steps 1-4 above.
-export {};
+const NOT_CONFIGURED = "cowork isn't configured on this laptop: COWORK_NAME, STDB_DB or STDB_TOKEN is missing in repo 1's .env (see external/mcp.txt).";
+const configured = missingSettings(["agent", "stdbDb", "stdbToken"]).length === 0;
+
+function reply(text: string, isError = false) {
+  return { content: [{ type: "text" as const, text }], isError };
+}
+
+/** Brings `agent`'s latest snapshot into the working tree at `cwd`. Returns a sentence for the agent. */
+async function pullTeammate(cwd: string, agent: string): Promise<string> {
+  if (agent === config.agent) return "That's your own name. Pass the teammate named in the [cowork] conflict message.";
+  const remote = config.gitRemote;
+  try {
+    await git(cwd, ["fetch", "--quiet", remote, `refs/heads/${wipBranch(agent)}`]);
+  } catch {
+    return `${agent} has no snapshot yet (no ${wipBranch(agent)} on ${remote}), so there's nothing to pull.`;
+  }
+  const base = await git(cwd, ["merge-base", `${remote}/${config.mainBranch}`, "FETCH_HEAD"]);
+  const files = (await git(cwd, ["diff", "--name-only", base, "FETCH_HEAD"])).split("\n").filter(Boolean);
+  if (files.length === 0) return `${agent}'s snapshot has no changes compared with main. Nothing to pull.`;
+  const patch = await git(cwd, ["diff", "--binary", base, "FETCH_HEAD"], { raw: true });
+
+  try {
+    await git(cwd, ["apply", "--check"], { input: patch });
+  } catch {
+    try {
+      await git(cwd, ["apply", "--check", "--reverse"], { input: patch });
+      return `${agent}'s change is already in your working tree (${files.join(", ")}). Adapt your own files and run npm test.`;
+    } catch {
+      return `Couldn't apply ${agent}'s change cleanly: you both edited the same lines in ${files.join(", ")}. Nothing was changed. Ask your human to coordinate with ${agent}'s human.`;
+    }
+  }
+  await git(cwd, ["apply"], { input: patch });
+  return `Pulled ${agent}'s in-progress change into your working tree (${files.length} file${files.length > 1 ? "s" : ""}: ${files.join(", ")}). Keep their changes exactly as pulled, adapt your own files, and run npm test.`;
+}
+
+const server = new McpServer({ name: "cowork", version: "0.1.0" });
+
+server.registerTool(
+  "post_intent",
+  {
+    description:
+      "Tell your teammates' agents what you are about to change and why, BEFORE you change anything other files import: an exported function, a type, or the meaning or unit of a field. summary: one sentence, e.g. 'Changing User.lastLogin from seconds to milliseconds because the frontend needs ms.' files: paths you will touch. symbols: exported names affected.",
+    inputSchema: {
+      summary: z.string().min(1),
+      files: z.array(z.string()).default([]),
+      symbols: z.array(z.string()).default([]),
+    },
+  },
+  async ({ summary, files, symbols }) => {
+    if (!configured) return reply(NOT_CONFIGURED, true);
+    await callReducer("post_intent", [config.agent, summary, files, symbols]);
+    return reply("Sent to your teammates. Go ahead with the change.");
+  },
+);
+
+server.registerTool(
+  "team_status",
+  {
+    description:
+      "Get the team's live state: who is working on what, verified facts, recent plans, and any conflict you must fix. Call it when a [cowork] note tells you to, or before a change that crosses into another module.",
+  },
+  async () => {
+    if (!configured) return reply(NOT_CONFIGURED, true);
+    const [agents, intents, mine] = await Promise.all([
+      selectRows("agent"),
+      selectRows("intent"),
+      selectRows("conflict", `fixer = ${sqlString(config.agent)} AND status = 'open'`),
+    ]);
+    intents.sort((a, b) => a.createdAt - b.createdAt);
+    return reply(teamStatus(agents, intents, mine));
+  },
+);
+
+server.registerTool(
+  "pull_teammate",
+  {
+    description:
+      "Bring a teammate's in-progress (uncommitted) change into your working tree, so you can run the tests on both changes together. Use it when a [cowork] conflict names you as the fixer, with the teammate's name from that message.",
+    inputSchema: { agent: z.string().regex(/^[a-z0-9][a-z0-9-]*$/) },
+  },
+  async ({ agent }) => {
+    try {
+      return reply(await pullTeammate(process.cwd(), agent));
+    } catch (error) {
+      return reply(`pull_teammate failed: ${error instanceof Error ? error.message : String(error)}`, true);
+    }
+  },
+);
+
+if (configured) {
+  callReducer("register_agent", [config.agent]).catch((error) => console.error(`[cowork] register_agent failed: ${String(error)}`));
+} else {
+  console.error(`[cowork] ${NOT_CONFIGURED}`);
+}
+
+process.stdin.on("end", () => process.exit(0));
+await server.connect(new StdioServerTransport());
