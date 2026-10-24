@@ -14,6 +14,8 @@ Done Oct 24, about 5:30 AM, by A (with Claude Code).
 4. One commit of changes that make the three fit together, then this file and the docs.
 5. `codex/work-d-dashboard-pitch` (D, Oct 24 ~7 AM): dashboard UI and pitch files. Three conflicts: `ui/package.json` and `scripts/seed-fake.ts` took D's version, and `package-lock.json` was regenerated. Two fixes in D's seed so it works with C's module: it no longer asks for `STDB_TOKEN`, and it creates agent rows with `send_note` because `register_agent` needs a live WebSocket. Checked: every type check passes, D's UI tests 16/16, A's e2e passes, and the seed scenes conflict, resolved and needs_human all run against the mock database.
 
+6. `codex/ui-redesign` (D, Oct 24 afternoon): the warm-office redesign, plus D's own dashboard sign-in. The redesign, office CSS and images, async `getToken` in `live.ts`, screenshots and checklists all came in. For sign-in we kept the version already on `integration` (`ui/dev-session.ts`), which was tested end to end with the review buttons, and left out D's parallel `ui/session-server.ts` and its two test files. Checked: all type checks, dashboard tests 20/20, and in a browser against a local server the new design goes Live and Send back works.
+
 ## Conflict decisions (B's merge)
 
 | Files | Kept | Why |
