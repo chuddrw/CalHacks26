@@ -1,73 +1,145 @@
 /**
- * scripts/seed-fake.ts
- *
- * WHAT IT'S FOR
- *   Fills every table with fake rows that match the demo scenario (a switches lastLogin to
- *   milliseconds, b's new idle code assumes seconds), so D can build the UI and we can pass
- *   checkpoint 1 without waiting for real hooks or a real watcher.
- *
- * OWNER: D (uses it the most). WHEN: Sat 9:20, as soon as C's reducers exist.
- * USAGE (from the repo root, with .env filled in): npm run seed
- *   Then clean up with `npm run reset` before any real run or rehearsal.
- * DONE WHEN: four agent cards, one red conflict a x b, Droid steps and a timeline show up on every
- *            open dashboard.
- *
- * NOTES
- *   - Uses shared/src/stdb-http.ts, so it also smoke-tests the HTTP path the hooks depend on.
- *   - Only ever run it against our own development database. The rows are fake.
- *   - Reducers don't return ids, so the script looks up the new conflict's id with a SQL query.
+ * WHAT IT'S FOR: seed clearly simulated dashboard rows through the real reducer contract.
+ * Owner: D. Use only the team's development database; this does not run agents or tests.
+ * Usage: npm run seed -- --dry-run | --scene conflict|resolved|escalated|needs_human
+ * Repeated runs use distinct run keys and select the matching new/open conflict.
+ * No reset or branch mutation is performed. Real presence requires A's MCP connections.
  */
 import { config, missingSettings } from "../shared/src/config.ts";
 import { callReducer, selectRows, sqlString } from "../shared/src/stdb-http.ts";
-import { pairKey, runKey } from "../shared/src/schema.ts";
+import { pairKey, runKey, type ConflictStatus } from "../shared/src/schema.ts";
+import { buildDemo, type DemoScene } from "../ui/src/demo.ts";
 
+const allowed = ["conflict", "resolved", "escalated", "needs_human"] as const;
+const args = process.argv.slice(2);
+const index = args.indexOf("--scene");
+const scene = (
+  index >= 0 ? args[index + 1] : "conflict"
+) as (typeof allowed)[number];
+if (!allowed.includes(scene))
+  throw new Error(`Unknown scene. Choose: ${allowed.join(", ")}`);
+// Escalation is module-owned; do not fabricate timer behavior via client-side reducers.
+if (scene === "escalated")
+  throw new Error(
+    "Seed a conflict, then let C's real escalation timer fire. Use ?demo&scene=escalated for a local-only preview.",
+  );
+const tables = buildDemo(scene as DemoScene);
+if (args.includes("--dry-run")) {
+  console.log(
+    JSON.stringify(
+      {
+        mode: "dry-run",
+        scene,
+        database: config.stdbDb || "(not configured)",
+        agents: tables.agent.map((a) => a.name),
+        snapshots: tables.snapshot.length,
+        check: scene === "resolved" ? "green" : "red",
+        checkSequence: scene === "resolved" ? ["red", "green"] : ["red"],
+        finalStatus:
+          scene === "resolved"
+            ? "resolved"
+            : scene === "needs_human"
+              ? "needs_human"
+              : "open",
+        diagnosisSteps: tables.diagnosis_step.length,
+        writesPerformed: false,
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
+}
 const missing = missingSettings(["stdbDb", "stdbToken"]);
-if (missing.length > 0) {
-  console.error(`Fill in ${missing.join(", ")} in .env first (see .env.example).`);
-  process.exit(1);
-}
-
-const diffA = [
-  "--- a/src/users/user.ts",
-  "+++ b/src/users/user.ts",
-  "@@ -14 +14 @@",
-  "-  u.lastLogin = Math.floor(at.getTime() / 1000);",
-  "+  u.lastLogin = at.getTime();",
-].join("\n");
-
-const diffB = [
-  "--- /dev/null",
-  "+++ b/src/sessions/idle.ts",
-  "@@ -0,0 +7 @@",
-  "+  return (now.getTime() / 1000 - user.lastLogin) / 60;",
-].join("\n");
-
-await callReducer("register_agent", ["c"]);
-await callReducer("register_agent", ["d"]);
-await callReducer("post_snapshot", ["a", "fake-a1", "fake-main", ["src/users/user.ts", "src/sessions/session.ts"], diffA]);
-await callReducer("post_snapshot", ["b", "fake-b1", "fake-main", ["src/sessions/idle.ts", "src/sessions/idle.test.ts"], diffB]);
-await callReducer("post_intent", [
-  "a",
-  "Changing User.lastLogin from seconds to milliseconds because the frontend needs ms.",
-  ["src/users/user.ts", "src/contracts/user.ts"],
-  ["User.lastLogin", "recordLogin"],
-]);
-
-const key = runKey(["fake-a1", "fake-b1"]);
-const error = "FAIL src/sessions/idle.test.ts > minutesSinceLastLogin > counts minutes since login\nAssertionError: expected -29850839249 to be 31";
-await callReducer("report_check", [key, ["a", "b"], "red", error]);
-await callReducer("report_conflict", ["pair", "a", "b", "src/users/user.ts:14", "src/sessions/idle.ts:7", error, "b", key]);
-
-const [conflict] = await selectRows("conflict", `pair = ${sqlString(pairKey("a", "b"))}`);
-if (conflict) {
-  await callReducer("add_diagnosis_step", [conflict.id, "droid", "status", "started"]);
-  await callReducer("add_diagnosis_step", [conflict.id, "droid", "tool_call", "npx vitest run src/sessions/idle.test.ts"]);
-  await callReducer("add_diagnosis_step", [conflict.id, "droid", "tool_result", "1 failed: expected -29850839249 to be 31"]);
-  await callReducer("set_explanation", [
-    conflict.id,
-    "a now stores lastLogin in milliseconds, but b's minutesSinceLastLogin still divides now by 1000 and treats lastLogin as seconds. Compute the difference in milliseconds and divide by 60000.",
+if (missing.length)
+  throw new Error(`Fill in ${missing.join(", ")} in .env first.`);
+console.log(
+  `Seeding SIMULATED data into ${config.stdbDb}. No agents or checks are running.`,
+);
+for (const agent of tables.agent)
+  await callReducer("register_agent", [agent.name]);
+const suffix = Date.now().toString(36);
+const shas = tables.snapshot.map((s) => `${s.sha}-${suffix}`);
+for (const [i, snapshot] of tables.snapshot.entries()) {
+  await callReducer("post_snapshot", [
+    snapshot.agent,
+    shas[i],
+    snapshot.baseSha,
+    snapshot.files,
+    snapshot.diff,
   ]);
-  console.log(`Seeded fake rows into ${config.stdbDb}: agents a-d, conflict #${conflict.id}. Run \`npm run reset\` when done.`);
-} else {
-  console.log("Seeded snapshots and the check, but no conflict row came back. Is report_conflict implemented in the module yet?");
 }
+for (const intent of tables.intent.filter((i) => !i.verified)) {
+  await callReducer("post_intent", [
+    intent.agent,
+    intent.summary,
+    intent.files,
+    intent.symbols,
+  ]);
+}
+const key = runKey(shas);
+await callReducer("report_check", [runKey(shas.slice(2)), ["c", "d"], "green", "[SIMULATED] Unaffected C/D snapshots pass their check."]);
+const failure = tables.conflict[0];
+await callReducer("report_check", [
+  key,
+  tables.agent.map((a) => a.name),
+  "red",
+  `[SIMULATED] ${failure.error}`,
+]);
+await callReducer("report_conflict", [
+  failure.kind,
+  failure.agentA,
+  failure.agentB,
+  failure.locA,
+  failure.locB,
+  `[SIMULATED] ${failure.error}`,
+  failure.fixer,
+  key,
+]);
+const openStatuses: ConflictStatus[] = ["open", "escalated"];
+const conflicts = await selectRows(
+  "conflict",
+  `pair = ${sqlString(pairKey("a", "b"))}`,
+);
+const conflict = conflicts
+  .filter((c) => c.runKey === key && openStatuses.includes(c.status))
+  .sort((a, b) => b.createdAt - a.createdAt || b.id - a.id)[0];
+if (!conflict)
+  throw new Error(
+    "report_conflict did not produce the expected row. Check C's module reducer implementation.",
+  );
+for (const step of tables.diagnosis_step) {
+  await callReducer("add_diagnosis_step", [
+    conflict.id,
+    step.source,
+    step.kind,
+    `[SIMULATED] ${step.detail}`,
+  ]);
+}
+await callReducer("set_explanation", [
+  conflict.id,
+  `[SIMULATED] ${failure.explanation || "Timestamp unit mismatch: A writes milliseconds; B assumes seconds. B should divide the difference in milliseconds by 60,000."}`,
+]);
+if (scene === "resolved") {
+  await callReducer("report_check", [
+    key,
+    tables.agent.map((a) => a.name),
+    "green",
+    "[SIMULATED] Typecheck and tests pass. This is fixture data.",
+  ]);
+  await callReducer("resolve_conflict", [
+    conflict.id,
+    "[SIMULATED] User.lastLogin is milliseconds since the Unix epoch.",
+  ]);
+  const resolved = await selectRows("conflict", `id = ${conflict.id}`);
+  if (resolved[0]?.status !== "resolved")
+    throw new Error("The module did not resolve the seeded conflict. Check current-snapshot green evidence before presenting this scene.");
+} else if (scene === "needs_human") {
+  await callReducer("flag_needs_human", [
+    conflict.id,
+    "[SIMULATED] The proposed fix modified src/sessions/idle.test.ts. Human review required.",
+  ]);
+}
+console.log(
+  `Seeded simulated ${scene} scene, conflict #${conflict.id}. Do not use this as evidence of the live loop. Clean up with C's reset procedure before real rehearsals.`,
+);

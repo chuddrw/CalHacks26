@@ -1,49 +1,99 @@
-# Devpost text
+# Devpost draft
 
-> **What this file is for:** the text for our Devpost page, ready to paste into each field. D fills the blanks; submit a draft on Saturday night and the final version by Sunday 8:30 AM. What Devpost requires is listed in [../external/devpost.txt](../external/devpost.txt).
+WHAT IT'S FOR: D's submission copy. The user confirmed Agent Cowork and a direct technical tone.
+This is an internal draft; do not submit until submission-checklist.md is complete.
+As of this branch, the dashboard is verified with simulated data. The live pipeline
+still depends on A/B/C. Update tense only when the corresponding evidence exists.
 
-## Name and tagline
+## Project name
 
-**Agent Cowork**: live CI for a team's AI agents.
+Agent Cowork
+
+## Tagline
+
+Live CI for a team's AI agents.
 
 ## Inspiration
 
-TODO: the quote from pitch/interviews.md, then two sentences. Four people, four AI agents, four laptops: each agent only sees its own machine. Changes that each work alone break when they meet, and teams find out at integration time.
+Four teammates can each have an AI agent producing code quickly, while still having
+no shared view of the changes being made on other laptops. An edit can be locally
+correct and incompatible with a teammate's new work. Clean Git merges and matching
+TypeScript types do not catch every mismatch in behavior.
+
+We wanted the team to see those interactions while work is still in progress—and
+give the agent responsible for a fix enough context to test it.
+
+If a real interview quote is added, use only the exact words and attribution approved
+in interviews.md. The scenario above is motivation, not a claimed research finding.
 
 ## What it does
 
-Agent Cowork checks everyone's uncommitted work together, live. After every edit, a Claude Code hook snapshots the agent's working tree to a throwaway branch. A watcher merges all the snapshots onto main and runs the type checker and the tests. When the combination fails, it tests each change alone and in pairs to find the two that clash, picks who should fix it, and wakes that agent, even if it's idle. Droid explains the failure on screen, the agent pulls its teammate's in-progress change and fixes its own code, and the verified fact goes into shared memory so the next agent gets it right the first time.
+Agent Cowork is designed to check a team's uncommitted work together, identify
+incompatible changes, assign a fixer, and share the resulting knowledge with later
+agents. Its dashboard organizes the workflow around connected agents, a combined
+check, a conflict workspace, live investigation, and shared memory.
+
+The verified dashboard supports both sides of a conflict as diff excerpts, assigned
+fixers, diagnosis sources and steps, human-review states, verified facts, and an
+activity timeline. It includes responsive and big-screen views. A clearly labeled
+local simulator demonstrates the intended failure-to-recovery story without a backend.
 
 ## How we built it
 
-- **Claude Code hooks**: snapshot and push after each edit; a background listener (`asyncRewake`) that wakes an idle agent; a Stop hook that keeps the fixer on task; SessionStart and context hooks that deliver team memory.
-- **SpacetimeDB**: every piece of team state, with no other backend. Fixer assignment happens in one transaction; a schedule table escalates stuck conflicts; lifecycle reducers track presence; every screen subscribes live.
-- **Factory Droid SDK**: diagnoses each conflict in a disposable worktree with editing disabled, streaming its steps to the dashboard.
-- **Claude API**: fallback diagnosis with structured output.
-- **git, TypeScript, Vitest, React, Vite, madge.**
+The interface uses TypeScript, React, and Vite. Its table contracts come from the
+shared schema. A read-only SpacetimeDB adapter waits for subscription synchronization,
+validates incoming rows, reconnects after interruptions, and labels stale data.
+The adapter's lifecycle is tested with an injected transport; connection to a real
+published module is a separate integration gate.
 
-## Challenges we ran into
+The planned complete workflow uses Claude Code hooks to push working-tree snapshots,
+a Git/TypeScript/test watcher to detect failures, SpacetimeDB to coordinate state,
+and Factory Droid to investigate with a Claude API fallback. Describe these as
+implemented only after a real rehearsal verifies them.
 
-TODO (fill in honestly on Sunday). One we already hit: the fixer's laptop doesn't have its teammate's uncommitted change, so "fix it" was impossible to test locally. We added `pull_teammate`, which applies the teammate's snapshot into the fixer's working tree.
+## Challenges
 
-## Accomplishments we're proud of
+The interface needs to distinguish “no conflicts” from “no evidence.” A missing
+connection or a new snapshot after a passing check must not look healthy. We made
+connection readiness and check freshness explicit and tested those transitions.
 
-TODO: measured numbers from rehearsals (time to red, time to green, rehearsals passed).
+Cross-agent debugging also requires the fixer to see the teammate's actual change.
+The team's planned pull_teammate tool addresses that dependency; the dashboard shows
+both changes and the assigned fixer so the coordination is visible.
+
+## Accomplishments
+
+The dashboard has a complete local story from independent agent activity through
+conflict, diagnosis, and verified memory. Automated checks cover status truthfulness,
+schema conversion, diff excerpts, event ordering, reconnects, and cleanup. Browser
+checks exercise representative scenes, responsive layouts, and controls.
+
+Add end-to-end success counts and timing figures only from demo-runbook.md after
+actual measured rehearsals. No speedup or reliability claim is available yet.
 
 ## What we learned
 
-TODO.
+Coordination needs shared evidence: intentions explain what an agent plans, tests
+show whether changes work together, and a verified fact preserves what the team learned.
+The interface needs to make the source and status of each of those signals clear.
 
 ## What's next
 
-"Suspected" conflicts for repos without tests, function-level dependencies, identity checks on every reducer, and support for other coding agents.
+Complete live integration, measure real team usage, add identity-based authorization,
+and explore contract approvals and dependency-aware warnings. Semantic mismatches
+in untested behavior and conflicts requiring three or more changes remain limitations.
 
 ## Built with
 
-claude-code, claude, anthropic, spacetimedb, factory, droid, typescript, react, vite, vitest, git, node.js, madge
+Verified dashboard: TypeScript, React, Vite.
+Live adapter dependency: SpacetimeDB.
+Full-project stack to confirm before submission: Claude Code, Anthropic, Factory Droid,
+Node.js, Git, Vitest, madge, and the published SpacetimeDB module.
 
-## Links
+## Links and assets
 
-- Repo 1 (the tool): TODO
-- Repo 2 (demo app): TODO
-- Video: TODO (also stored on the laptop, per Devpost rules)
+- Tool repository: https://github.com/chuddrw/CalHacks26
+- Demo repository: awaiting the team URL.
+- Video: awaiting an actual recorded and reviewed run.
+- Dashboard screenshots: artifacts/work-d/ (simulated data; refresh after design approval).
+- Team/table/submission details: submission-checklist.md.
