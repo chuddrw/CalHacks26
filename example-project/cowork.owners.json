@@ -1,0 +1,7 @@
+{
+  "about": "Orkio feature ownership for this consumer project. Replace app with your COWORK_NAME when connecting.",
+  "shared": ["package.json"],
+  "owners": [
+    { "agent": "app", "human": "App developer", "feature": "Task list", "paths": ["src/"] }
+  ]
+}

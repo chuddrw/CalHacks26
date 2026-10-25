@@ -156,6 +156,10 @@ async function main(): Promise<void> {
   const demoRoot = path.resolve(await git(path.resolve(values.demo), ["rev-parse", "--show-toplevel"]));
   const gitDir = await git(demoRoot, ["rev-parse", "--absolute-git-dir"]);
   if (path.resolve(demoRoot) === path.resolve(repoRoot)) throw new Error("--demo must point at a demo-app clone, not at repo 1.");
+  const toolGitRoot = path.resolve(await git(repoRoot, ["rev-parse", "--show-toplevel"]));
+  if (demoRoot === toolGitRoot) {
+    throw new Error("The project shares Orkio's Git repository. Connect a separate project repository so snapshots cannot include the tool or other projects. See example-project/README.md.");
+  }
 
   // 1. .env
   const envFile = path.resolve(values["env-path"] ?? path.join(repoRoot, ".env"));

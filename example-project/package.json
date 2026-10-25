@@ -1,0 +1,19 @@
+{
+  "name": "orkio-example-project",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A standalone task-list app that uses the local Orkio coding-agent tool.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node src/index.js",
+    "typecheck": "node --check src/index.js && node --check src/tasks.js",
+    "test": "node --test",
+    "orkio": "orkio",
+    "orkio:connect": "orkio install",
+    "orkio:doctor": "orkio doctor"
+  },
+  "devDependencies": {
+    "orkio": "file:../orkio"
+  }
+}

@@ -1,44 +1,12 @@
 {
-  "name": "agent-cowork",
+  "name": "orkio-workspace",
   "private": true,
-  "type": "module",
-  "description": "WHAT THIS FILE IS FOR: root of repo 1 (Agent Cowork, Cal Hacks 13.0). Holds the npm workspaces (hooks, mcp, orchestrator, ui) and the team scripts. `npm run setup` installs every dependency at its current version, so no versions are hard-coded here. See plan.md and structure.md.",
-  "engines": {
-    "node": ">=24"
-  },
-  "workspaces": [
-    "hooks",
-    "mcp",
-    "orchestrator",
-    "ui"
-  ],
+  "description": "The Orkio tool and a separate example consumer project.",
   "scripts": {
-    "setup": "npm install -D tsx typescript @types/node && npm install -w mcp @modelcontextprotocol/sdk zod@3 spacetimedb && npm install -w orchestrator @factory/droid-sdk @anthropic-ai/sdk zod@3 && npm install -w ui react react-dom spacetimedb && npm install -w ui -D vite @vitejs/plugin-react @types/react @types/react-dom && npm install --prefix module spacetimedb && npm install --prefix module -D typescript && npm install --prefix demo-app --no-save typescript@7 vitest@5",
-    "typecheck": "tsc -p hooks && tsc -p mcp && tsc -p orchestrator && tsc -p ui",
-    "module:generate": "node module/manage.mjs generate",
-    "install-hooks": "node hooks/src/install.ts",
-    "spike:rewake": "node hooks/src/rewake-spike.ts --print-config",
-    "orchestrator": "npm run start -w orchestrator",
-    "mcp": "npm run start -w mcp",
-    "ui": "npm run dev -w ui",
-    "seed": "tsx scripts/seed-fake.ts",
-    "reset": "tsx scripts/demo-reset.ts",
-    "test:part-c": "node module/tests/run-part-c.mjs",
-    "test:part-c:integration": "node module/tests/run-network.mjs",
-    "test:part-c:coverage": "node module/tests/coverage.mjs",
-    "mock-db": "node scripts/mock-stdb.ts",
-    "test:a": "node hooks/test/e2e.ts",
-    "typecheck:a": "tsc -p hooks && tsc -p mcp",
-    "doctor": "node scripts/doctor.ts",
-    "review": "node scripts/review.ts",
-    "local-db": "node scripts/local-db.ts",
-    "test:live": "node scripts/live-e2e.ts",
-    "test:orchestrator": "npm test -w orchestrator",
-    "full-stack": "node scripts/full-stack.ts"
-  },
-  "devDependencies": {
-    "@types/node": "^26.6.5",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typecheck": "npm --prefix orkio run typecheck && npm --prefix example-project run typecheck",
+    "ui": "npm --prefix orkio run ui",
+    "orchestrator": "npm --prefix orkio run orchestrator",
+    "doctor": "npm --prefix orkio run doctor",
+    "example": "npm --prefix example-project start"
   }
 }
