@@ -17,13 +17,13 @@ Keep A's and B's terminals visible. Steps: demo-app/SCENARIO.md (branch `orchest
 
 | Time | Say | Stage cue |
 | ---- | --- | --------- |
-| 0:00 | “Four teammates. Four coding agents. Each agent knows its own laptop, but the changes have to work together.” | Show the office map: four agents at the desk. |
-| 0:12 | “A's human wants lastLogin in milliseconds. That's a shared contract, so A's agent hands it to the orchestrator.” | A pastes the request; open the Orchestrator drawer. |
+| 0:00 | “Four teammates. Four coding agents. Each agent knows its own laptop, but the changes have to work together.” | Show the graph: the orchestrator on top, four agents below, each with what it is doing. |
+| 0:12 | “A's human wants lastLogin in milliseconds. That's a shared contract, so A's agent hands it to the orchestrator.” | A pastes the request; click the Orchestrator node. |
 | 0:25 | “The orchestrator is Factory's Droid. It reads the code and the team's live state, including B's work that was never committed. These are its actual steps.” | Point at the steps streaming in. |
 | 0:50 | “Its plan: A changes the contract, B adapts sessions, B's human reviews first, and it flags a clash between A's change and B's uncommitted idle feature. Code enforces the review rule; the model can't skip it.” | Show the tasks, the review and the flagged conflict. |
 | 1:05 | “B's human approves. Both agents wake up on their own with their tasks.” | Click Approve as B; show both terminals. |
-| 1:15 | “Nobody assigns a fixer. A changes the unit and tells B. B pulls A's in-progress change, adapts its own code, and the combined tests pass. Both agree.” | Open the conflict: show the thread as messages arrive. |
-| 1:35 | “The conflict closes only because both agreed and the combined check is green. The agreed fact is now shared memory.” | Show the green hub, then Memory. |
+| 1:15 | “Nobody assigns a fixer. A changes the unit and tells B. B pulls A's in-progress change, adapts its own code, and the combined tests pass. Both agree.” | Click the red #12 arc: show the thread as messages arrive. |
+| 1:35 | “The conflict closes only because both agreed and the combined check is green. The agreed fact is now shared memory.” | Show the green #12 arc, then Memory. |
 | 1:45 | “If they couldn't agree, it would go to both humans, right here.” | Point at where the decision box appears (or run the optional beat). |
 | 1:52 | “Droid plans. The agents that own the code settle clashes between them. Tests decide green, and people decide what changes their features.” | Finish by 2:00. |
 
@@ -39,11 +39,11 @@ interviews.md. Attribute it exactly and keep the opening under fifteen seconds.
 Say at the start: “This is a simulated walkthrough of the interface. The live agent
 integration is still being built.” Keep the SIMULATED DEMO banner visible.
 
-1. Select **Agents working**. Show the agent symbols; open an agent for its intent and files.
-2. Select **Conflict detected**. Open the red hub, then **Changes & diagnosis**. Show A's milliseconds edit, B's seconds assumption,
-   the failed assertion, and the assigned fixer.
+1. Select **Agents working**. Show the graph and the Now list; B's review waits in the **Needs you** bar.
+2. Select **Conflict detected**. Click the red #12 arc, then **Code and failing output**. Show A's milliseconds edit, B's seconds assumption,
+   the failed assertion, and who was suggested to adapt.
 3. Select **B is fixing**. Explain how the diagnosis suggests a unit-consistent fix.
-4. Select **Verified & green**. Open the hub for the fixed line and **Memory** for the fact. Show the fixed line, passing check, resolution event,
+4. Select **Verified & green**. Click the green #12 arc for the fixed line and **Memory** for the fact. Show the fixed line, passing check, resolution event,
    and fact in shared memory. Explain that these are example rows.
 5. Select **Test-edit guard**. Show the required human review. Do not imply the
    backend guard ran during this walkthrough.

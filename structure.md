@@ -254,17 +254,19 @@ B's code from the watcher, moved here so every agent can run it on its own clone
 | `dev-session.ts` | Dev-server endpoint `/__cowork/session`: hands this laptop's `spacetime login` token to a page on the same laptop only, so the dashboard signs in with no token in `.env` | A (for D) | Done Oct 24 |
 | `index.html` | Page shell | D | Tonight |
 | `src/main.tsx` | Mounts React | D | Tonight |
-| `src/App.tsx` | Layout, and big-screen mode for the demo | D | Sat 9:20 |
+| `src/App.tsx` | The one screen: header, Needs you bar, graph next to the Now list, activity, details drawer; big-screen mode | A (rewrite of D's) | Oct 24 |
+| `src/team.ts` | Pure derivations for the screen: the team graph (tasks, reviews, conflict threads), what each agent is doing, what needs a human, the activity feed | A | Oct 24 |
 | `src/stdb.ts` | Connects to SpacetimeDB, subscribes to every table, exposes the rows to React; `reviewTestChange`, `decideReview` and `decideConflict` for the buttons people press | D | Tonight |
-| `src/orchestrator.css` | Styles for the orchestrator drawer, the hub's review callout and conflict threads | A (for D) | Oct 24 |
 | `src/session.ts` | The page side of `dev-session.ts`: fetches the token once and keeps it in memory | A (for D) | Done Oct 24 |
-| `src/styles.css` | Styles. Readable from across a table on a big screen. | D | Sat 14:00 |
-| `src/components/AgentCard.tsx` | Name, online, current intent, files touched, red or green | D | Sat 9:20 |
-| `src/components/ConflictPanel.tsx` | `file:line × file:line`, both snippets, the agents' conversation, status; Accept / Send back when a fix changed tests; a decision box when a conflict is escalated | D (buttons and thread: A) | Sat 9:20 |
-| `src/components/OrchestratorPanel.tsx` | Each request: Droid's live steps, the plan, reviews with Approve / Send back, tasks per agent | A (for D) | Oct 24 |
-| `src/components/DroidPanel.tsx` | Droid's steps as they stream in | D | Sat 14:00 |
-| `src/components/MemoryPanel.tsx` | Intents and verified facts | D | Sat 20:00 |
-| `src/components/Timeline.tsx` | Snapshots, checks, intents and conflicts in order | D | Sat 14:00 |
+| `src/app.css` | The only stylesheet: plain dark, color only for meaning, `.big` scales it for the projector | A | Oct 24 |
+| `src/components/Graph.tsx` | The team graph: orchestrator on top, agents in a row, task lines, review and conflict arcs | A | Oct 24 |
+| `src/components/NowList.tsx` | One row per agent: state, what it is doing, files, last activity | A | Oct 24 |
+| `src/components/NeedsYou.tsx` | Bar shown only when a person must act | A | Oct 24 |
+| `src/components/Activity.tsx` | Recent events strip, and the full list for the drawer | A | Oct 24 |
+| `src/components/Details.tsx` | Drawer for an agent, a request (plan, reviews, tasks, Droid's steps), a conflict (thread, code, failing output), checks, memory, connection | A | Oct 24 |
+| `src/components/Actions.tsx` | Approve / Send back a review, the escalation decision, Accept / Send back a test change | A | Oct 24 |
+| `src/components/DemoBar.tsx` | `?demo` scene picker and Play story | A | Oct 24 |
+| `src/components/select.ts` | Compares two drawer selections, so the graph and lists highlight what's open | A | Oct 24 |
 
 ## scripts/
 
