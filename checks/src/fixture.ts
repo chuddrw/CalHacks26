@@ -1,20 +1,21 @@
 /**
- * watcher/src/fixture.ts
+ * checks/src/fixture.ts
  *
  * WHAT IT'S FOR
- *   A throwaway copy of the demo scenario for testing the watcher end to end before demo-app and
- *   the real hooks exist: a local bare "remote", the watcher's own clone (with typescript and
- *   vitest installed), and one clone per agent. Each step edits an agent's clone, snapshots it to
- *   wip/<agent> with the same git commands as hooks/src/lib/snapshot.ts, and calls post_snapshot
- *   through shared/src/stdb-http.ts, exactly like the hook will.
+ *   A throwaway copy of the demo scenario for testing the checks and the orchestrator end to end
+ *   (scripts/live-e2e.ts): a local bare "remote", a clean clone for the orchestrator (still called
+ *   "watcher", with typescript and vitest installed), one clone per agent, and cowork.owners.json.
+ *   Each step edits an agent's clone, snapshots it to wip/<agent> with the same git commands as
+ *   hooks/src/lib/snapshot.ts, and calls post_snapshot through shared/src/stdb-http.ts, exactly
+ *   like the hook does. (Written by B for the watcher; moved here on branch feat/orchestrator.)
  *
  * OWNER: B.
  * USAGE (from the repo root; STDB_* from .env or the environment):
- *   npm run fixture -w watcher -- setup [--dir <path>]      fresh repos, then prints DEMO_REPO_PATH
- *   npm run fixture -w watcher -- play <step>... [--dir <path>]
- *   npm run fixture -w watcher -- reset [--dir <path>]      clones and main back to the baseline,
- *                                                           wip branches deleted, reset_all
- *   --dir defaults to <os tmp>/cowork-fixture. Run the watcher with DEMO_REPO_PATH=<dir>/watcher.
+ *   node --import tsx checks/src/fixture.ts setup [--dir <path>]      fresh repos, prints DEMO_REPO_PATH
+ *   node --import tsx checks/src/fixture.ts play <step>... [--dir <path>]
+ *   node --import tsx checks/src/fixture.ts reset [--dir <path>]      clones and main back to the
+ *                                                                     baseline, wip branches deleted, reset_all
+ *   --dir defaults to <os tmp>/cowork-fixture. Run the orchestrator with DEMO_REPO_PATH=<dir>/watcher.
  *
  * STEPS (the demo is b-idle, a-ms, then b-fix; the others test one rule each)
  *   b-idle   b adds src/sessions/idle.ts and its test, assuming lastLogin is in seconds. Green alone.
@@ -42,6 +43,20 @@ type Agent = (typeof AGENTS)[number];
 
 const BASELINE: Record<string, string> = {
   ".gitignore": "node_modules\n",
+  // Who owns what, for the orchestrator (shared/src/owners.ts): the same split as demo-app's.
+  "cowork.owners.json": `${JSON.stringify(
+    {
+      shared: ["src/contracts/"],
+      owners: [
+        { agent: "a", human: "A", feature: "Users and logins", paths: ["src/users/"] },
+        { agent: "b", human: "B", feature: "Session timeout and idle time", paths: ["src/sessions/"] },
+        { agent: "c", human: "C", feature: "Login statistics", paths: ["src/analytics/"] },
+        { agent: "d", human: "D", feature: "What the frontend reads", paths: ["src/api/"] },
+      ],
+    },
+    null,
+    2,
+  )}\n`,
   "package.json": `${JSON.stringify(
     {
       name: "cowork-fixture",

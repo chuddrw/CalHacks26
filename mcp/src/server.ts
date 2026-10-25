@@ -62,7 +62,7 @@ import { teamStatus } from "../../hooks/src/lib/format.ts";
 import { takeSnapshot } from "../../hooks/src/lib/snapshot.ts";
 import * as checksGit from "../../checks/src/git.ts";
 import { guardFix } from "../../checks/src/guard.ts";
-import { checkWithTeam, cleanup, cleanupStale, failuresOf, type TeamCheckResult } from "../../checks/src/team-check.ts";
+import { checkWithTeam, cleanup, cleanupStale, failuresOf, verdict, type TeamCheckResult } from "../../checks/src/team-check.ts";
 
 const NOT_CONFIGURED = "cowork isn't configured on this laptop: COWORK_NAME or STDB_DB is missing in repo 1's .env (see external/mcp.txt).";
 const configured = missingSettings(["agent", "stdbDb"]).length === 0;
@@ -137,6 +137,10 @@ function serial<T>(work: () => Promise<T>): Promise<T> {
   return next;
 }
 
+function indentLines(text: string): string {
+  return text.split("\n").map((line) => `    ${line}`).join("\n");
+}
+
 interface TeamCheck {
   result: TeamCheckResult;
   /** true when my change or any pair with it is red. */
@@ -155,33 +159,39 @@ async function teamCheck(cwd: string): Promise<TeamCheck> {
       reportConflict: (...args) => callReducer("report_conflict", args),
     });
     const lines = [`check_with_team on main ${result.main.slice(0, 8)}:`];
-    let red = false;
+    const { verdict: outcome, with: partners } = verdict(result);
+    const conflicts = await selectRows("conflict");
     if (!result.mine) {
       lines.push("You have no uncommitted changes compared with main, so nothing of yours can clash. Nothing to check.");
-    } else if (result.mine.red) {
-      red = true;
-      lines.push(`Your change fails on its own (with main, before any teammate's work):`, failuresOf(result.mine.outcome) || result.mine.mergeFiles.join(", "));
-      lines.push("Fix it in your own files, then run check_with_team again.");
     } else {
-      lines.push(`- your change alone: green (${result.mine.seconds.toFixed(1)} s)`);
-      const conflicts = await selectRows("conflict");
+      lines.push(result.mine.red
+        ? `- your change alone: RED.\n${indentLines(failuresOf(result.mine.outcome) || `merge conflict in ${result.mine.mergeFiles.join(", ")}`)}`
+        : `- your change alone: green (${result.mine.seconds.toFixed(1)} s)`);
       for (const pair of result.pairs) {
         if (!pair.run.red) {
           lines.push(`- with ${pair.teammate}: green`);
         } else if (pair.theirsFailsAlone) {
           lines.push(`- with ${pair.teammate}: red, but ${pair.teammate}'s change fails on its own too, so that's theirs to fix first.`);
-        } else {
-          red = true;
+        } else if (pair.clash) {
           const open = conflicts.find((c) => c.pair === pairKey(me, pair.teammate) && c.status !== "resolved");
-          lines.push(`- with ${pair.teammate}: RED. ${pair.clash?.error.split("\n")[0] ?? "the combined check fails"}${pair.clash?.locA ? ` (${pair.clash.locA}${pair.clash.locB ? ` vs ${pair.clash.locB}` : ""})` : ""}`);
+          lines.push(`- with ${pair.teammate}: RED. ${pair.clash.error.split("\n")[0]}${pair.clash.locA ? ` (${pair.clash.locA}${pair.clash.locB ? ` vs ${pair.clash.locB}` : ""})` : ""}`);
           if (open) lines.push(`  Conflict #${open.id} with ${pair.teammate} is ${open.status}. Settle it with message_teammate(${open.id}, ...), then agree(${open.id}, "<fact>").`);
+        } else {
+          lines.push(`- with ${pair.teammate}: red`);
         }
       }
       if (result.pairs.length === 0) lines.push("No teammate has uncommitted changes right now.");
-      if (!red) lines.push("Everything you checked is green.");
+      lines.push({
+        nothing: "",
+        green: "Everything you checked is green.",
+        together: `Your change fails on its own but passes together with ${partners.join(", ")}: the changes depend on each other, so they land together. That counts as green.`,
+        mine_broken: "Your own change fails, alone and with everyone's work. Fix it in your own files, then run check_with_team again.",
+        clash: `Your change clashes with ${partners.join(", ")}'s work in progress. Talk to them in the conflict thread.`,
+      }[outcome]);
     }
     if (result.missing.length) lines.push(`Couldn't fetch the snapshot of: ${result.missing.join(", ")}.`);
-    return { result, red, text: lines.join("\n") };
+    const red = outcome === "mine_broken" || outcome === "clash";
+    return { result, red, text: lines.filter(Boolean).join("\n") };
   });
 }
 
@@ -339,8 +349,12 @@ server.registerTool(
       if (tests) {
         return reply(`Not sent: since this conflict opened you changed existing tests (${tests}). A person now reviews that on the dashboard; the conflict waits for them. Tests are the team's shared contract.`, true);
       }
+      // What matters is the two of you together (or my change alone, when the other has none).
       const pair = check.result.pairs.find((p) => p.teammate === other);
-      if (check.red || pair?.run.red) return reply(`${check.text}\nNot sent: agree only works on a green check. Fix your side, or tell ${other} what you need with message_teammate(${conflictId}, ...).`, true);
+      const together = pair ? !pair.run.red : !check.result.mine?.red;
+      if (check.result.mine && !together) {
+        return reply(`${check.text}\nNot sent: agree only works when your work and ${other}'s pass together. Fix your side, or tell ${other} what you need with message_teammate(${conflictId}, ...).`, true);
+      }
       await callReducer("post_message", [conflictId, me, "agree", fact]);
       const after = await conflictById(conflictId);
       if (after?.status === "resolved") return reply(`${check.text}\nResolved: you and ${other} both agreed on a green check. Verified fact for the team: ${fact}`);

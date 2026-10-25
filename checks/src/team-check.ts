@@ -4,9 +4,14 @@
  * WHAT IT'S FOR
  *   One agent's combined check: the check_with_team tool (mcp/src/server.ts). It is the watcher's
  *   check, run by the agent that needs the answer, for its own pairs only:
- *     1. main + my latest snapshot alone. Red: my own change fails; no thread, I fix it myself.
- *     2. main + mine + each teammate's latest snapshot. Red (and the teammate is green alone): our
- *        two changes clash, so it opens a conflict thread with that teammate (report_conflict).
+ *     1. main + my latest snapshot alone.
+ *     2. main + mine + each teammate's latest snapshot, always.
+ *   Reading the results (verdict()):
+ *     - mine green, a pair red, that teammate green alone: our two changes clash, so it opens a
+ *       conflict thread with that teammate (report_conflict).
+ *     - mine red, but green together with a teammate: a coordinated change (in the demo, a changes
+ *       the contract and b adapts sessions; neither passes alone). Fine: they land together.
+ *     - mine red and red with everyone: my own change is broken; no thread, I fix it myself.
  *   Every combination it runs becomes a check_run row (report_check), so the module can tell that a
  *   later agree or complete_task rests on a current green check. Git, tsc and vitest decide red or
  *   green here, never a model.
@@ -77,14 +82,14 @@ export async function checkWithTeam(me: AgentName, latest: Map<AgentName, Snapsh
     deps.reportCheck(run.key, run.agents, run.red ? "red" : "green", logOf(run));
   result.mine = (await checker.check(main, [mineSnapshot])).result;
   await report(result.mine);
-  if (result.mine.red) return result;
 
   for (const theirs of changed.filter((snapshot) => snapshot.agent !== me)) {
     const run = (await checker.check(main, [mineSnapshot, theirs])).result;
     await report(run);
     const pair: PairResult = { teammate: theirs.agent, run };
     result.pairs.push(pair);
-    if (!run.red) continue;
+    // Red together while mine fails alone too: that's my own change, not a clash.
+    if (!run.red || result.mine.red) continue;
     const alone = (await checker.check(main, [theirs])).result;
     await report(alone);
     if (alone.red) {
@@ -97,6 +102,28 @@ export async function checkWithTeam(me: AgentName, latest: Map<AgentName, Snapsh
     await deps.reportConflict(kind, agentA, agentB, locA, locB, error, fixer, run.key);
   }
   return result;
+}
+
+export type Verdict =
+  /** No changes of mine compared with main. */
+  | "nothing"
+  /** Mine is green alone and with every teammate. */
+  | "green"
+  /** Mine fails alone but passes together with `with` (a coordinated change). */
+  | "together"
+  /** Mine fails alone and with everyone: my own change is broken. */
+  | "mine_broken"
+  /** Mine is green alone but clashes with at least one teammate. */
+  | "clash";
+
+export function verdict(result: TeamCheckResult): { verdict: Verdict; with: AgentName[] } {
+  if (!result.mine) return { verdict: "nothing", with: [] };
+  if (result.mine.red) {
+    const together = result.pairs.filter((pair) => !pair.run.red).map((pair) => pair.teammate);
+    return together.length ? { verdict: "together", with: together } : { verdict: "mine_broken", with: [] };
+  }
+  const clashes = result.pairs.filter((pair) => pair.clash).map((pair) => pair.teammate);
+  return clashes.length ? { verdict: "clash", with: clashes } : { verdict: "green", with: [] };
 }
 
 /** Where each side's change is, whose code the error is in (the suggested agent), and the error text. */
