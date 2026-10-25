@@ -1,14 +1,36 @@
-# Agent Cowork
+# Orkio — Making Multi-Agent Coding Work Together
 
-> What this file is for: the public README for GitHub, Devpost and judges. It explains what the project does, how to run it, and where each sponsor technology is used. C finishes it on Sunday between 3:00 and 5:00 AM; until then, the sections marked TODO are placeholders. The team's internal plan is in [plan.md](plan.md). This version describes branch `feat/orchestrator`, where an orchestrator (Droid) replaced the watcher.
+**A team of AI agents that coordinates like a team.** Each developer keeps using their own coding agent and local workspace. Orkio gives those agents shared context, delegates cross-cutting work, tests unfinished changes together, and brings people in only when judgment or approval is needed.
 
-**A team of AI agents that coordinate like a team.** Each human tells their own agent what they want. An orchestrator built on Factory's Droid turns the request into tasks for the agents that own each feature, and the agents settle clashes with each other directly. People only step in for major changes to their own features, or when two agents can't agree.
+## Inspiration
 
-## The problem
+AI coding agents make individual developers faster, but multiple developers using agents on the same project still face a familiar problem: integration. Each agent sees one machine and one working tree, while the code they produce shares interfaces, dependencies, and assumptions.
 
-TODO (D, after the interviews): open with one real quote from a Cal Hacks team.
+One agent might change `lastLogin` from seconds to milliseconds while another writes a caller that still assumes seconds. Their Git branches can merge cleanly and their types can still match, yet the application is wrong. **Git can tell us whether code merges, but not necessarily whether it works together.**
 
-When four people each run a coding agent on their own laptop, every agent only sees its own machine. One agent changes `lastLogin` from seconds to milliseconds and updates every caller it can see. Another agent, on another laptop, writes new code that still assumes seconds. They touched different files, so git merges cleanly and the types still match. The app is broken anyway, and the team finds out at integration time.
+As more agents work in parallel, developers become the bridge between isolated contexts: relaying decisions, comparing unfinished changes, resolving conflicts, and assembling a runnable build. We built Orkio as a real-time coordination layer that reduces that overhead without replacing developers' existing tools.
+
+## What it does
+
+### Coordinates unfinished work across computers
+
+Each agent publishes its uncommitted working tree as a snapshot on a dedicated `wip/<agent>` branch. The snapshot process uses Git plumbing and does not commit to, switch, stage, stash, or modify the developer's active branch. Intent, affected files, presence, and snapshot metadata are reported to SpacetimeDB so teammates can see relevant work before final integration.
+
+### Plans cross-cutting requests
+
+A developer can send a request to the orchestrator from their own agent. The orchestrator reads the current code, feature ownership, shared state, and all agents' latest unpublished work. It produces owner-specific tasks, identifies expected overlaps, and requests human review when a shared contract or another person's feature is affected.
+
+### Lets the responsible agents settle conflicts
+
+Agents run `check_with_team` before finishing. It combines their work with teammates' current snapshots in an isolated worktree and runs TypeScript and Vitest. If work conflicts, the affected agents receive a shared thread, agree on who changes what, and validate the result. Stale checks and one-sided agreements cannot resolve a conflict. Unresolved threads escalate to people after five minutes or twelve messages.
+
+### Maintains a runnable full stack
+
+The orchestrator rebuilds `cowork/full-stack` whenever an agent publishes work. It pushes that branch only after the combined code passes the type checker and tests. When all tasks are complete, every agent is notified and can retrieve the integrated project with `get_full_stack` or `npm run full-stack`.
+
+### Keeps humans in control
+
+Major cross-owner changes wait for approval. Humans can approve or send plans back with a note, decide escalated conflicts, and retain control over final integration. Orkio never automatically publishes work to `main`.
 
 ## How it works
 
@@ -25,7 +47,7 @@ Git, the type checker and the tests decide red or green. Droid plans and the age
 
 ## Architecture
 
-```
+```text
 human --> own agent (Claude Code + hooks + MCP) --ask_orchestrator--> SpacetimeDB <-- orchestrator (Droid plans)
                |   ^                                                      |   ^
     wip/<name> |   | wakes: task, conflict, message           plan, tasks |   | requests
@@ -35,7 +57,9 @@ human --> own agent (Claude Code + hooks + MCP) --ask_orchestrator--> SpacetimeD
                                            dashboard (live): plans, reviews, threads, decisions
 ```
 
-## Where each sponsor technology is used
+## How we built it
+
+Orkio uses Claude Code hooks, MCP, Git, TypeScript, Vitest, Factory Droid SDK, and SpacetimeDB. Local agents keep their existing workspaces; Git carries immutable snapshots; SpacetimeDB holds synchronized coordination state; the orchestrator plans and maintains the integrated branch; and the dashboard makes this background activity visible.
 
 ### SpacetimeDB
 
@@ -45,6 +69,17 @@ Implemented in [module/src/index.ts](module/src/index.ts) for SpacetimeDB 2.13.0
 - `post_message` is the agents' conversation. It resolves a conflict only when both agents' latest messages are agreements and a current green check covers both of them, so a stale or one-sided agreement can't close it.
 - A schedule table escalates a conflict to both humans after 5 minutes.
 - Lifecycle reducers track which agents are online. The dashboard subscribes directly, so all screens update at the same moment. There is no other backend server.
+
+#### Sponsor track alignment — Best Use of SpacetimeDB
+
+SpacetimeDB is Orkio's core real-time backend, not an auxiliary database added for submission. The product stops coordinating if SpacetimeDB is removed: agents can no longer discover teammates, publish shared intent, receive tasks, negotiate conflicts, request reviews, or observe completion.
+
+- **Live shared state:** agents on separate computers share presence, intentions, snapshots, tasks, reviews, conflict threads, decisions, and test results through one persistent state model.
+- **Instant synchronization:** agents and the React dashboard subscribe to changes, so a new plan, message, approval, escalation, or status update appears without polling or a separate synchronization server.
+- **Transactional updates:** reducers apply related state transitions atomically. Publishing a plan creates its tasks, reviews, predicted conflicts, and wake-up notifications together; conflict resolution verifies both agents' agreement and a current green check before committing the result.
+- **Server-side logic close to the data:** permissions, stale-result protection, task lifecycle rules, conflict escalation, and completion checks execute in the SpacetimeDB module rather than being trusted to individual clients.
+- **Multi-user and multi-agent interaction:** Orkio is a multiplayer productivity system for AI-assisted development. Each developer and agent acts independently while SpacetimeDB maintains a consistent shared coordination world across machines.
+- **Visible working demo:** judges can watch agents come online, publish unfinished work, receive orchestrated tasks, exchange conflict messages, approve major changes, and update the full-stack build live in the dashboard.
 
 ### Factory Droid SDK
 
@@ -57,33 +92,105 @@ The orchestrator is Droid: [orchestrator/src/planner.ts](orchestrator/src/planne
 - **Why Droid and not a bare model API:** the SDK gives us the agent harness (file reading, search, the tool-permission loop, streaming) so we only configure its limits. The read-only boundary, the worktree and the contract rule are our own design and would work with another model; Droid saves us from building the harness.
 - **Measured:** on the demo request it planned in 52 s: tasks for the users and sessions owners, reviews by the two affected humans, and the seconds-versus-milliseconds clash with uncommitted work.
 
-### Claude
+### Claude Code, hooks, and MCP
 
 - Each teammate's agent is Claude Code. Our hooks (`asyncRewake`, `Stop`, `SessionStart`, `PostToolUse`) connect it to the team.
-- Agents talk to each other through our MCP tools (`message_teammate`, `agree`, `escalate`) and settle who changes what without a central fixer.
-- Where it can go wrong, and what we do about it: an agent may try to make a check pass by weakening a test, so an agreement after a fix that edited an existing test goes to a person instead. A repo without tests gets false greens, so we say so plainly and rely on the type checker. Two agents can talk in circles, so a thread goes to both humans after 12 messages.
+- Agents publish snapshots after edits without changing their current branch, receive tasks and messages while idle, and load shared context when a session begins.
+- Agents talk through MCP tools such as `message_teammate`, `agree`, and `escalate`. A fix that edits an existing test requires human review, and a repository without tests is reported honestly rather than treated as strong evidence.
+
+### Git and isolated verification
+
+Snapshots are built with `write-tree` and `commit-tree` and pushed to per-agent WIP branches. Verification happens in disposable worktrees, so failed combinations never modify developers' active branches. The same mechanism builds the tested `cowork/full-stack` branch.
+
+### Dashboard
+
+The React dashboard subscribes directly to SpacetimeDB. It shows presence, active intent, plans, required reviews, tasks, integration results, conflict conversations, escalations, and the orchestrator's streamed progress.
+
+## Challenges we ran into
+
+### Finding the right architecture
+
+An earlier design centered on a watcher that diagnosed every combined failure. The current design gives the orchestrator a narrower planning role, lets the agents that own affected code negotiate repairs directly, and relies on deterministic checks for green or red status. This reduced central complexity while keeping coordination state shared.
+
+### Preserving local workflows
+
+Developers should not have to surrender their working branch to participate. Producing publishable snapshots without touching the real index, stash, branch, or uncommitted files required careful use of Git plumbing and isolated worktrees.
+
+### Preventing stale evidence
+
+Distributed checks and model responses can finish after newer work has arrived. Snapshot IDs, run keys, guarded reducers, and transactional state changes ensure an old result cannot mark newer code green or resolve a newer conflict.
+
+### Balancing autonomy and oversight
+
+Automatic delegation is useful until a change alters someone else's contract or weakens a test. We separated model-generated plans from code-enforced review rules and made escalation part of the normal workflow rather than an exceptional failure.
+
+### Visualizing an invisible process
+
+Most activity happens between hooks, Git branches, background processes, and database transactions. The dashboard had to expose enough state to make decisions understandable without overwhelming developers with raw agent traces.
+
+## Accomplishments we're proud of
+
+We built a real-time coordination layer that works across separate computers while preserving each developer's existing coding workflow. It combines local agents, safe Git snapshots, transactional shared state, human review, peer-to-peer repair conversations, and a continuously tested full-stack branch.
+
+### Putting Orkio to the test
+
+We compared two groups building the same Flappy Bird project: agents coordinated through Orkio and agents collaborating through ordinary GitHub workflows across two computers.
+
+| Metric | Orkio | GitHub only |
+|---|---:|---:|
+| Prompts required | 2 | 9 |
+| Conflicts recorded | 0 | 1 |
+| Total time | 10 minutes | 16 minutes |
+| Tokens used | 406K, including 26K planning | 430K |
+
+In this run, Orkio used approximately **78% fewer prompts**, finished **37.5% faster**, and used approximately **5.6% fewer tokens**. This was one comparison rather than a statistically established performance result, but it provided an encouraging demonstration that shared context can reduce human intervention during parallel agent development.
+
+## What we learned
+
+Making agents individually more capable does not automatically make a team of agents productive. Their work still has to share assumptions, satisfy contracts, and run together.
+
+We learned to give agents targeted context rather than broadcasting every event, to separate failure detection from repair proposals and approval, and to let deterministic checks—not a model—decide whether code is green. We also learned that another centralized fixer is not always the best answer: the agents responsible for the affected components often have the strongest context for negotiating a repair.
 
 ## Run it
 
-Part C’s reproducible checks and database commands are in [module/README.md](module/README.md); the app the agents edit is described in [demo-app/README.md](demo-app/README.md). `npm run test:live` plays the whole story on a temporary local SpacetimeDB. No API keys are included in this project.
-
-You need Node 24 or newer, git, and the `spacetime` CLI, and the database owner must have approved your `spacetime login` identity once. Then, from this folder:
+You need Node 24 or newer, Git, the `spacetime` CLI, and a SpacetimeDB identity that the database owner has granted access. No API keys are committed to the repository.
 
 | Command | What it does |
 |---|---|
-| `./run.sh` | Joins as an agent: installs packages, fills `.env` (asks your name once), signs in to SpacetimeDB, clones the project (`WORKSPACE_REPO` in `.env`) into `../workspace`, always that one folder, installs the hooks and MCP server there, runs `doctor`, and opens the workspace in VS Code. |
-| `./run.sh --orchestrator` | The same, plus the orchestrator's own clone (`.orchestrator/`, hidden in this folder), the orchestrator and the dashboard. Needs `FACTORY_API_KEY` in `.env`. |
-| `./run.sh --screen` | Only the dashboard, at http://localhost:5173. |
-| `./run.sh clean --yes` | Afterwards: deletes `../workspace`, `.orchestrator/` and your `wip/<name>` branch. The next `./run.sh` clones the project into the same folder again; to switch projects, change `WORKSPACE_REPO` in between. Without `--yes` it only lists them. Add `--db` on the database owner's laptop to also empty the database and every `wip/*` branch. |
+| `./run.sh` | Joins as an agent: installs packages, fills `.env`, signs in to SpacetimeDB, clones `WORKSPACE_REPO` into `../workspace`, installs hooks and the MCP server, runs the doctor, and opens the workspace in VS Code. |
+| `./run.sh --orchestrator` | Performs agent setup and also starts the orchestrator and dashboard. Requires `FACTORY_API_KEY` in `.env`. |
+| `./run.sh --screen` | Starts only the dashboard at http://localhost:5173. |
+| `./run.sh clean --yes` | Deletes `../workspace`, `.orchestrator/`, and the current agent's WIP branch. Without `--yes`, it only previews the targets. The database owner can add `--db` to clear shared state and all WIP branches. |
 
-Running it again is safe: finished steps are skipped. On PowerShell without Git Bash, use `npm run join -- <same options>`. The team database is `agent-cowork-orch`. Details: [scripts/join.ts](scripts/join.ts).
+Running setup again is safe because completed steps are skipped. On PowerShell without Git Bash, use `npm run join -- <same options>`. The default team database is `agent-cowork-orch`; setup details live in [scripts/join.ts](scripts/join.ts).
 
-`npm run module:generate` regenerates public bindings from the local module. Its verified generation wrapper preserves the frozen SQL names; see [module/generate.mjs](module/generate.mjs).
+Useful verification commands:
+
+```sh
+npm run typecheck
+npm run test:a
+npm run test:orchestrator
+npm run test:live
+npm run module:generate
+```
+
+Part C's reproducible database checks are documented in [module/README.md](module/README.md), access setup in [module/ACCESS.md](module/ACCESS.md), and the editable demo application in [demo-app/README.md](demo-app/README.md).
 
 ## Limitations
 
-TODO (D): copy the final "not built" list from [pitch/qa.md](pitch/qa.md).
+- Orkio can only catch behavior represented by the project's type checks and tests; a weak test suite can still produce a false sense of safety.
+- Each participant needs Git push access to the workspace repository and Reader or Editor access to the team database.
+- The current adapters target the tested Claude Code hook and MCP workflow; broader coding-agent compatibility still needs dedicated adapters.
+- A single orchestrator instance owns planning and full-stack rebuilds for a team, and it requires its configured provider credentials.
+- WIP branches are coordination artifacts rather than durable release history and are replaced as agents publish newer snapshots.
+- The benchmark above is a single controlled comparison, not a general performance guarantee.
 
-## Team
+## What's next
 
-TODO: names, and who built which part.
+- **Broader agent compatibility:** standardize adapters across different MCP, hook, and coding-agent environments.
+- **Proactive negotiation:** let agents agree on shared interfaces before making incompatible changes.
+- **Smarter conflict attribution:** improve analysis for failures involving three or more agents.
+- **Generated contract tests:** detect semantic inconsistencies that existing type checks and tests miss.
+- **Configurable oversight:** let teams choose which repairs can proceed autonomously and which require approval.
+
+Our long-term goal is to make working with a team of AI coding agents as straightforward as working with one.
