@@ -5,6 +5,7 @@ import { buildDemo } from "../src/demo.ts";
 import {
   activity,
   agentNow,
+  hiveStats,
   needsYou,
   RESOLVED_VISIBLE_MS,
   teamGraph,
@@ -138,4 +139,15 @@ test("activity mixes the orchestrator's events with checks, newest first", () =>
   assert.ok(events.some((e) => e.id === "resolved-12"));
   for (let i = 1; i < events.length; i++)
     assert.ok(events[i - 1]!.at >= events[i]!.at);
+});
+
+test("the hive counts what the team shares", () => {
+  const hive = hiveStats(buildDemo("resolved", NOW));
+  assert.equal(hive.online, 4);
+  assert.equal(hive.facts, 1);
+  assert.equal(hive.latestFact, "User.lastLogin is milliseconds since the Unix epoch.");
+  assert.deepEqual(hive.wip, ["a", "b", "c", "d"]);
+  assert.equal(hive.fullStack?.sha, "demo2b7e");
+  assert.ok(hive.rows.some((r) => r.table === "messages" && r.count === 4));
+  assert.ok(hive.rows.every((r) => r.count > 0));
 });

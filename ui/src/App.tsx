@@ -6,7 +6,7 @@
 import { useCallback, useState } from "react";
 import { teamHealth } from "./dashboard";
 import { useDashboard } from "./stdb";
-import { activity, needsYou, teamGraph, type Selection } from "./team";
+import { activity, hiveStats, needsYou, teamGraph, type Selection } from "./team";
 import { useNow } from "./useNow";
 import { ActivityStrip } from "./components/Activity";
 import { DemoBar } from "./components/DemoBar";
@@ -93,6 +93,7 @@ export function App() {
         <section className="panel graph-panel" aria-label="Team graph">
           <Graph
             graph={teamGraph(tables, now)}
+            hive={hiveStats(tables)}
             flights={flights}
             selection={selection}
             select={setSelection}

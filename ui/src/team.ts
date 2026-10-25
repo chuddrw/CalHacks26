@@ -549,3 +549,51 @@ export function activity(t: Tables, limit = 60): ActivityEvent[] {
     .sort((a, b) => b.at - a.at || a.id.localeCompare(b.id))
     .slice(0, limit);
 }
+
+// ---- The hive (the two hubs in the middle of the graph) --------------------------------------
+
+export interface HiveStats {
+  online: number;
+  agents: number;
+  /** Rows per shared table, only the ones that have rows. */
+  rows: Array<{ table: string; count: number }>;
+  facts: number;
+  latestFact: string;
+  /** Agents whose in-progress work sits on a wip/<agent> branch. */
+  wip: string[];
+  /** The newest green full stack, if any. */
+  fullStack?: { branch: string; sha: string };
+}
+
+export function hiveStats(t: Tables): HiveStats {
+  const facts = t.intent
+    .filter((i) => i.verified)
+    .sort((a, b) => b.createdAt - a.createdAt || b.id - a.id);
+  const rows = (
+    [
+      ["requests", t.request.length],
+      ["tasks", t.task.length],
+      ["reviews", t.review.length],
+      ["messages", t.message.length],
+      ["plans", t.intent.length - facts.length],
+      ["snapshots", t.snapshot.length],
+      ["checks", t.check_run.length],
+      ["conflicts", t.conflict.length],
+    ] as const
+  )
+    .filter(([, count]) => count > 0)
+    .map(([table, count]) => ({ table, count }));
+  const green = byNewest(
+    t.build.filter((b) => b.result === "green"),
+    (b) => b.createdAt,
+  )[0];
+  return {
+    online: t.agent.filter((a) => a.online).length,
+    agents: t.agent.length,
+    rows,
+    facts: facts.length,
+    latestFact: facts[0]?.summary ?? "",
+    wip: [...new Set(t.snapshot.map((s) => s.agent))].sort(),
+    fullStack: green ? { branch: green.branch, sha: green.sha.slice(0, 8) } : undefined,
+  };
+}

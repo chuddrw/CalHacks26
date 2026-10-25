@@ -16,24 +16,33 @@ The simulator runs entirely in the browser and performs no database writes.
 Use the scene selector or **Play story** to inspect working → conflict → fixing →
 resolved. Escalation and test-review scenes are available separately.
 
-One screen, plain dark. On the left is the team graph: the orchestrator on top and the
-agents in a row. Lines down are the tasks it assigned (animated while the agent works),
-dashed amber arcs are reviews still waiting on a person, and arcs between two agents are
-conflict threads (red while they talk, green once both agree and the check passes). On the
-right, **Now** gives one row per agent: check state, what it is doing, files, last activity.
-A **Needs you** bar appears at the top only when a person has to approve a review, decide
-an escalated conflict, or accept a test change. Click any node, arc label, row or event
-to open its details in the drawer on the right. The graph stays live beside it, and Esc
-closes it and puts focus back. The data comes from `src/team.ts` (tests: `tests/team.test.ts`).
+One screen, plain dark. On the left is the team graph, drawn as a hive. **SpacetimeDB** sits in
+the middle, because no agent talks to another directly: each writes to the shared database and the
+others get it through their subscription. The hub shows how many agents are connected, the rows per
+table and the latest verified fact. **GitHub** is the smaller hub below it, where the code itself
+moves (`wip/<agent>` branches, the full stack). Around them in a ring: the orchestrator, the
+agents, and a **People** node for the people at the dashboard. Faint spokes connect each of them
+to the database.
 
-Task lines say what the agent is doing ("doing: Store User.lastLogin in milliseconds"). A small
-**People** node stands for the people at the dashboard. Every piece of data that moves flashes
-as an arrow from sender to receiver for 4 seconds, with what it carried and whether it went via
-the database or git: a request, a task, a review and its answer, a thread message, a plan, a
-snapshot push, a pull of a teammate's code, a clash, a fact, a full stack. Several at once play
-1.2 s apart, and only the newest keeps its label. Opening the page shows no arrows; only data
-that arrives afterwards does. Source: `src/transfers.ts` (tests: `tests/transfers.test.ts`) and
-`src/components/useFlights.ts`.
+Lasting relationships curve inside the ring. Tasks run from the orchestrator to an agent, labeled
+with what it is doing ("doing: Store User.lastLogin in milliseconds"). Reviews are dashed amber
+arcs from the reviewer to the requester. Conflict threads are red while the two agents talk and
+green once both agree and the check passes. Labels take the first spot along their curve that
+doesn't cover a node, a hub or another label.
+
+Every piece of data that moves flashes for 4 seconds in two hops. First the sender writes to its
+hub, which pulses and shows what was written ("+ message", "+ wip/b"). Then the hub pushes it to
+each receiver. This covers requests, tasks, reviews and their answers, thread messages, plans,
+snapshot pushes, pulls of a teammate's code, clashes, facts and the full stack. Several at once
+play 1.2 s apart, and only the newest keeps its label. Opening the page shows no arrows; only data
+that arrives afterwards does.
+
+On the right, **Now** gives one row per agent: check state, what it is doing, files, last activity.
+A **Needs you** bar appears at the top only when a person has to approve a review, decide an
+escalated conflict, or accept a test change. Click any node, hub, label, row or event to open its
+details in the drawer on the right. The graph stays live beside it, and Esc closes it and puts
+focus back. Sources: `src/team.ts` and `src/transfers.ts` (tests: `tests/team.test.ts`,
+`tests/transfers.test.ts`), `src/components/Graph.tsx` and `src/components/useFlights.ts`.
 
 - `/?demo&scene=conflict`: failure indicator; inspect it to reveal the fixer, diffs, and diagnosis.
 - `/?demo&scene=fixing`: explanation and completed diagnosis, fix still pending.

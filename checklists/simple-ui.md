@@ -72,3 +72,27 @@ A's answers: arrows go straight from sender to receiver, tagged "via DB" / "via 
 - [x] Demo: B's pull appears in "B is fixing"
 - [x] Tests: `tests/transfers.test.ts` (7, every story step), UI 37 / 37; `npm run test:a` passes with a new check "a hears that b pulled its change"
 - [x] Browser: the whole story plays as arrows in order; arrows between two agents dip below the row, away from the task labels; live mode loads without a burst. A real live transfer wasn't triggered (that would write to the team database); it uses the same path as the demo's scene changes.
+
+## Round 3: the hive (A, 2026-10-24)
+
+A: "Shouldn't we draw the DB? It's the hive of the agent mind." Agents never talk directly: each writes to SpacetimeDB and the others get it through their subscription. Drawing A → B directly hid that.
+
+A's answers: radial hive (SpacetimeDB in the middle, orchestrator, people and agents in a ring); GitHub as a smaller second hub for code; the DB hub shows the table just written, shared memory, rows per table and how many agents are connected.
+
+- [x] `transfers.ts`: each transfer names the table (or git branch) it writes
+- [x] `team.ts`: `hiveStats()` for the hubs (connected agents, rows per table, latest fact, wip branches, full stack)
+- [x] `Graph.tsx`: ring layout around the two hubs; faint spokes from every node to the DB; task / review / conflict arcs curve inside the ring, around the hubs
+- [x] Arrows in two hops: sender → hub (write), the hub pulses and shows "+ <table>", hub → each receiver (subscription push)
+- [x] Tests, typecheck, build; browser check of the whole story, narrow window, big screen, live mode
+
+Fixed along the way:
+- The pull arrow now runs A → GitHub → B: the code moves from A's wip branch to B. The note itself goes to A.
+- Curves aim their middle between the hubs and the ring, so a node sitting at the halfway angle doesn't pull them into it.
+- Labels (on edges and on arrows) try several spots along their curve and take the one that covers the least.
+- Hops to and from GitHub go around the database hub when it is in the way (orchestrator ↔ GitHub).
+- Big screen with the Needs you bar used to clip the bottom of the ring: the graph row now has a minimum height and the page scrolls; node and hub sizes scale with the font; the two hubs share the space between the top and bottom nodes.
+
+Known limit: in big-screen mode with the Needs you bar, one task label may find no free spot and sit partly behind its agent's node. The node shows the same text.
+
+Checked: UI tests 38 / 38, typecheck, build. In the browser: the whole story plays 14 transfers through the right hubs (review, message, conflict, memory and task into SpacetimeDB; wip/a, wip/b and cowork/full-stack into GitHub). Also checked an 800 px window, big screen, and live mode against the team database (read only, no burst on load).
+

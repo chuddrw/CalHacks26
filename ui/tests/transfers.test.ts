@@ -44,10 +44,10 @@ test("working -> conflict: B's approval, the clash, the thread and the full stac
   assert.match(fresh[1]!.text, /^B's human approved #4/);
 });
 
-test("conflict -> fixing: B pulls A's code (via git), then agrees", () => {
+test("conflict -> fixing: A's code goes to B through git, then B agrees", () => {
   const fresh = step("conflict", "fixing");
   assert.deepEqual(fresh.map((x) => [x.key, arrow(x), x.via]), [
-    ["pull-1", "b->a", "git"],
+    ["pull-1", "a->b", "git"],
     ["message-3", "b->a", "DB"],
   ]);
   assert.match(fresh[1]!.text, /^agrees: /);

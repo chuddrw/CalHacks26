@@ -149,7 +149,8 @@ p {
 /* ---- Shell ---------------------------------------------------------------------------------- */
 .app {
   font-size: 15px;
-  height: 100%;
+  /* At least the window; taller when the graph needs its minimum (then the page scrolls). */
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -237,7 +238,7 @@ p {
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(18em, 24em);
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(30em, 1fr) auto;
   gap: 0.8em;
   padding: 0.8em 1em 1em;
 }
@@ -281,7 +282,7 @@ p {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 27em;
+  min-height: 0;
 }
 .edges {
   position: absolute;
@@ -333,7 +334,7 @@ p {
 }
 .node {
   position: absolute;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   min-height: 4.6em;
   z-index: 2;
   display: flex;
@@ -364,8 +365,9 @@ p {
 }
 .node-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.45em;
+  gap: 0.2em 0.45em;
   min-width: 0;
 }
 .node-state {
@@ -401,8 +403,10 @@ p {
 .legend {
   position: absolute;
   left: 0.9em;
+  right: 0.9em;
   bottom: 0.7em;
   display: flex;
+  flex-wrap: wrap;
   gap: 1.1em;
   font-size: 0.78em;
   color: var(--muted);
@@ -421,6 +425,96 @@ p {
 }
 .key-flight {
   border-top: 2px solid var(--text);
+}
+.key-spoke {
+  border-top: 1px dotted var(--muted);
+}
+
+/* ---- The hive: SpacetimeDB in the middle, GitHub below it, spokes to every node ------------- */
+.spoke {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+  opacity: 0.45;
+}
+.spoke.offline {
+  opacity: 0.15;
+}
+.hub-shape {
+  fill: color-mix(in srgb, var(--amber) 7%, var(--panel-2));
+  stroke: color-mix(in srgb, var(--amber) 55%, var(--border));
+  stroke-width: 1.5;
+}
+.hub-shape-git {
+  fill: var(--panel-2);
+  stroke: var(--border);
+  stroke-dasharray: 5 4;
+}
+.hub {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em;
+  padding: 0.4em 2.4em;
+  background: none;
+  border: 0;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+.hub-db strong {
+  color: color-mix(in srgb, var(--amber) 70%, white);
+  letter-spacing: 0.03em;
+}
+.hub-git {
+  padding: 0.3em 0.8em;
+}
+.hub-sub,
+.hub-rows {
+  font-size: 0.74em;
+  color: var(--muted);
+}
+.hub-fact {
+  font-size: 0.74em;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hub-write {
+  position: absolute;
+  top: 0.2em;
+  right: 2.2em;
+  padding: 0 0.45em;
+  border-radius: 999px;
+  border: 1px solid var(--tone);
+  background: var(--bg);
+  color: color-mix(in srgb, var(--tone) 75%, white);
+  font-size: 0.72em;
+  font-family: var(--mono);
+  opacity: 0;
+  pointer-events: none;
+  animation: write-show 2.4s ease-out 0.55s forwards;
+}
+.hub-git .hub-write {
+  right: 0.4em;
+}
+@keyframes write-show {
+  0% {
+    opacity: 0;
+    transform: translateY(0.4em);
+  }
+  12%,
+  75% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 .edge-label-task {
   white-space: normal;
@@ -451,13 +545,51 @@ p {
 .flight {
   animation: flight-fade 4s linear forwards;
 }
-.flight path {
+/* Two hops: the write into the hub, then (0.6 s later) the push out to each receiver. */
+.hop-write,
+.hop-push {
   fill: none;
   stroke: color-mix(in srgb, var(--tone) 70%, white);
   stroke-width: 2.5;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: flight-draw 0.5s ease-out forwards;
+}
+.hop-write {
+  animation: flight-draw 0.6s ease-out forwards;
+}
+.hop-push {
+  animation:
+    push-show 4s linear forwards,
+    flight-draw 0.6s ease-out 0.6s forwards;
+}
+.hub-pulse {
+  fill: none;
+  stroke: color-mix(in srgb, var(--tone) 70%, white);
+  stroke-width: 3;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hub-pulse 0.9s ease-out 0.55s forwards;
+}
+@keyframes push-show {
+  0%,
+  14% {
+    opacity: 0;
+  }
+  15%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes hub-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
 }
 .head {
   fill: color-mix(in srgb, var(--tone) 70%, white);
@@ -503,10 +635,7 @@ p {
   }
 }
 @keyframes flight-fade {
-  0% {
-    opacity: 0;
-  }
-  8%,
+  0%,
   80% {
     opacity: 1;
   }
@@ -862,8 +991,15 @@ p {
   .node.busy .dot {
     animation: none;
   }
-  .flight path {
+  .hop-write,
+  .hop-push,
+  .hub-pulse,
+  .hub-write {
     animation: none;
     stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  .hub-pulse {
+    opacity: 0;
   }
 }
