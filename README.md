@@ -1,4 +1,6 @@
-# Orkio — Making Multi-Agent Coding Work Together
+# Orkio
+
+*Making multi-agent coding work together.*
 
 **A team of AI agents that coordinates like a team.** Each developer keeps using their own coding agent and local workspace. Orkio gives those agents shared context, delegates cross-cutting work, tests unfinished changes together, and brings people in only when judgment or approval is needed.
 
