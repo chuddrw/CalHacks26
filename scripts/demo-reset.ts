@@ -143,7 +143,8 @@ export interface ResetActions {
 }
 
 const actions: ResetActions = {
-  resetDatabase: () => callReducer("reset_all", []),
+  // reset_all deletes every row in one transaction: on maincloud that can take more than a hook's 3 s.
+  resetDatabase: () => callReducer("reset_all", [], 30_000),
   deleteBranch(directory, remote, branch) {
     try { git(directory, ["push", remote, "--delete", branch]); }
     catch (error) {
@@ -176,7 +177,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     console.log("No changes made. Re-run with --yes to execute this reset.");
     return;
   }
-  const missing = missingSettings(["stdbDb", "stdbToken"]);
+  // The token is this laptop's `spacetime login` session (callReducer reads it), never .env.
+  const missing = missingSettings(["stdbDb"]);
   if (missing.length) throw new Error(`Fill in ${missing.join(", ")} before resetting.`);
   // Repeat preflight immediately before the first mutation, including cleanliness and tag lookup.
   const current = buildPlan(options);

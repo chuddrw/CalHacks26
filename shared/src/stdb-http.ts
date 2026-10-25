@@ -42,13 +42,16 @@ async function headers(contentType: string): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}`, "Content-Type": contentType } : { "Content-Type": contentType };
 }
 
-/** Calls a reducer. Throws on a non-2xx response or a timeout. */
-export async function callReducer<R extends ReducerName>(name: R, args: ReducerArgs[R]): Promise<void> {
+/**
+ * Calls a reducer. Throws on a non-2xx response or a timeout. `timeoutMs` is for scripts a person
+ * runs by hand (the reset), whose one big reducer can take longer than a hook may wait.
+ */
+export async function callReducer<R extends ReducerName>(name: R, args: ReducerArgs[R], timeoutMs = TIMEOUT_MS): Promise<void> {
   const res = await fetch(endpoint(`call/${name}`), {
     method: "POST",
     headers: await headers("application/json"),
     body: JSON.stringify(args),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`reducer ${name} failed: ${res.status} ${await res.text()}`);
 }
