@@ -1,8 +1,6 @@
 // One fixed slide at a time. No page scrolling or intermediate resting positions.
 const slides = Array.from(document.querySelectorAll(".slide"));
 const links = Array.from(document.querySelectorAll(".deck-header nav a"));
-const previous = document.querySelector("#previous");
-const next = document.querySelector("#next");
 const counter = document.querySelector(".page-count");
 const stage = document.querySelector("#slides");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -25,8 +23,6 @@ function update() {
   });
   links.forEach((link, i) => i === active ? link.setAttribute("aria-current", "location") : link.removeAttribute("aria-current"));
   counter.textContent = `${String(active + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
-  previous.disabled = active === 0;
-  next.disabled = active === slides.length - 1;
 }
 async function go(index, writeHash = true) {
   index = Math.max(0, Math.min(slides.length - 1, index));
@@ -63,8 +59,6 @@ async function go(index, writeHash = true) {
     }
   }
 }
-previous.addEventListener("click", () => go(active - 1));
-next.addEventListener("click", () => go(active + 1));
 document.addEventListener("click", event => {
   const anchor = event.target.closest('a[href^="#"]');
   if (!anchor) return;
@@ -79,6 +73,11 @@ window.addEventListener("hashchange", () => {
   if (index >= 0) go(index, false);
 });
 document.addEventListener("keydown", event => {
+  if (slides[active].id === 'technical' && ['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    event.preventDefault();
+
+    return;
+  }
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.target.closest("input, textarea, select, video, [contenteditable]")) return;
   let index;
   if (["ArrowDown", "PageDown", "ArrowRight", " "].includes(event.key)) index = active + 1;
@@ -130,3 +129,65 @@ slides.forEach(slide => observer.observe(slide.querySelector(".slide-content")))
 document.fonts.ready.then(fitSlides);
 update();
 fitSlides();
+
+// Horizontal input rotates technical cards; vertical input still moves slides.
+const carousel = document.querySelector('.technical-carousel');
+const cardRing = carousel.querySelector('.technical-grid');
+const technicalCards = [...cardRing.children];
+let cardStep = 0;
+function rotateCard(direction) {
+  cardStep += direction;
+  const current = ((cardStep % technicalCards.length) + technicalCards.length) % technicalCards.length;
+  cardRing.style.setProperty('--card-angle', `${-cardStep * 90}deg`);
+  technicalCards.forEach((card, i) => {
+    card.style.setProperty('--face', i);
+    card.setAttribute('aria-hidden', String(i !== current));
+    card.inert = i !== current;
+  });
+  carousel.setAttribute('aria-label', `Technical architecture: ${current + 1} of 4, ${technicalCards[current].querySelector('h3').textContent}. Swipe horizontally to rotate.`);
+}
+
+let cardTouch;
+carousel.addEventListener('touchstart', event => { cardTouch = event.touches[0]; }, { passive: true });
+carousel.addEventListener('touchend', event => {
+  if (!cardTouch) return;
+  const dx = cardTouch.clientX - event.changedTouches[0].clientX;
+  const dy = cardTouch.clientY - event.changedTouches[0].clientY;
+  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) rotateCard(Math.sign(dx));
+  cardTouch = undefined;
+}, { passive: true });
+let lastCardWheel = -Infinity;
+carousel.addEventListener('wheel', event => {
+  if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+  event.preventDefault(); event.stopPropagation();
+  if (Math.abs(event.deltaX) > 8 && performance.now() - lastCardWheel > 800) {
+    rotateCard(Math.sign(event.deltaX)); lastCardWheel = performance.now();
+  }
+}, { passive: false });
+rotateCard(0);
+
+// Mouse dragging mirrors a horizontal touch swipe.
+let cardDrag;
+carousel.addEventListener('pointerdown', event => {
+  if (event.pointerType !== 'mouse' || event.button !== 0) return;
+  cardDrag = { x: event.clientX, y: event.clientY };
+  carousel.setPointerCapture(event.pointerId);
+});
+carousel.addEventListener('pointerup', event => {
+  if (!cardDrag) return;
+  const dx = cardDrag.x - event.clientX;
+  const dy = cardDrag.y - event.clientY;
+  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) rotateCard(Math.sign(dx));
+  cardDrag = undefined;
+});
+carousel.addEventListener('pointercancel', () => { cardDrag = undefined; });
+
+const capabilityButtons = [...document.querySelectorAll('.solution-network button')];
+capabilityButtons.forEach(button => button.addEventListener('click', () => {
+  const expand = button.getAttribute('aria-expanded') !== 'true';
+  capabilityButtons.forEach(item => {
+    const open = item === button && expand;
+    item.setAttribute('aria-expanded', String(open));
+    item.nextElementSibling.hidden = !open;
+  });
+}));
