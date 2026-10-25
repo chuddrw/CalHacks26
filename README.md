@@ -4,6 +4,9 @@
 
 **A team of AI agents that coordinates like a team.** Each developer keeps using their own coding agent and local workspace. Orkio gives those agents shared context, delegates cross-cutting work, tests unfinished changes together, and brings people in only when judgment or approval is needed.
 
+## Demo
+[!]
+
 ## Inspiration
 
 AI coding agents make individual developers faster, but multiple developers using agents on the same project still face a familiar problem: integration. Each agent sees one machine and one working tree, while the code they produce shares interfaces, dependencies, and assumptions.
