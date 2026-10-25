@@ -431,13 +431,13 @@ try {
   const flagged = db.conflict.find((c) => c.kind === "potential" && c.pair === "a+b" && c.status === "open");
   check("approval opens the flagged conflict a x b", flagged !== undefined && flagged.fixer === "b");
 
-  // a is idle and never edited in this session: the SessionStart listener wakes it with both.
+  // a is idle and never edited in this session: the listener from its last prompt wakes it with both.
   const aWakeStarted = Date.now();
-  const aWake = await startHook("snapshot-and-wait.ts", { hook_event_name: "SessionStart", cwd: cloneA, session_id: "a" }, envFor("a", "0.2")).done;
-  check("a session-start listener wakes a (exit code 2)", aWake.code === 2, `code ${aWake.code}, ${Date.now() - aWakeStarted} ms`);
+  const aWake = await startHook("snapshot-and-wait.ts", { hook_event_name: "UserPromptSubmit", cwd: cloneA, session_id: "a" }, envFor("a", "0.2")).done;
+  check("a prompt listener wakes a (exit code 2)", aWake.code === 2, `code ${aWake.code}, ${Date.now() - aWakeStarted} ms`);
   check("a's wake carries its task and the conflict thread", aWake.stderr.includes("TASK #") && aWake.stderr.includes("Store User.lastLogin in milliseconds") && aWake.stderr.includes(`CONFLICT #${flagged?.id} with b`), aWake.stderr.slice(0, 120));
   check("a's wake says who asked and how to finish", aWake.stderr.includes("Asked by c's human") && aWake.stderr.includes("complete_task("));
-  check("the session-start listener didn't snapshot anything", db.snapshot.filter((x) => x.agent === "a").length === 1);
+  check("the prompt listener didn't snapshot anything", db.snapshot.filter((x) => x.agent === "a").length === 1);
 
   // ---- 10. the two agents talk it out --------------------------------------------------------------
   const conflictId = flagged?.id ?? 0;

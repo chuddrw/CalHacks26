@@ -18,8 +18,10 @@
  *
  * REGISTERED BY install.ts AS (all asyncRewake: true, timeout: 1800)
  *   PostToolUse, matcher "Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__cowork__.*"   snapshot + listen
- *   SessionStart and UserPromptSubmit                                               listen only
- *   The last two exist so an agent that hasn't touched anything yet can still be woken by a task.
+ *   UserPromptSubmit                                                                listen only
+ *   That one exists so an agent that hasn't touched anything yet can still be woken by a task.
+ *   Not SessionStart: Claude Code waits for SessionStart hooks to finish even with asyncRewake,
+ *   so a listener there blocks the session from starting.
  *
  * STEPS
  *   1. If COWORK_NAME or STDB_DB is missing, exit 0. (The token comes from shared/src/session-token.ts.)

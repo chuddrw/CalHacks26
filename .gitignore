@@ -30,3 +30,5 @@ Thumbs.db
 
 # Generated Part C test coverage reports
 coverage/
+# The orchestrator's own clone of the project (made by ./run.sh --orchestrator).
+.orchestrator/

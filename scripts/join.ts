@@ -3,18 +3,20 @@
  *
  * WHAT IT'S FOR
  *   One command that puts a laptop on the team: tools checked, packages installed, .env filled in,
- *   signed in to SpacetimeDB, a throwaway workspace (a fresh clone of repo 2) ready with our hooks
- *   and MCP server, checked by doctor, and opened in VS Code. `clean` throws the workspace away.
+ *   signed in to SpacetimeDB, the workspace (a clone of the project, always ../workspace) ready with
+ *   our hooks and MCP server, checked by doctor, and opened in VS Code. `clean` throws it away; the
+ *   next run clones it again in the same place. The project is WORKSPACE_REPO in .env.
  *   run.sh calls it; on PowerShell use `npm run join -- <options>`.
  *
  * USAGE (from repo 1)
- *   ./run.sh                     join as an agent: workspace ../cowork-ws-<name>, opened in VS Code
+ *   ./run.sh                     join as an agent: workspace ../workspace, opened in VS Code
  *   ./run.sh --orchestrator      also run the orchestrator (needs FACTORY_API_KEY) and the dashboard
  *   ./run.sh --screen            only the dashboard, no agent (the big screen)
  *   ./run.sh --name b            your name the first time without being asked (a, b, c, d...)
  *   ./run.sh --no-open           don't open VS Code / the browser (the window is already open)
  *   ./run.sh clean               shows what it would delete; add --yes to delete it:
- *                                  your workspace folder(s) and your wip/<name> branch on GitHub
+ *                                  ../workspace, the orchestrator's clone (.orchestrator/) and your
+ *                                  wip/<name> branch on GitHub
  *   ./run.sh clean --db --yes    also empties the team database and every wip/* branch
  *                                  (database owner only; run it on one laptop, after everyone's clean)
  *
@@ -59,9 +61,9 @@ function shellCommand(command: string, args: string[]) {
   return WIN ? { command: [command, ...args].map(quote).join(" "), args: [] as string[], shell: true } : { command, args, shell: false };
 }
 /** Runs a command with its output on screen. Returns whether it succeeded. */
-function runVisible(command: string, args: string[], cwd = REPO): boolean {
+function runVisible(command: string, args: string[], cwd = REPO, env: NodeJS.ProcessEnv = process.env): boolean {
   const c = shellCommand(command, args);
-  return spawnSync(c.command, c.args, { cwd, stdio: "inherit", shell: c.shell }).status === 0;
+  return spawnSync(c.command, c.args, { cwd, stdio: "inherit", shell: c.shell, env }).status === 0;
 }
 function has(command: string): boolean {
   return spawnSync(WIN ? "where" : "which", [command], { stdio: "ignore" }).status === 0;
@@ -87,9 +89,11 @@ function setEnv(key: string, value: string): void {
 }
 
 // ---- workspace --------------------------------------------------------------------------------
-function workspacePath(name: string): string {
-  return path.join(path.dirname(REPO), `cowork-ws-${name}`);
-}
+/** The one folder the agent works in, always at the same place, next to repo 1. */
+const WORKSPACE = path.join(path.dirname(REPO), "workspace");
+/** The orchestrator's own clone. It must not be a folder anyone codes in, so it hides inside repo 1 (gitignored). */
+const ORCHESTRATOR_CLONE = path.join(REPO, ".orchestrator");
+const sameRemote = (a: string, b: string) => a.replace(/\/+$|\.git$/g, "") === b.replace(/\/+$|\.git$/g, "");
 function markerFile(dir: string): string {
   return path.join(dir, ".git", MARKER);
 }
@@ -108,6 +112,10 @@ function prepareWorkspace(dir: string, label: string): void {
     ok(`new workspace: ${dir}`);
   } else {
     if (!ownedByUs(dir)) stop(`${dir} already exists but run.sh didn't make it. Move it away, or delete it yourself, then run again.`);
+    const current = git(dir, ["remote", "get-url", "origin"]);
+    if (!sameRemote(current, remote)) {
+      stop(`${dir} holds ${current}, but WORKSPACE_REPO is now ${remote}. Run ./run.sh clean --yes first; the next ./run.sh clones the new project into the same folder.`);
+    }
     git(dir, ["fetch", "--quiet", "origin"]);
     if (git(dir, ["status", "--porcelain"])) {
       note(`${dir} has uncommitted changes from last time; left as it is. (./run.sh clean starts over.)`);
@@ -195,7 +203,10 @@ function doctor(workspace?: string): boolean {
 function openEditor(dir: string): void {
   step("VS Code");
   if (has("code")) {
-    runVisible("code", [dir]);
+    // Started from inside VS Code (an extension, Claude Code), ELECTRON_RUN_AS_NODE is set and would
+    // make `code` run as plain Node instead of opening a window.
+    const { ELECTRON_RUN_AS_NODE: _ignored, ...env } = process.env;
+    if (!runVisible("code", [dir], REPO, env)) return note(`VS Code didn't open. Open this folder yourself: ${dir}`);
     ok(`opened ${dir}. If VS Code asks whether to trust the folder, say yes, then start Claude Code there.`);
   } else {
     note(`\`code\` isn't on PATH. Open this folder in VS Code yourself: ${dir}`);
@@ -247,7 +258,7 @@ async function join(values: { name?: string; orchestrator?: boolean; screen?: bo
   let workspace: string | undefined;
   if (agent) {
     step("Workspace");
-    workspace = workspacePath(name);
+    workspace = WORKSPACE;
     prepareWorkspace(workspace, `agent ${name}`);
     step("Hooks and MCP server");
     if (!runVisible(process.execPath, [path.join(REPO, "hooks", "src", "install.ts"), "--demo", workspace, "--name", name])) {
@@ -257,7 +268,7 @@ async function join(values: { name?: string; orchestrator?: boolean; screen?: bo
   if (values.orchestrator) {
     step("Orchestrator's own clone");
     if (!envValue("FACTORY_API_KEY")) stop(`The orchestrator plans with Droid: put FACTORY_API_KEY=... in ${ENV_FILE}, then run this again.`);
-    const own = workspacePath("orchestrator");
+    const own = ORCHESTRATOR_CLONE;
     prepareWorkspace(own, "the orchestrator");
     setEnv("DEMO_REPO_PATH", own.replace(/\\/g, "/"));
     ok(`DEMO_REPO_PATH set to ${own}`);
@@ -286,7 +297,7 @@ function listenerPid(dir: string): number | undefined {
 
 async function clean(values: { yes?: boolean; db?: boolean }): Promise<void> {
   const name = envValue("COWORK_NAME");
-  const candidates = [name && workspacePath(name), workspacePath("orchestrator")].filter(Boolean) as string[];
+  const candidates = [WORKSPACE, ORCHESTRATOR_CLONE];
   const folders = candidates.filter((dir) => existsSync(dir) && ownedByUs(dir));
   for (const dir of candidates) if (existsSync(dir) && !ownedByUs(dir)) note(`skipping ${dir}: run.sh didn't make it`);
   const gitFrom = folders[0];
@@ -338,7 +349,7 @@ async function clean(values: { yes?: boolean; db?: boolean }): Promise<void> {
       note(`couldn't delete ${dir} (${error instanceof Error ? error.message : error}). Close VS Code and anything running there, then run clean again.`);
     }
   }
-  if (path.resolve(envValue("DEMO_REPO_PATH") || "/nonexistent") === path.resolve(workspacePath("orchestrator"))) setEnv("DEMO_REPO_PATH", "");
+  if (path.resolve(envValue("DEMO_REPO_PATH") || "/nonexistent") === path.resolve(ORCHESTRATOR_CLONE)) setEnv("DEMO_REPO_PATH", "");
 }
 
 // ---- main -------------------------------------------------------------------------------------

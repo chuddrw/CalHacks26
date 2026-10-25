@@ -69,10 +69,10 @@ You need Node 24 or newer, git, and the `spacetime` CLI, and the database owner 
 
 | Command | What it does |
 |---|---|
-| `./run.sh` | Joins as an agent: installs packages, fills `.env` (asks your name once), signs in to SpacetimeDB, clones a fresh workspace to `../cowork-ws-<name>`, installs the hooks and MCP server there, runs `doctor`, and opens the workspace in VS Code. |
-| `./run.sh --orchestrator` | The same, plus the orchestrator's own clone (`../cowork-ws-orchestrator`), the orchestrator and the dashboard. Needs `FACTORY_API_KEY` in `.env`. |
+| `./run.sh` | Joins as an agent: installs packages, fills `.env` (asks your name once), signs in to SpacetimeDB, clones the project (`WORKSPACE_REPO` in `.env`) into `../workspace`, always that one folder, installs the hooks and MCP server there, runs `doctor`, and opens the workspace in VS Code. |
+| `./run.sh --orchestrator` | The same, plus the orchestrator's own clone (`.orchestrator/`, hidden in this folder), the orchestrator and the dashboard. Needs `FACTORY_API_KEY` in `.env`. |
 | `./run.sh --screen` | Only the dashboard, at http://localhost:5173. |
-| `./run.sh clean --yes` | Afterwards: deletes the workspace folders `run.sh` made and your `wip/<name>` branch. Without `--yes` it only lists them. Add `--db` on the database owner's laptop to also empty the database and every `wip/*` branch. |
+| `./run.sh clean --yes` | Afterwards: deletes `../workspace`, `.orchestrator/` and your `wip/<name>` branch. The next `./run.sh` clones the project into the same folder again; to switch projects, change `WORKSPACE_REPO` in between. Without `--yes` it only lists them. Add `--db` on the database owner's laptop to also empty the database and every `wip/*` branch. |
 
 Running it again is safe: finished steps are skipped. On PowerShell without Git Bash, use `npm run join -- <same options>`. The team database is `agent-cowork-orch`. Details: [scripts/join.ts](scripts/join.ts).
 

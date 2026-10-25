@@ -70,8 +70,10 @@ export function hookSettings(repoRoot: string): { hooks: Record<string, HookGrou
     args: [script(name)],
     ...extra,
   });
-  // The listener also starts at session start, on every prompt and after cowork's own tools, so an
-  // agent that hasn't edited anything yet can be woken by a task (branch feat/orchestrator).
+  // The listener also starts on every prompt and after cowork's own tools, so an agent that hasn't
+  // edited anything yet can be woken by a task (branch feat/orchestrator). Not at SessionStart:
+  // Claude Code waits for every SessionStart hook to finish, asyncRewake or not, so a 25-minute
+  // listener there leaves the session stuck on "Running start-up hooks" (seen Oct 25).
   const listen = () => run("snapshot-and-wait.ts", { asyncRewake: true, timeout: 1800 });
   return {
     hooks: {
@@ -81,7 +83,7 @@ export function hookSettings(repoRoot: string): { hooks: Record<string, HookGrou
       ],
       UserPromptSubmit: [{ hooks: [run("inject-context.ts", { timeout: 5 }), listen()] }],
       Stop: [{ hooks: [run("stop.ts", { timeout: 5 })] }],
-      SessionStart: [{ hooks: [run("session-start.ts", { timeout: 10 }), listen()] }],
+      SessionStart: [{ hooks: [run("session-start.ts", { timeout: 10 })] }],
     },
   };
 }
