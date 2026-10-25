@@ -4,8 +4,11 @@
 
 **A team of AI agents that coordinates like a team.** Each developer keeps using their own coding agent and local workspace. Orkio gives those agents shared context, delegates cross-cutting work, tests unfinished changes together, and brings people in only when judgment or approval is needed.
 
-## Demo
-[![Watch the video](https://youtube.com)]
+## Demo video
+
+[![Watch the Orkio demo](https://img.youtube.com/vi/8ImPqzqmFgQ/maxresdefault.jpg)](https://youtu.be/8ImPqzqmFgQ?si=idRV-OruDUNoy-J7)
+
+[Watch the Orkio demo on YouTube](https://youtu.be/8ImPqzqmFgQ?si=idRV-OruDUNoy-J7)
 
 ## Inspiration
 
