@@ -603,11 +603,16 @@ def collect_github(repo: str, window: Window) -> Dict[str, Any]:
     return out
 
 
-def collect_db(window: Window) -> Dict[str, Any]:
+def collect_db(window: Window, name: str = "") -> Dict[str, Any]:
     script = REPO_ROOT / "bench" / "db-counts.ts"
+    env = dict(os.environ, STDB_DB=name) if name else None
     since_ms = int(window.since.timestamp() * 1000)
     until_ms = int(window.until.timestamp() * 1000)
-    result = run(["node", str(script), "--since", str(since_ms), "--until", str(until_ms)], cwd=str(REPO_ROOT), timeout=60)
+    try:
+        result = subprocess.run(["node", str(script), "--since", str(since_ms), "--until", str(until_ms)], cwd=str(REPO_ROOT),
+                                env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return {"error": str(error)}
     try:
         return json.loads(result.stdout.strip().splitlines()[-1])
     except (ValueError, IndexError):
@@ -642,7 +647,7 @@ def cmd_collect(args: argparse.Namespace) -> int:
 
     merges = collect_merges(args.project, window) if args.project else []
     github = collect_github(args.repo, window) if args.repo else None
-    db = collect_db(window) if args.db else None
+    db = collect_db(window, args.db) if args.db is not None else None
 
     first = min((s.first_prompt for s in sources if s.first_prompt), default=None)
     last = max((s.last_activity for s in sources if s.last_activity), default=None)
@@ -916,7 +921,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     c.add_argument("--cursor-csv", help="Cursor usage CSV (cursor.com/dashboard, Usage, Export) for token counts")
     c.add_argument("--no-cursor-db", action="store_true", help="don't read Cursor's local chat database")
     c.add_argument("--repo", help="arm A, one laptop: owner/name of the GitHub repo, for PRs, reviews, merges and CI")
-    c.add_argument("--db", action="store_true", help="arm B, one laptop: read the team database (STDB_DB in .env)")
+    c.add_argument("--db", nargs="?", const="", default=None, metavar="NAME",
+                   help="arm B, one laptop: read the team database (NAME, or STDB_DB from .env)")
     c.add_argument("--note", help="anything worth remembering about this run")
     c.add_argument("--out", help="file to write (default bench-<arm>-<name>.json)")
     c.set_defaults(func=cmd_collect)

@@ -20,8 +20,8 @@
 - Use the same task prompt, the same model and the same permission mode in both arms. Allowing a permission prompt isn't logged, so a different mode would skew the touch count.
 - Write down when each run starts and ends. One person says "go", and the run ends when the last person is done.
 - Arm A: start everyone from the same starting code in a GitHub repo. Each person works on a branch and opens a PR, and a person reviews and merges it. Coordinate however you normally would, and count the times you had to talk to someone.
-- Arm B: the team database must run the module from `integration`. Right now maincloud's `agent-cowork` is missing the `review`, `request`, `message`, `task` and `build` tables. Start the orchestrator and the dashboard, and give everyone a fresh session in their demo clone.
-- Run A first, or say on the slide which arm went second, because the second run benefits from knowing the task.
+- Arm B: use a database that runs the module from `integration` (`agent-cowork-orch` does; the old `agent-cowork` lacks the orchestrator tables). Start the orchestrator and the dashboard, and give everyone a fresh session in their demo clone.
+- Say on the slide which arm went second: the second run benefits from knowing the task.
 
 ## After each run, on every laptop
 
@@ -34,7 +34,7 @@ python bench/benchmark.py collect --arm A --name a --since 21:00 --until 21:45 -
 - `--since` / `--until` are local times (`21:00`, or `2026-10-24 21:00`). A run that crosses midnight works too.
 - `--project` can be given more than once, for example your clone plus its `-full-stack` folder. Without it, every folder used in that time is counted, and the script lists them so you can check.
 - **Arm A, one laptop:** add `--repo owner/name` (needs `gh auth login`). This reads PRs, reviews, comments, merges and Actions runs.
-- **Arm B, the orchestrator laptop:** add `--db`. This reads the team database with `.env` and your `spacetime login`, and it also picks up Droid's tokens from `~/.factory/sessions`.
+- **Arm B, the orchestrator laptop:** add `--db agent-cowork-orch` (or just `--db` to use STDB_DB from `.env`). This reads the database with your `spacetime login`, and it also picks up Droid's tokens from `~/.factory/sessions`.
 - **Cursor users:** export the usage CSV (cursor.com/dashboard, Usage, Export) and pass `--cursor-csv <file>` to get tokens. The script tries to count your prompts from Cursor's local chat database. If the number it prints looks wrong, count them yourself and pass `--prompts N` (with `--no-cursor-db`).
 
 Each laptop saves `bench-<arm>-<name>.json`. Check the summary it prints, then send the file to whoever makes the table (Slack or AirDrop).
