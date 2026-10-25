@@ -16,6 +16,26 @@ import { NeedsYou } from "./components/NeedsYou";
 import { NowList } from "./components/NowList";
 import { useFlights } from "./components/useFlights";
 
+/** Orkio's mark: an OK hand (same drawing as public/favicon.svg). */
+function BrandMark() {
+  return (
+    <svg
+      className="brand-mark"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="8.6" cy="13.4" r="3.1" />
+      <path d="M11.7 12.2V4.6M14.7 12.4V5.4M17.6 13.2V7.6" />
+      <path d="M17.6 13.2v2.3c0 3.1-2.5 5.5-5.6 5.5-2.1 0-3.7-1.1-4.6-2.6" />
+    </svg>
+  );
+}
+
 const phaseLabel = {
   demo: "Simulated",
   live: "Live",
@@ -40,7 +60,10 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <span className="brand">Orkio</span>
+        <span className="brand">
+          <BrandMark />
+          Orkio
+        </span>
         <span className="muted">{project}</span>
         <button
           type="button"
