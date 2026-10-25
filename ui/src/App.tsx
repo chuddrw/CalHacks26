@@ -40,7 +40,7 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <span className="brand">cowork</span>
+        <span className="brand">Orkio</span>
         <span className="muted">{project}</span>
         <button
           type="button"
