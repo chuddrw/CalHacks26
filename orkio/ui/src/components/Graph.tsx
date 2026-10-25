@@ -397,8 +397,8 @@ function Node({
       <span className="node-head">
         <span className="dot" />
         <strong>{node.label}</strong>
-        {/* A passing agent needs no word: the green dot says it. */}
-        {!(node.kind === "agent" && node.tone === "green") && (
+        {/* Healthy agents and the orchestrator communicate status with the green dot. */}
+        {!((node.kind === "agent" || node.kind === "orchestrator") && node.tone === "green") && (
           <span className="node-state">{node.state}</span>
         )}
       </span>
