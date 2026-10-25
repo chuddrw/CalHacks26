@@ -1,7 +1,6 @@
 // One fixed slide at a time. No page scrolling or intermediate resting positions.
 const slides = Array.from(document.querySelectorAll(".slide"));
 const links = Array.from(document.querySelectorAll(".deck-header nav a"));
-const counter = document.querySelector(".page-count");
 const stage = document.querySelector("#slides");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let active = Math.max(0, slides.findIndex(slide => `#${slide.id}` === location.hash));
@@ -22,7 +21,6 @@ function update() {
     slide.inert = i !== active;
   });
   links.forEach((link, i) => i === active ? link.setAttribute("aria-current", "location") : link.removeAttribute("aria-current"));
-  counter.textContent = `${String(active + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
 }
 async function go(index, writeHash = true) {
   index = Math.max(0, Math.min(slides.length - 1, index));
@@ -191,3 +189,25 @@ capabilityButtons.forEach(button => button.addEventListener('click', () => {
     item.nextElementSibling.hidden = !open;
   });
 }));
+
+// Keep diagram connectors attached as cards resize or expand.
+const solutionNetwork = document.querySelector('.solution-network');
+const connectorPath = solutionNetwork.querySelector('svg path');
+function updateNetworkConnections() {
+  const hub = solutionNetwork.querySelector('.network-hub');
+  const sx = 1000 / solutionNetwork.clientWidth;
+  const sy = 400 / solutionNetwork.clientHeight;
+  const segments = [...solutionNetwork.querySelectorAll('.network-agent')].map(card => {
+    const right = card.classList.contains('top-right') || card.classList.contains('bottom-right');
+    const bottom = card.classList.contains('bottom-left') || card.classList.contains('bottom-right');
+    const x = card.offsetLeft + (right ? 0 : card.offsetWidth);
+    const y = card.offsetTop + card.offsetHeight / 2;
+    const hx = hub.offsetLeft + hub.offsetWidth * (right ? .82 : .18);
+    const hy = hub.offsetTop + (bottom ? hub.offsetHeight : 0);
+    return `M${x * sx} ${y * sy} L${hx * sx} ${hy * sy}`;
+  });
+  connectorPath.setAttribute('d', segments.join(' '));
+}
+const networkObserver = new ResizeObserver(updateNetworkConnections);
+networkObserver.observe(solutionNetwork);
+solutionNetwork.querySelectorAll('article').forEach(card => networkObserver.observe(card));

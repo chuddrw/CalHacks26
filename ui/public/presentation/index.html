@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" style="color-scheme: dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Orkio — a six-section hackathon presentation." />
+  <meta name="theme-color" content="#161514" />
   <title>Orkio — Presentation</title>
   <link rel="stylesheet" href="./presentation.css" />
   <script src="./presentation.js" defer></script>
@@ -11,7 +12,7 @@
 <body>
   <a class="skip-link" href="#slides">Skip to presentation</a>
   <header class="deck-header">
-    <a class="wordmark" href="#summary">Orkio<span>Presentation draft</span></a>
+    <a class="wordmark" href="#summary"><img class="wordmark-logo" src="./assets/orkio-logo.png" alt="" /><span class="wordmark-name">Orkio</span><span class="wordmark-sub">Presentation draft</span></a>
     <nav aria-label="Table of contents">
       <a href="#summary" aria-current="location">Summary</a>
       <a href="#problem">Problem</a>
@@ -20,13 +21,13 @@
       <a href="#technical">Technical details</a>
       <a href="#closing">Future UI</a>
     </nav>
-    <span class="page-count" aria-label="Current section">01 / 06</span>
+
   </header>
   <main id="slides">
     <section class="slide" id="summary" aria-labelledby="summary-title" tabindex="-1">
       <div class="slide-content">
         <p class="eyebrow">01 / Summary</p>
-        <h1 id="summary-title">Orkio</h1>
+        <h1 id="summary-title"><img class="brand-logo" src="./assets/orkio-logo.png" alt="" />Orkio</h1>
         <p class="summary-question">Your agents finished.<br />Does their code work together?</p>
         <p class="headline">Connecting AI coding agents from different hardware to work together</p>
       </div>
@@ -51,7 +52,7 @@
           <svg viewBox="0 0 1000 400" preserveAspectRatio="none" aria-hidden="true"><path d="M220 70 L350 120 M780 70 L650 120 M220 330 L350 280 M780 330 L650 280"/></svg>
           <article class="network-agent top-left"><button aria-expanded="false">Auto Conflict Resolution</button><p hidden>Find failures in combined code and route repair context to the assigned agent.</p></article>
           <article class="network-agent top-right"><button aria-expanded="false">Orchestrator’s Task Delegation</button><p hidden>Coordinate tasks across agents and track who owns each repair.</p></article>
-          <article class="network-hub"><button aria-expanded="false">Orkio</button><p hidden>Shared hive feature</p></article>
+          <article class="network-hub"><button aria-expanded="true">Orkio</button><p>Shared hive feature</p></article>
           <article class="network-agent bottom-left"><button aria-expanded="false">Human-in-the-“right”-loop</button><p hidden>Bring people in when a change needs judgment or approval.</p></article>
           <article class="network-agent bottom-right"><button aria-expanded="false">Git and Version Control</button><p hidden>Keep work-in-progress snapshots traceable while checking how changes work together.</p></article>
         </div>
@@ -60,7 +61,7 @@
     <section class="slide" id="benchmark" aria-labelledby="benchmark-title" tabindex="-1">
       <div class="slide-content">
         <p class="eyebrow">04 / Benchmark</p>
-        <h2 id="benchmark-title">How much help<br />does the team still need?</h2>
+        <h2 id="benchmark-title">Our Product's Performance</h2>
         <div class="table-scroll"><table>
           <thead><tr><th scope="col">Metric</th><th scope="col">Orkio</th><th scope="col">GitHub (Traditional)</th></tr></thead>
           <tbody>
@@ -81,7 +82,7 @@
         <div class="technical-grid">
           <article><span class="label">On each laptop</span><h3>Hooks + MCP</h3><p>Hooks push snapshots to GitHub branches named wip/&lt;agent&gt;. Through MCP, an agent can share its plans and read updates from teammates.</p></article>
           <article><span class="label">Integration</span><h3>Droid SDK</h3><p>The watcher combines snapshots with main in a temporary worktree. It runs TypeScript and Vitest, then checks individual agents and pairs to narrow down a failure.</p></article>
-          <article><span class="label">Shared state</span><h3>SpacetimeDB</h3><ol class="technical-points"><li><strong>Real Time Data Transfer</strong><span>Agents need real-time feedback while coding.</span></li><li><strong>Heavy Numbers</strong><span>Support concurrent reads and transfers across many agents.</span></li><li><strong>Backend Operation</strong><span>Runs shared backend logic as well as storing data.</span></li></ol></article>
+          <article><span class="label">Shared state</span><h3>SpacetimeDB</h3><ol class="technical-points"><li><strong>Real Time Data Transfer</strong><span>Agents need real-time feedback while coding.</span></li><li><strong>Heavy Numbers</strong><span>Supports concurrent reads and transfers across many agents.</span></li><li><strong>Backend Operation</strong><span>Runs shared backend logic as well as storing data.</span></li></ol></article>
           <article><span class="label">Coordination</span><h3>Orchestrator</h3><p>Coordinates tasks and repair ownership across agents, tracks progress, and brings in a person when review is needed.</p></article>
         </div>
         </div>
