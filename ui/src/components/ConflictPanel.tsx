@@ -1,8 +1,12 @@
-/** WHAT IT'S FOR: conflict selection, both source excerpts, fixer assignment, and human-review state. Owner: D. */
+/**
+ * WHAT IT'S FOR: conflict selection, both source excerpts, the two agents' conversation, and the
+ * states that need people: a test-change review, or both humans' decision on an escalated
+ * conflict (branch feat/orchestrator: the agents settle conflicts themselves). Owner: D.
+ */
 import { useState } from "react";
 import type { ConflictRow } from "../../../shared/src/schema.ts";
 import { excerptFromDiff } from "../diff";
-import { reviewTestChange, useRows } from "../stdb";
+import { decideConflict, reviewTestChange, useRows } from "../stdb";
 import { absoluteTime, relativeTime } from "../time";
 import { useNow } from "../useNow";
 import { Icon } from "./Icon";
@@ -134,6 +138,94 @@ function ReviewActions({ conflict }: { conflict: ConflictRow }) {
   );
 }
 
+/** Both humans' answer to a conflict their agents couldn't settle (Part C's decide_conflict). Owner: A. */
+function DecisionBox({ conflict }: { conflict: ConflictRow }) {
+  const [decision, setDecision] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const pair = `${conflict.agentA.toUpperCase()} and ${conflict.agentB.toUpperCase()}`;
+  const send = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await decideConflict(conflict.id, decision.trim());
+      setDecision("");
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "The database refused the decision.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="review-actions decision-box">
+      <textarea
+        className="review-comment"
+        value={decision}
+        onChange={(event) => setDecision(event.target.value)}
+        placeholder={`What ${pair}'s humans decided, e.g. "Use milliseconds; B converts at the session store."`}
+        maxLength={1000}
+        rows={3}
+        aria-label={`Decision for conflict ${conflict.id}`}
+        disabled={busy}
+      />
+      <div className="review-buttons">
+        <button type="button" className="button compact review-accept" disabled={busy || !decision.trim()} onClick={() => void send()}>
+          <Icon name="check" size={14} />
+          {busy ? "Sending…" : "Send decision to both agents"}
+        </button>
+      </div>
+      {error && (
+        <p className="review-error" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="review-hint">
+        The decision reopens the conflict and wakes both agents. They implement it, run their checks, and agree.
+      </p>
+    </div>
+  );
+}
+
+/** The two agents' conversation inside a conflict, oldest first. */
+function Thread({ conflict }: { conflict: ConflictRow }) {
+  const now = useNow();
+  const messages = useRows("message")
+    .filter((m) => m.conflictId === conflict.id)
+    .sort((a, b) => a.createdAt - b.createdAt || a.id - b.id);
+  const who = (author: string) =>
+    author === "orchestrator" ? "Orchestrator" : author === "human" ? "Both humans" : `Agent ${author.toUpperCase()}`;
+  const verb: Record<string, string> = { message: "", agree: "agrees", escalate: "asks the humans", decision: "decided" };
+  return (
+    <div className="thread" aria-label={`Conversation in conflict ${conflict.id}`}>
+      <div className="thread-heading">
+        <Icon name="activity" size={16} />
+        <strong>
+          {conflict.agentB ? `${conflict.agentA.toUpperCase()} and ${conflict.agentB.toUpperCase()} talk it out` : "Conversation"}
+        </strong>
+      </div>
+      {messages.length === 0 ? (
+        <p className="muted small">
+          {conflict.status === "resolved" ? "No messages were exchanged." : `Agent ${conflict.fixer.toUpperCase()} was woken first and will open the conversation.`}
+        </p>
+      ) : (
+        <ol className="thread-messages">
+          {messages.map((m) => (
+            <li key={m.id} className={`thread-${m.kind} thread-author-${m.author === "orchestrator" || m.author === "human" ? m.author : "agent"}`}>
+              <div className="thread-meta">
+                <span className="avatar-mini">{m.author === "orchestrator" ? "O" : m.author === "human" ? "H" : m.author.toUpperCase()}</span>
+                <strong>{who(m.author)}</strong>
+                {verb[m.kind] && <span className={`pill tone-${m.kind === "agree" ? "green" : m.kind === "decision" ? "violet" : "amber"}`}>{verb[m.kind]}</span>}
+                <time title={absoluteTime(m.createdAt)}>{relativeTime(m.createdAt, now)}</time>
+              </div>
+              <p>{m.body}</p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export function ConflictPanel({
   conflicts,
   selected,
@@ -186,8 +278,8 @@ export function ConflictPanel({
           </span>
           <h3>No conflicts to inspect</h3>
           <p>
-            When the watcher finds a failure, the affected changes and assigned
-            fixer appear here.
+            When an agent's check finds a clash, or the orchestrator expects
+            one, the two agents' changes and their conversation appear here.
           </p>
         </div>
       ) : (
@@ -202,12 +294,14 @@ export function ConflictPanel({
                 {selected.agentB ? ` × ${selected.agentB.toUpperCase()}` : ""}
                 <span className="conflict-subtitle">
                   {selected.status === "resolved"
-                    ? "Changes verified"
-                    : selected.kind === "pair"
-                      ? "Changes collide"
-                      : selected.kind === "merge"
-                        ? "Overlapping edits"
-                        : "Snapshot failed"}
+                    ? "Agreed and verified"
+                    : selected.kind === "potential"
+                      ? "Expected clash"
+                      : selected.kind === "pair"
+                        ? "Changes collide"
+                        : selected.kind === "merge"
+                          ? "Overlapping edits"
+                          : "Snapshot failed"}
                 </span>
               </h3>
             </div>
@@ -233,16 +327,19 @@ export function ConflictPanel({
                 <strong>
                   {selected.status === "needs_human"
                     ? "A person must review the test changes"
-                    : "This conflict needs a teammate’s attention"}
+                    : `${selected.agentA.toUpperCase()}'s and ${selected.agentB.toUpperCase()}'s humans decide`}
                 </strong>
                 <p>
                   {selected.status === "needs_human"
                     ? reviewNote?.message ||
                       "The proposed fix touched existing tests. Review those changes before accepting the result."
-                    : "The conflict is still unresolved. Coordinate with the assigned fixer on the next step."}
+                    : "The agents couldn't settle this between them. Read their conversation below, decide together, and send the decision."}
                 </p>
                 {selected.status === "needs_human" && (
                   <ReviewActions key={selected.id} conflict={selected} />
+                )}
+                {selected.status === "escalated" && selected.agentB && (
+                  <DecisionBox key={selected.id} conflict={selected} />
                 )}
               </div>
             </div>
@@ -271,8 +368,7 @@ export function ConflictPanel({
                   <Icon name="chevron" size={13} />
                 </summary>
                 <pre tabIndex={0}>
-                  {selected.error ||
-                    "The watcher has not provided error output."}
+                  {selected.error || "No output was recorded."}
                 </pre>
               </details>
             </>
@@ -286,8 +382,8 @@ export function ConflictPanel({
                 <strong>Agent {selected.fixer.toUpperCase()}</strong>
                 <span className="small muted">
                   {selected.status === "resolved"
-                    ? "Verified fix"
-                    : "Assigned fixer"}
+                    ? "Was suggested to adapt · both agreed"
+                    : "Suggested to adapt · the agents decide"}
                 </span>
               </span>
             </div>
@@ -306,24 +402,22 @@ export function ConflictPanel({
               )}
             </time>
           </div>
-          <div
-            className={`explanation ${selected.status === "resolved" ? "resolved" : ""}`}
-          >
-            <Icon name={selected.status === "resolved" ? "check" : "sparkle"} />
-            <div>
-              <strong>
-                {selected.status === "resolved"
-                  ? "Original diagnosis · now resolved"
-                  : "Diagnosis"}
-              </strong>
-              <p>
-                {selected.explanation ||
-                  (selected.status === "resolved"
-                    ? "The combined check passed. No diagnosis was recorded for this conflict."
-                    : "The watcher has assigned the fix. The explanation will appear as diagnosis progresses.")}
-              </p>
+          <Thread conflict={selected} />
+          {selected.explanation && (
+            <div
+              className={`explanation ${selected.status === "resolved" ? "resolved" : ""}`}
+            >
+              <Icon name={selected.status === "resolved" ? "check" : "sparkle"} />
+              <div>
+                <strong>
+                  {selected.status === "resolved"
+                    ? "Original diagnosis · now resolved"
+                    : "Diagnosis"}
+                </strong>
+                <p>{selected.explanation}</p>
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
     </section>

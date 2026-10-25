@@ -177,6 +177,16 @@ export function App() {
           </button>
           <button
             type="button"
+            aria-label="Inspect the orchestrator's requests and reviews"
+            title="Orchestrator"
+            aria-pressed={inspection?.kind === "orchestrator"}
+            onClick={() => inspect({ kind: "orchestrator" })}
+          >
+            <Icon name="sparkle" size={20} />
+            <span className="nav-label">Orchestrator</span>
+          </button>
+          <button
+            type="button"
             aria-label="Inspect integration"
             title="Integration"
             aria-pressed={inspection?.kind === "conflict"}

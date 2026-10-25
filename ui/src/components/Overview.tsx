@@ -7,6 +7,7 @@ import { Icon } from "./Icon";
 export type Inspection =
   | { kind: "agent"; name: string }
   | { kind: "conflict"; id?: number }
+  | { kind: "orchestrator"; id?: number }
   | { kind: "memory" }
   | { kind: "activity" }
   | { kind: "checks" }
@@ -29,6 +30,9 @@ export function Overview({
   const agents = sortAgents(tables.agent);
   const health = teamHealth(tables, connection);
   const active = tables.conflict.filter(isActiveConflict);
+  // People the orchestrator is waiting for: reviews of major changes, and escalated conflicts.
+  const pendingReviews = tables.review.filter((review) => review.status === "pending");
+  const planning = tables.request.filter((request) => request.status === "planning" || request.status === "new");
   const ready = connection.phase === "live" || connection.phase === "demo";
   const hubLabel = !ready
     ? "Not connected"
@@ -185,6 +189,18 @@ export function Overview({
             )}
           </button>
           <h2 role="status">{hubLabel}</h2>
+          {(pendingReviews.length > 0 || planning.length > 0) && (
+            <button
+              type="button"
+              className="orchestrator-callout"
+              onClick={() => inspect({ kind: "orchestrator", id: (pendingReviews[0]?.requestId ?? planning[0]?.id) })}
+            >
+              <Icon name="sparkle" size={14} />
+              {pendingReviews.length > 0
+                ? `${pendingReviews.length} review${pendingReviews.length === 1 ? "" : "s"} waiting for ${[...new Set(pendingReviews.map((r) => r.reviewer.toUpperCase()))].join(", ")}`
+                : "Droid is planning a request"}
+            </button>
+          )}
           <span className="orb-caption">
             {health.tone === "red" &&
             active.some(

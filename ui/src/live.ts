@@ -109,7 +109,7 @@ interface SubscriptionBuilder {
 }
 interface Connection {
   db: Record<string, ClientTable>;
-  /** Generated reducer calls. The dashboard uses only reviewTestChange (the review buttons). */
+  /** Generated reducer calls. The dashboard uses reviewTestChange, decideReview and decideConflict (a person's buttons). */
   reducers?: Record<string, ((args: Record<string, unknown>) => Promise<void>) | undefined>;
   disconnect(): void;
   subscriptionBuilder(): SubscriptionBuilder;

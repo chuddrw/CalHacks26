@@ -13,6 +13,7 @@ import { AgentCard } from "./AgentCard";
 import { ConflictPanel } from "./ConflictPanel";
 import { DroidPanel } from "./DroidPanel";
 import { MemoryPanel } from "./MemoryPanel";
+import { OrchestratorPanel } from "./OrchestratorPanel";
 import { Timeline } from "./Timeline";
 import { Icon } from "./Icon";
 import type { Inspection } from "./Overview";
@@ -89,7 +90,9 @@ export function Inspector({
   const title =
     target.kind === "agent"
       ? `Agent ${target.name.toUpperCase()}`
-      : target.kind === "conflict"
+      : target.kind === "orchestrator"
+        ? "Orchestrator"
+        : target.kind === "conflict"
         ? "Integration"
         : target.kind === "memory"
           ? "Shared memory"
@@ -171,6 +174,7 @@ function InspectorContent({
     target.kind === "conflict" ? target.id : undefined,
   );
   if (target.kind === "memory") return <MemoryPanel />;
+  if (target.kind === "orchestrator") return <OrchestratorPanel requestId={target.id} />;
   if (target.kind === "activity") return <Timeline />;
   if (target.kind === "agent") {
     const agent = tables.agent.find((a) => a.name === target.name);
@@ -209,8 +213,9 @@ function InspectorContent({
                 <span>
                   Conflict #{c.id}
                   <small>
-                    {c.status.replaceAll("_", " ")} · fixer{" "}
-                    {c.fixer.toUpperCase()}
+                    {c.kind === "potential" ? "expected clash · " : ""}
+                    {c.status.replaceAll("_", " ")} · with{" "}
+                    {(c.agentA === agent.name ? c.agentB : c.agentA).toUpperCase() || "nobody"}
                   </small>
                 </span>
                 <Icon name="chevron" size={13} />
