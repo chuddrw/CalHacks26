@@ -1,0 +1,32 @@
+# .gitignore (repo 1)
+#
+# WHAT IT'S FOR
+#   Keeps secrets, dependencies, build output and the separate demo-app repo out of repo 1.
+#   demo-app/ has its own git history (repo 2), so repo 1 must never track it.
+#   Generated SpacetimeDB bindings (shared/module_bindings/*.ts) ARE committed on purpose,
+#   so teammates don't need the spacetime CLI just to run the orchestrator or the UI.
+
+# dependencies
+node_modules/
+
+# secrets: copy .env.example to .env on each laptop
+.env
+.env.*
+!.env.example
+
+# build output and logs
+dist/
+*.log
+*.tsbuildinfo
+
+# repo 2 lives here locally but is its own repository
+demo-app/
+
+# OS and editor clutter
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Generated Part C test coverage reports
+coverage/

@@ -1,0 +1,6 @@
+// WHAT IT'S FOR: typecheck the dashboard's Node test suite as well as its imported utilities.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "types": ["node", "vite/client"] },
+  "include": ["tests", "../scripts/seed-fake.ts"]
+}

@@ -1,0 +1,18 @@
+// mcp/tsconfig.json
+//
+// WHAT IT'S FOR
+//   Type-checks the MCP server. It runs with tsx instead of plain node, because the generated
+//   SpacetimeDB bindings may import files without extensions or use TS-only syntax. So this
+//   package relaxes two options from tsconfig.base.json: bundler-style module resolution, and
+//   erasableSyntaxOnly turned off.
+//
+// OWNER: A.
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "erasableSyntaxOnly": false
+  },
+  "include": ["src/**/*.ts", "../shared/src/**/*.ts", "../shared/module_bindings/**/*.ts", "../checks/src/**/*.ts"]
+}

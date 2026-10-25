@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checkout integration preview</title>
+  <style>
+    body { margin: 0; padding: 40px 24px; background: #f1f2eb; color: #25332c; font-family: Arial, sans-serif; }
+    main { max-width: 560px; margin: 0 auto; }
+    h1 { font-family: Georgia, serif; }
+    button { padding: 12px 18px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Checkout integration preview</h1>
+    <p>This fixture supplies a test cart. Production checkout must use the shared cart service.</p>
+    <p id="cart-state" role="status"></p>
+    <button id="checkout" type="button">Checkout</button>
+    <button id="refill" type="button">Reset test cart</button>
+    <button id="verify" type="button">Run browser checks</button>
+    <pre id="results" role="status" aria-live="polite"></pre>
+  </main>
+  <script type="module">
+    import { initializeCheckout, openCheckout } from '../src/checkout/checkout.js';
+    let items;
+    let clears = 0;
+    const button = document.querySelector('#checkout');
+    const label = document.querySelector('#cart-state');
+    function render() {
+      label.textContent = items.length ? '2 × Stoneware Mug · $29.98 total' : 'Cart empty';
+      button.disabled = !items.length;
+    }
+    function refill() {
+      items = [{ product: { id: 'mug', name: 'Stoneware Mug', priceCents: 1499 }, quantity: 2 }];
+      render();
+    }
+    initializeCheckout({
+      getItems: () => items,
+      getTotalCents: () => items.length ? 2998 : 0,
+      clearCart() { clears++; items = []; render(); },
+    });
+    button.addEventListener('click', openCheckout);
+    document.querySelector('#refill').addEventListener('click', refill);
+    refill();
+
+    // Browser-only integration checks exercise the real form and native dialog.
+    document.querySelector('#verify').addEventListener('click', async () => {
+      const output = document.querySelector('#results');
+      const runner = document.querySelector('#verify');
+      runner.disabled = true;
+      output.textContent = '';
+      const dialog = document.querySelector('.shop-checkout dialog');
+      const form = dialog.querySelector('form');
+      const close = () => dialog.querySelector('.checkout-close').click();
+      const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+      const check = (condition, message) => {
+        if (!condition) throw new Error(message);
+        output.textContent += `PASS ${message}\n`;
+      };
+      const fill = (overrides = {}) => {
+        const values = { name: 'Alex Example', email: 'alex@example.com',
+          cardNumber: '4242 4242 4242 4242', expiry: '12/99', cvc: '123', ...overrides };
+        for (const [name, value] of Object.entries(values)) form.elements.namedItem(name).value = value;
+      };
+      const submit = () => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      try {
+        refill();
+        clears = 0;
+        button.focus();
+        openCheckout();
+        check(dialog.open && form.elements.namedItem('name') === document.activeElement, 'checkout opens and focuses the form');
+        check(dialog.querySelector('.checkout-total strong').textContent === '$29.98', 'exact shared total is displayed');
+        fill();
+        close();
+        await tick();
+        check(items.length === 1 && clears === 0, 'cancellation preserves the cart');
+        check([...form.querySelectorAll('input')].every(input => input.value === ''), 'closing erases all payment fields');
+        check(document.activeElement === button, 'closing returns keyboard focus to checkout button');
+        openCheckout();
+        fill({ email: 'invalid' });
+        submit();
+        await tick();
+        check(dialog.open && clears === 0 && !form.elements.namedItem('email').validity.valid, 'invalid email preserves the cart');
+        fill({ expiry: '12/20' });
+        submit();
+        await tick();
+        check(dialog.open && clears === 0 && dialog.querySelector('.checkout-error').textContent.includes('unexpired'), 'expired card is rejected');
+        fill({ cardNumber: '4111111111111111' });
+        submit();
+        await tick();
+        check(dialog.open && clears === 0 && dialog.querySelector('.checkout-error').textContent.includes('test card'), 'non-test card is rejected');
+        fill({ cvc: '999' });
+        submit();
+        await tick();
+        check(dialog.open && clears === 0 && !form.elements.namedItem('cvc').validity.valid, 'wrong CVC is rejected');
+        fill();
+        submit();
+        submit();
+        check(dialog.querySelector('[type="submit"]').disabled, 'submit locks immediately');
+        await tick();
+        check(!dialog.open && clears === 1 && items.length === 0, 'duplicate submission completes only one payment');
+        check(document.querySelector('.checkout-status').textContent.includes('Paid $29.98'), 'success displays the amount paid');
+        check([...form.querySelectorAll('input')].every(input => input.value === ''), 'success erases payment fields');
+        check(openCheckout() === false && !dialog.open, 'empty cart cannot open checkout');
+        output.textContent += 'All browser checks passed.';
+      } catch (failure) {
+        output.textContent += `FAIL ${failure.message}`;
+      } finally {
+        if (dialog.open) close();
+        runner.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

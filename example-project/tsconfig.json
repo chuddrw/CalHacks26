@@ -1,0 +1,21 @@
+// demo-app/tsconfig.json
+//
+// WHAT IT'S FOR
+//   Strict TypeScript for the demo app. check_with_team runs `tsc --noEmit -p .` on every merged
+//   worktree, so this file decides what counts as a type error during the demo.
+//   Note that the scripted conflict passes this check on purpose: the unit of lastLogin changes,
+//   its type (number) doesn't. Only the tests catch it.
+//
+// OWNER: C.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src"]
+}

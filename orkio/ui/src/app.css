@@ -1,0 +1,1213 @@
+/*
+ * WHAT IT'S FOR: the dashboard's only stylesheet. Warm charcoal in the spirit of Claude's dark mode,
+ * with Apple-like restraint: soft surfaces and shadows instead of outlines, generous spacing, one
+ * accent (Claude's clay, never a status), and color only in small dots and text where it means
+ * something (parchment working, red conflict, amber waiting on a person; passing is just a green
+ * dot). No colored edges or side bars.
+ */
+:root {
+  --bg: #1c1b1a;
+  --panel: #252422;
+  --panel-2: #2e2d2a;
+  --panel-3: #383733;
+  --hairline: rgb(245 240 228 / 0.07);
+  --hairline-strong: rgb(245 240 228 / 0.14);
+  --text: #f4f2ec;
+  --muted: #a29e95;
+  --faint: #716d66;
+  /* Claude's clay: the brand, primary buttons, selection, the database hub. Never a status. */
+  --accent: #d97757;
+  /* Work in progress (tone-accent): soft parchment, so red stays reserved for conflicts. */
+  --work: #d9d2c2;
+  --green: #6fbf73;
+  --red: #ef6461;
+  --amber: #e4b349;
+  --neutral: #8c887f;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.25), 0 6px 20px rgb(0 0 0 / 0.22);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.3), 0 14px 36px rgb(0 0 0 / 0.35);
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
+  --serif: "Tiempos Headline", "Copernicus", ui-serif, "Iowan Old Style", Charter, Georgia, serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+code,
+pre {
+  font-family: var(--mono);
+  font-size: 0.86em;
+}
+pre {
+  margin: 0.6em 0 0;
+  padding: 0.8em 0.9em;
+  background: var(--bg);
+  border-radius: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 22em;
+  overflow: auto;
+}
+p {
+  margin: 0.3em 0;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 0.86em;
+}
+
+/* Tones: everything colored reads its color from --tone. */
+.tone-neutral {
+  --tone: var(--neutral);
+}
+.tone-accent {
+  --tone: var(--work);
+}
+.tone-green {
+  --tone: var(--green);
+}
+.tone-red {
+  --tone: var(--red);
+}
+.tone-amber {
+  --tone: var(--amber);
+}
+.dot {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--tone, var(--neutral));
+  flex: none;
+}
+/* A soft tinted pill: no outline, the color lives in the text. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.15em 0.6em;
+  border: 0;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--tone, var(--muted)) 72%, var(--text));
+  background: color-mix(in srgb, var(--tone, var(--neutral)) 14%, transparent);
+  font-size: 0.8em;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.chip-button {
+  cursor: pointer;
+  font-size: 0.84em;
+}
+.chip-button:hover {
+  background: color-mix(in srgb, var(--tone, var(--neutral)) 22%, transparent);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.45em 0.95em;
+  background: var(--panel-2);
+  border: 1px solid var(--hairline);
+  border-radius: 9px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.9em;
+  transition: background 0.15s;
+}
+.btn:hover:not(:disabled) {
+  background: var(--panel-3);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #1f1a17;
+  font-weight: 600;
+}
+.btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--panel-2);
+  color: var(--text);
+}
+.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.9em;
+}
+
+/* ---- Shell ---------------------------------------------------------------------------------- */
+.app {
+  font-size: 15px;
+  /* At least the window; taller when the graph needs its minimum (then the page scrolls). */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+  padding: 0.9em 1.4em 0.5em;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-family: var(--serif);
+  font-size: 1.25em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+/* The OK-hand mark, in clay. */
+.brand-mark {
+  width: 1.44em;
+  height: 1.44em;
+  color: var(--accent);
+}
+.spacer {
+  flex: 1;
+}
+.demo-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  padding: 0.3em 1.4em 0.4em;
+  font-size: 0.88em;
+  color: var(--muted);
+}
+.demo-bar select {
+  background: var(--panel-2);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 0.3em 0.6em;
+  color: var(--text);
+}
+.needs-you {
+  display: flex;
+  align-items: flex-start;
+  gap: 1em;
+  margin: 0.6em 1.4em 0;
+  padding: 0.8em 1em;
+  background: var(--panel);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.needs-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding-top: 0.2em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.needs-title::before {
+  content: "";
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.needs-you ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: grid;
+  gap: 0.2em;
+}
+.needs-item {
+  display: flex;
+  gap: 0.8em;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0.25em 0.5em;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.needs-item:hover {
+  background: var(--panel-2);
+}
+.needs-who {
+  font-weight: 600;
+  color: color-mix(in srgb, var(--tone) 70%, var(--text));
+  white-space: nowrap;
+}
+.needs-open {
+  margin-left: auto;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18em, 24em);
+  grid-template-rows: minmax(30em, 1fr) auto;
+  gap: 1em;
+  padding: 1em 1.4em 1.4em;
+}
+.panel {
+  background: var(--panel);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+.panel h2 {
+  margin: 0;
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.graph-panel {
+  grid-column: 1;
+  grid-row: 1;
+  overflow: hidden;
+}
+.now {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  padding: 1em;
+  overflow: auto;
+}
+.activity-strip {
+  grid-column: 1;
+  grid-row: 2;
+  padding: 0.9em 1.1em;
+}
+
+/* ---- Graph ---------------------------------------------------------------------------------- */
+.graph {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.edges {
+  position: absolute;
+  inset: 0;
+}
+.edge {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+.edge.tone-neutral {
+  opacity: 0.4;
+}
+/* The mask that draws a new edge from its start to its end, once. */
+.edge-draw {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 14;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: flight-draw 1.1s var(--draw-ease) forwards;
+}
+.edge-conflict {
+  stroke-width: 2.5;
+}
+.edge.dashed {
+  stroke-dasharray: 5 6;
+}
+.edge.active {
+  stroke-dasharray: 9 8;
+  animation: flow 1.2s linear infinite;
+}
+@keyframes flow {
+  to {
+    stroke-dashoffset: -17;
+  }
+}
+.edge-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 0.2em 0.7em;
+  border-radius: 999px;
+  border: 0;
+  background: var(--panel-2);
+  box-shadow: var(--shadow);
+  color: color-mix(in srgb, var(--tone) 68%, var(--text));
+  font-size: 0.78em;
+  white-space: nowrap;
+  cursor: pointer;
+  z-index: 1;
+}
+.edge-label {
+  animation: edge-label-in 0.35s ease-out 0.8s backwards;
+}
+@keyframes edge-label-in {
+  from {
+    opacity: 0;
+  }
+}
+.edge-label-conflict {
+  font-weight: 600;
+}
+.edge-label.selected,
+.edge-label:hover {
+  background: var(--panel-3);
+}
+.edge-label-task {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.3;
+  border-radius: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-height: 4.6em;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  padding: 0.7em 0.85em;
+  text-align: left;
+  background: var(--panel-2);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.node:hover {
+  background: var(--panel-3);
+  box-shadow: var(--shadow-lift);
+}
+.node.selected {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent),
+    var(--shadow-lift);
+}
+.node.offline {
+  opacity: 0.45;
+}
+.node-people {
+  border-style: dashed;
+  border-color: var(--hairline-strong);
+  background: var(--panel);
+}
+.node-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2em 0.45em;
+  min-width: 0;
+}
+.node-head strong {
+  font-weight: 600;
+}
+.node-state {
+  margin-left: auto;
+  font-size: 0.78em;
+  color: color-mix(in srgb, var(--tone) 70%, var(--text));
+  white-space: nowrap;
+}
+.node-doing {
+  font-size: 0.86em;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.node.busy .dot {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+/* The team is waiting on this node: two rings keep spreading out from its edge. */
+.node.busy::before,
+.node.busy::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 2px solid color-mix(in srgb, var(--tone) 80%, var(--text));
+  pointer-events: none;
+  opacity: 0;
+  animation: ripple 2.4s ease-out infinite;
+}
+.node.busy::after {
+  animation-delay: 1.2s;
+}
+@keyframes ripple {
+  0% {
+    opacity: 0.75;
+    inset: -1px;
+  }
+  100% {
+    opacity: 0;
+    inset: -18px;
+    border-radius: 24px;
+  }
+}
+
+/* Top-left corner of the graph: who the team is waiting on right now. */
+.waiting-on {
+  position: absolute;
+  top: 0.9em;
+  left: 1.1em;
+  right: 1.1em;
+  z-index: 4;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em 0.6em;
+  font-size: 0.8em;
+  pointer-events: none;
+}
+.waiting-on-title {
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.85em;
+}
+.waiting-on-none {
+  color: var(--muted);
+}
+.waiting-on-who {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.25em 0.7em;
+  border: 0;
+  border-radius: 999px;
+  background: var(--panel-2);
+  box-shadow: var(--shadow);
+  color: color-mix(in srgb, var(--tone) 70%, var(--text));
+  font: inherit;
+  cursor: pointer;
+}
+.waiting-on-who strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.waiting-on-who .dot {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 0.35em color-mix(in srgb, var(--tone) 22%, transparent);
+  }
+}
+.graph-empty {
+  position: absolute;
+  top: 55%;
+  width: 100%;
+  text-align: center;
+  color: var(--muted);
+}
+.legend {
+  position: absolute;
+  left: 1.1em;
+  right: 1.1em;
+  bottom: 0.8em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2em;
+  font-size: 0.76em;
+  color: var(--faint);
+}
+.key {
+  display: inline-block;
+  width: 1.7em;
+  vertical-align: middle;
+  border-top: 2px solid var(--work);
+  border-radius: 2px;
+}
+.key-review {
+  border-top: 2px dashed var(--amber);
+}
+.key-conflict {
+  border-top: 2.5px solid var(--red);
+}
+.key-flight {
+  border-top: 2px solid var(--text);
+}
+.key-spoke {
+  border-top: 1px dotted var(--muted);
+}
+.key-busy {
+  width: 0.9em;
+  height: 0.9em;
+  border: 2px solid var(--work);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--work) 30%, transparent);
+  margin: 0 0.35em 0 0.2em;
+}
+
+/* ---- The hive: SpacetimeDB in the middle, GitHub below it, spokes to every node ------------- */
+.spoke {
+  stroke: var(--text);
+  stroke-width: 1;
+  stroke-dasharray: 1.5 5;
+  stroke-linecap: round;
+  opacity: 0.16;
+}
+.spoke.offline {
+  opacity: 0.06;
+}
+.hub-shape {
+  fill: var(--panel-2);
+  stroke: var(--hairline-strong);
+  stroke-width: 1;
+  filter: drop-shadow(0 8px 20px rgb(0 0 0 / 0.3));
+}
+.hub-shape-git {
+  fill: var(--panel);
+  stroke-dasharray: 4 4;
+}
+.hub {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em;
+  padding: 0.4em 2.4em;
+  background: none;
+  border: 0;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+.hub strong {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.08em;
+}
+.hub-db strong {
+  color: var(--accent);
+}
+.hub-git {
+  padding: 0.3em 0.8em;
+}
+.hub-sub,
+.hub-rows {
+  font-size: 0.74em;
+  color: var(--muted);
+}
+.hub-fact {
+  font-size: 0.74em;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hub-write {
+  position: absolute;
+  top: 0.3em;
+  right: 2.2em;
+  padding: 0.05em 0.5em;
+  border-radius: 999px;
+  background: var(--panel-3);
+  color: color-mix(in srgb, var(--tone) 72%, var(--text));
+  font-size: 0.72em;
+  font-family: var(--mono);
+  opacity: 0;
+  pointer-events: none;
+  animation: write-show 2.4s ease-out 0.55s forwards;
+}
+.hub-git .hub-write {
+  right: 0.4em;
+}
+@keyframes write-show {
+  0% {
+    opacity: 0;
+    transform: translateY(0.4em);
+  }
+  12%,
+  75% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Transfer arrows: two hops through a hub, gone after a few seconds (useFlights ARROW_MS). */
+.flights {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+  overflow: visible;
+}
+.flight {
+  animation: flight-fade 4s linear forwards;
+}
+/* The write into the hub, then (once it lands) the push out to each receiver. Each line draws from
+   its start to its end in --draw, and its arrowhead (.head) rides the tip with the same easing. */
+.graph {
+  --draw: 0.9s;
+  --draw-ease: cubic-bezier(0.45, 0, 0.35, 1);
+}
+.hop-write,
+.hop-push {
+  fill: none;
+  stroke: color-mix(in srgb, var(--tone) 75%, var(--text));
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.hop-write {
+  animation: flight-draw var(--draw) var(--draw-ease) forwards;
+}
+.hop-push {
+  animation: flight-draw var(--draw) var(--draw-ease) var(--draw) forwards;
+}
+.hub-pulse {
+  fill: none;
+  stroke: color-mix(in srgb, var(--tone) 75%, var(--text));
+  stroke-width: 2;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hub-pulse 0.9s ease-out calc(var(--draw) - 0.05s) forwards;
+}
+@keyframes hub-pulse {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+/* Arrowheads are small HTML triangles moving along the hop's path (CSS offset-path). */
+.flight-heads {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  animation: flight-fade 4s linear forwards;
+}
+.head {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  background: color-mix(in srgb, var(--tone) 75%, var(--text));
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  offset-rotate: auto;
+  offset-anchor: 100% 50%;
+  offset-distance: 0%;
+  opacity: 0;
+  animation: head-ride var(--draw) var(--draw-ease) forwards;
+}
+.head-push {
+  animation-delay: var(--draw);
+}
+@keyframes head-ride {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 1;
+  }
+}
+.flight-label {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  max-width: 19em;
+  display: grid;
+  gap: 0.2em;
+  padding: 0.5em 0.75em;
+  background: var(--panel-3);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lift);
+  font-size: 0.8em;
+  pointer-events: none;
+  animation: label-fade 4s linear forwards;
+}
+.flight-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.flight-text strong {
+  color: color-mix(in srgb, var(--tone) 72%, var(--text));
+}
+.flight-meta {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+@keyframes label-fade {
+  0%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes flight-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes flight-fade {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---- Now list ------------------------------------------------------------------------------- */
+.now ul {
+  list-style: none;
+  margin: 0.8em 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6em;
+}
+.now-row {
+  display: grid;
+  gap: 0.4em;
+  width: 100%;
+  text-align: left;
+  padding: 0.8em 0.9em;
+  background: var(--panel-2);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.now-row:hover {
+  background: var(--panel-3);
+}
+.now-row.selected {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.now-row.offline {
+  opacity: 0.5;
+}
+.now-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.now-top time {
+  margin-left: auto;
+  font-size: 0.8em;
+}
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.8em;
+  height: 1.8em;
+  padding: 0 0.35em;
+  white-space: nowrap;
+  border-radius: 999px;
+  background: var(--panel-3);
+  font-weight: 600;
+  font-size: 0.85em;
+}
+.now-doing {
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.now-badges,
+.now-files,
+.files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+}
+.now-files code,
+.files code {
+  color: var(--faint);
+  font-size: 0.8em;
+}
+
+/* ---- Activity ------------------------------------------------------------------------------- */
+.activity {
+  list-style: none;
+  margin: 0.5em 0 0;
+  padding: 0;
+}
+.activity li > * {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7em;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0.25em 0.35em;
+  border-radius: 8px;
+  font-size: 0.9em;
+}
+.activity li > button {
+  cursor: pointer;
+}
+.activity li > button:hover {
+  background: var(--panel-2);
+}
+.activity time {
+  color: var(--faint);
+  width: 4.8em;
+  flex: none;
+  font-size: 0.86em;
+}
+.activity .dot {
+  transform: translateY(-0.05em);
+}
+.activity-strip .activity-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Details drawer ------------------------------------------------------------------------- */
+.details {
+  position: fixed;
+  top: 0.8em;
+  right: 0.8em;
+  bottom: 0.8em;
+  z-index: 10;
+  width: min(34em, calc(100vw - 1.6em));
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.5);
+  overflow: hidden;
+}
+.details > header {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 1em 1.2em 0.6em;
+}
+.details h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.35em;
+  flex: 1;
+}
+.details-body {
+  overflow: auto;
+  padding: 0.4em 1.2em 2em;
+}
+.d-lead {
+  padding: 0.4em 0 1em;
+  border-bottom: 1px solid var(--hairline);
+}
+.d-doing,
+.d-quote {
+  font-size: 1.12em;
+  font-weight: 500;
+  line-height: 1.4;
+  margin: 0.4em 0 0.6em;
+}
+.d-quote {
+  font-family: var(--serif);
+  font-size: 1.2em;
+}
+.eyebrow {
+  font-size: 0.76em;
+  color: var(--faint);
+  letter-spacing: 0.04em;
+}
+.d-section {
+  padding: 0.9em 0 0.3em;
+}
+.d-section h3 {
+  margin: 0 0 0.5em;
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.rows,
+.cards,
+.thread,
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5em;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  width: 100%;
+  text-align: left;
+  padding: 0.6em 0.75em;
+  background: var(--panel-2);
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.row:hover {
+  background: var(--panel-3);
+}
+.row.static {
+  cursor: default;
+}
+.row.static:hover {
+  background: var(--panel-2);
+}
+.row-main {
+  flex: 1;
+  min-width: 0;
+}
+.card {
+  padding: 0.75em 0.9em;
+  background: var(--panel-2);
+  border-radius: 12px;
+}
+.card .link {
+  font-weight: 700;
+}
+.card.attention {
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-2));
+  margin: 0.7em 0;
+}
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  padding: 0.3em 0 0.6em;
+}
+.picker button {
+  padding: 0.25em 0.75em;
+  background: var(--panel-2);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+.picker button[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--bg);
+}
+.msg {
+  padding: 0.65em 0.85em;
+  background: var(--panel-2);
+  border-radius: 12px;
+}
+.msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.86em;
+}
+.msg-meta time {
+  margin-left: auto;
+  color: var(--faint);
+}
+.disclosure {
+  margin: 0.6em 0;
+  padding: 0.6em 0.85em;
+  background: var(--panel-2);
+  border-radius: 12px;
+}
+.disclosure summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.steps {
+  max-height: 20em;
+  overflow: auto;
+  margin-top: 0.5em;
+}
+.step {
+  display: grid;
+  grid-template-columns: 6.5em 1fr;
+  gap: 0.6em;
+  font-size: 0.86em;
+}
+.step-kind {
+  color: var(--faint);
+}
+.step-final .step-kind {
+  color: var(--green);
+}
+.step-error .step-kind {
+  color: var(--red);
+}
+.step code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.excerpt {
+  margin: 0.6em 0;
+}
+.diff-added {
+  color: var(--green);
+}
+.diff-removed {
+  color: var(--red);
+}
+.actions {
+  display: grid;
+  gap: 0.5em;
+  margin-top: 0.7em;
+}
+.actions input,
+.actions textarea {
+  width: 100%;
+  padding: 0.55em 0.75em;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 0.4em;
+}
+.action-error {
+  color: var(--red);
+}
+
+/* ---- Narrow screens ------------------------------------------------------------------------- */
+@media (max-width: 1000px) {
+  /* Stack the panels and let the page scroll instead of squeezing the graph. */
+  .app {
+    height: auto;
+    min-height: 100%;
+  }
+  .layout {
+    flex: none;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+  .now {
+    overflow: visible;
+  }
+  .graph-panel,
+  .now,
+  .activity-strip {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .graph {
+    height: 32em;
+  }
+  .topbar {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .edge.active,
+  .node.busy .dot {
+    animation: none;
+  }
+  .node,
+  .row,
+  .now-row,
+  .btn {
+    transition: none;
+  }
+  .hop-write,
+  .hop-push,
+  .hub-pulse,
+  .hub-write,
+  .edge-draw,
+  .edge-label,
+  .waiting-on-who .dot {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  .node.busy::after {
+    display: none;
+  }
+  .node.busy::before {
+    animation: none;
+    opacity: 0.6;
+    inset: -5px;
+  }
+  .head {
+    animation: none;
+    offset-distance: 100%;
+    opacity: 1;
+  }
+  .hub-pulse {
+    opacity: 0;
+  }
+}

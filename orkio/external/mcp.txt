@@ -1,0 +1,53 @@
+external/mcp.txt
+
+WHAT THIS IS
+  How Claude Code finds our MCP server ("cowork") on each laptop. The server's code is
+  mcp/src/server.ts in repo 1. The registration is a per-laptop file, <demo clone>/.mcp.json, that
+  hooks/src/install.ts writes. It holds this laptop's absolute paths, so it is never committed:
+  install adds it to the clone's .git/info/exclude.
+
+WHY .mcp.json (decided Oct 24, see checklists/A.md)
+  At least one of us has only the VS Code extension and no `claude` CLI. Claude Code reads .mcp.json
+  in both the extension and the CLI, so nobody needs the CLI. install.ts also adds
+  "enabledMcpjsonServers": ["cowork"] to the clone's .claude/settings.local.json, which pre-approves it.
+
+WHO / WHEN
+  Every teammate, once per laptop: npm run install-hooks -- --demo <your demo clone> --name <you>
+  (that same command also installs the hooks; see claude-code-hooks.txt).
+
+WHAT install WRITES INTO .mcp.json
+  {
+    "mcpServers": {
+      "cowork": { "type": "stdio", "command": "node",
+                  "args": ["<repo 1>/node_modules/tsx/dist/cli.mjs", "<repo 1>/mcp/src/server.ts"] }
+    }
+  }
+  Any other servers already in the file are kept. Why node + a script path: on Windows, .cmd shims
+  (npx, tsx.cmd) can't be started without a shell. tsx is needed because the server imports Part C's
+  generated SpacetimeDB bindings.
+
+PRESENCE
+  The server opens a WebSocket to the database as you (your `spacetime login` session) and calls
+  register_agent on it. Part C's module needs that live connection: it marks you online, and offline
+  again when the session ends. Your identity must be approved by the database owner first.
+
+CHECK IT WORKS
+  - npm run doctor -- --demo <your demo clone>   (sign-in, approval, hooks, .mcp.json, push rights)
+  - Open the demo clone in Claude Code (VS Code: File > Open Folder). Trust the workspace when asked.
+  - /mcp shows cowork as connected, with its ten tools: ask_orchestrator, post_intent, team_status,
+    pull_teammate, check_with_team, message_teammate, agree, escalate, complete_task, get_full_stack.
+  - check_with_team needs the demo clone's own node_modules (npm install in the clone): it runs tsc and
+    vitest in temporary worktrees of your clone, which it removes when the session ends.
+  - Your agent's card in the UI turns online.
+  - Without Claude Code: `npm run test:a` starts the real server with an MCP client against the mock
+    database; `npm run test:live` runs two of them on a real local SpacetimeDB with real checks.
+
+IF IT FAILS
+  - "Failed to connect": run the args line yourself (node <tsx cli> <server.ts>) in a terminal; our
+    errors print to stderr.
+  - The server says "cowork isn't configured on this laptop": COWORK_NAME or STDB_DB is missing in
+    repo 1's .env.
+  - "presence WebSocket failed" or "register_agent failed": not signed in, or not approved yet.
+    npm run doctor says which.
+  - Anything our server prints to stdout breaks the protocol. Log with console.error only.
+  - Start over: delete <demo clone>/.mcp.json and run install again.

@@ -1,0 +1,24 @@
+// WHAT IT'S FOR: strictly type-check C's tests and source without A/B/D workspaces or credentials.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "dom"],
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@factory/droid-sdk/node": ["./node_modules/@factory/droid-sdk/dist/node.d.ts"],
+      "@anthropic-ai/sdk": ["./node_modules/@anthropic-ai/sdk/index.d.mts"],
+      "@anthropic-ai/sdk/helpers/zod": ["./node_modules/@anthropic-ai/sdk/helpers/zod.d.mts"],
+      "zod/v4": ["./node_modules/zod/v4/index.d.ts"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "../orchestrator/src/diagnose/*.ts",
+    "../scripts/demo-reset*.ts",
+    "../shared/src/config.ts",
+    "../shared/src/schema.ts",
+    "../shared/src/*.test.ts"
+  ]
+}

@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- Shopping app entry: shared catalog, cart, and simulated checkout. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>Simple Shop</title>
+  </head>
+  <body>
+    <header class="shop-header"><a href="#catalog-title">Simple Shop</a><span>A small collection of everyday things.</span></header>
+    <main class="shop-layout">
+      <section aria-labelledby="catalog-title"><h1 id="catalog-title">The collection</h1><div id="catalog"></div></section>
+      <aside aria-labelledby="cart-title"><h2 id="cart-title">Your cart</h2><p class="shop-caption">USD · No shipping or tax.</p><div id="cart" aria-live="polite"></div></aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

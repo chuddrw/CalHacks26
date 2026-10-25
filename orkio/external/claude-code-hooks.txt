@@ -1,0 +1,49 @@
+external/claude-code-hooks.txt
+
+WHAT THIS IS
+  The hook settings in each laptop's demo-app clone: <clone>/.claude/settings.local.json. They tell
+  Claude Code to run our hook scripts (repo 1, hooks/src/*.ts). The file holds absolute paths, so
+  it's per laptop and gitignored. hooks/src/install.ts writes it.
+
+WHO / WHEN
+  A: first version Sat 9:20. Everyone runs install on their own laptop before checkpoint 2 (Sat 19:00).
+
+TONIGHT, BEFORE ANYTHING ELSE
+  hooks/src/rewake-spike.ts proves that an asyncRewake hook wakes an idle session. The whole design
+  depends on it. Instructions are in that file's header.
+
+WHAT GETS REGISTERED
+  event              matcher                                                  script                 options
+  PostToolUse        Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__cowork__.*   snapshot-and-wait.ts   asyncRewake, timeout 1800
+  PostToolUse        *                                                        inject-context.ts      timeout 5
+  UserPromptSubmit   (none)                                                   inject-context.ts      timeout 5
+  UserPromptSubmit   (none)                                                   snapshot-and-wait.ts   asyncRewake, timeout 1800
+  Stop               (none)                                                   stop.ts                timeout 5
+  SessionStart       (none)                                                   session-start.ts       timeout 10
+  SessionStart       (none)                                                   snapshot-and-wait.ts   asyncRewake, timeout 1800
+  (Branch feat/orchestrator: snapshot-and-wait also runs at session start and on every prompt, where it
+  only listens, so an agent that hasn't edited anything yet can be woken by a task. asyncRewake on
+  those two events follows the hooks reference, which limits asyncRewake to command hooks, not to
+  events; only PostToolUse was proven with a real session, so check it once: open a fresh session,
+  ask the orchestrator for something from another laptop, and the idle session should wake.)
+  Each one in exec form: "command": "node", "args": ["<absolute path to the .ts file>"].
+  Install it:  npm run install-hooks -- --demo <your demo clone> --name <you>
+  See every file it would write first, without writing:  add --dry-run
+  It keeps settings already in the file, replaces its own old entries, and is safe to run twice.
+  It also writes .mcp.json for the MCP server (mcp.txt) and adds "enabledMcpjsonServers": ["cowork"].
+
+CHECK IT WORKS
+  - Without Claude Code: `npm run test:a` runs every hook the way Claude Code would, against a
+    throwaway git remote and the mock database, and checks the timings (47 checks, passing Oct 24).
+  - In a Claude session in the clone, /hooks lists all of them.
+  - Make an edit: a wip/<you> branch appears on GitHub within about 2 seconds.
+  - Debugging: set COWORK_DEBUG=1 in repo 1's .env so hook errors print to stderr, and start
+    Claude Code with --debug to see every hook run.
+
+FACTS WE RELY ON (Claude Code hooks reference, checked Oct 24)
+  - asyncRewake runs the hook in the background. Exit code 2 wakes Claude immediately, even when the
+    session is idle, and stderr is shown to Claude. Unlike plain async hooks, its timeout IS enforced.
+  - Stop hooks receive stop_hook_active. Claude Code stops honoring blocks after 8 in a row.
+  - Matcher "*" (or no matcher) means every tool. UserPromptSubmit, Stop and SessionStart need none.
+  - Exec form (command + args) runs with no shell, so paths with spaces or backslashes are safe.
+  - Node 24 runs .ts files directly, so hooks need no build step.

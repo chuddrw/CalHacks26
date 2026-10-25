@@ -1,0 +1,43 @@
+external/factory-droid.txt
+
+WHAT THIS IS
+  Our Factory account and the Droid SDK access the orchestrator uses to plan every request
+  (orchestrator/src/planner.ts, branch feat/orchestrator), plus what Factory's prize asks for.
+
+WHO / WHEN
+  C, Saturday morning at the Factory booth, before the 14:00 block.
+
+ASK AT THE BOOTH
+  1. Are there hackathon credits or a promo code for the SDK?
+  2. Can the SDK run a Claude model? (listModels() shows what our account can pick.)
+  3. What's the best way to run Droid with no edit tools: which ids go in disabledToolIds, or is
+     there a read-only mode?
+  4. What do the judges want to see for "Best Use of the Droid SDK"?
+
+PRIZE: Best Use of the Droid SDK. One winner: $2,000 + credits + swag.
+  Must:   use the Droid SDK (TypeScript or Python); Droid does work inside a running product, not just
+          help us write code; the README says where Droid is used.
+  Bonus:  our own triggers, permission control, showing the plan, steps, diff and results.
+  Minus:  a "chatbot wrapper", a demo that only works on slides, not being able to see what the agent did.
+  How we meet each point: the header of orchestrator/src/planner.ts, and the README's Droid section.
+
+FOUND ON THE FIRST REAL RUN (Oct 24)
+  The droid CLI 0.249 starts SDK sessions with toolExecutionMode "script_only": the model calls tools
+  through the Script tool. We disable Script (it runs code), so Droid saw no tools at all. The
+  planner now sets toolExecutionMode "direct_only" on the session's initialize request. The demo
+  request then planned in 52 s with the default model; try a faster DROID_MODEL_ID before the demo.
+
+COST (docs.factory.com/pricing, checked Oct 24)
+  Pro $20/month, Plus $100/month, Max $200/month. All include the SDK. Usage is rate-limited over
+  5-hour, 7-day and 30-day windows; Extra Usage credits start at $10. Droid only runs when a check is
+  red, maybe 50-150 times all weekend, so Pro should be enough.
+
+SDK FACTS (docs.factory.com/sdk/typescript, checked Oct 24)
+  npm package @factory/droid-sdk (Node 18+), imported from "@factory/droid-sdk/node". Uses Zod 3.
+  Auth: FACTORY_API_KEY. run() for one prompt; createSession() / resumeSession() for sessions;
+  session.stream() for messages; session.close() when done. modelId + listModels();
+  disabledToolIds + listTools(); permissionHandler; cwd.
+
+CHECK IT WORKS
+  A 10-line script: createSession in a temp folder, ask "list the files here", print the streamed
+  messages, close the session. Delete the script afterwards.
