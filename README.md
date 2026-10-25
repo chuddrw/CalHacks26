@@ -132,7 +132,14 @@ The orchestrator is Droid: [orchestrator/src/planner.ts](orchestrator/src/planne
 
 ### Notability — Best Use of Notability
 
-Notability supported Orkio from the beginning as our team brainstorming and product-thinking workspace. We used it to capture the integration problem we had experienced, organize the user journey, compare architectural approaches, and refine the idea from isolated coding agents into a coordinated system with shared state, human review, and visible agent activity. These notes document the evolution from initial concept to working product and preserve the reasoning behind the architecture, making the team's design process clear and easy to revisit.
+Notability supported Orkio from the beginning as our team brainstorming and product-thinking workspace. We used it to capture the integration problem we had experienced, organize the user journey, compare architectural approaches, and refine the idea from isolated coding agents into a coordinated system with shared state, human review, and visible agent activity.
+
+We also used Notability's voice-recording feature during our meeting so the spoken brainstorming behind the project was preserved together with our written work. The repository's [`Notability Notes/`](<Notability Notes/>) folder contains both the [exported brainstorming note](<Notability Notes/Orkio Brainstorming Notes - Oct 24 2026.pdf>) and the [18-minute meeting recording](<Notability Notes/Orkio Brainstorming Meeting - Oct 24 2026.m4a>).
+
+- **Process:** the Notability artifacts preserve our early brainstorming and show the project moving from a coordination problem into a concrete product architecture.
+- **Detail:** the written export and full meeting audio retain both the captured ideas and the discussion that shaped them.
+- **Feature usage:** Notability gave us one place to develop the concept in notes while using voice recording to preserve the team's live conversation.
+- **Relevance:** Notability was part of the ideation process that defined Orkio's user problem, collaboration flow, and real-time coordination approach.
 
 ### Claude Code, hooks, and MCP
 
