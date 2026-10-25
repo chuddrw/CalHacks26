@@ -1,8 +1,8 @@
 external/factory-droid.txt
 
 WHAT THIS IS
-  Our Factory account and the Droid SDK access the watcher uses for diagnosis
-  (watcher/src/diagnose/droid.ts), plus what Factory's prize asks for.
+  Our Factory account and the Droid SDK access the orchestrator uses to plan every request
+  (orchestrator/src/planner.ts, branch feat/orchestrator), plus what Factory's prize asks for.
 
 WHO / WHEN
   C, Saturday morning at the Factory booth, before the 14:00 block.
@@ -19,7 +19,13 @@ PRIZE: Best Use of the Droid SDK. One winner: $2,000 + credits + swag.
           help us write code; the README says where Droid is used.
   Bonus:  our own triggers, permission control, showing the plan, steps, diff and results.
   Minus:  a "chatbot wrapper", a demo that only works on slides, not being able to see what the agent did.
-  How we meet each point: the header of watcher/src/diagnose/droid.ts.
+  How we meet each point: the header of orchestrator/src/planner.ts, and the README's Droid section.
+
+FOUND ON THE FIRST REAL RUN (Oct 24)
+  The droid CLI 0.249 starts SDK sessions with toolExecutionMode "script_only": the model calls tools
+  through the Script tool. We disable Script (it runs code), so Droid saw no tools at all. The
+  planner now sets toolExecutionMode "direct_only" on the session's initialize request. The demo
+  request then planned in 52 s with the default model; try a faster DROID_MODEL_ID before the demo.
 
 COST (docs.factory.com/pricing, checked Oct 24)
   Pro $20/month, Plus $100/month, Max $200/month. All include the SDK. Usage is rate-limited over

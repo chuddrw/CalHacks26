@@ -46,10 +46,13 @@ validates incoming rows, reconnects after interruptions, and labels stale data.
 The adapter's lifecycle is tested with an injected transport; connection to a real
 published module is a separate integration gate.
 
-The planned complete workflow uses Claude Code hooks to push working-tree snapshots,
-a Git/TypeScript/test watcher to detect failures, SpacetimeDB to coordinate state,
-and Factory Droid to investigate with a Claude API fallback. Describe these as
-implemented only after a real rehearsal verifies them.
+The workflow (branch `feat/orchestrator`): each human asks their own Claude Code agent;
+an orchestrator built on the Factory Droid SDK plans the request with read-only access
+and our own tools, and a code-enforced contract rule decides which humans must review.
+SpacetimeDB holds the plan, the tasks, the reviews and the agents' conversations. Each
+agent checks its uncommitted work against its teammates' with git, TypeScript and the
+tests, and two agents settle a clash by messaging each other and agreeing on a green
+check. Describe each part as implemented only after a real rehearsal verifies it.
 
 ## Challenges
 

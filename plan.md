@@ -2,11 +2,11 @@
 
 > **What this file is for:** the team's working plan for Cal Hacks 13.0. It covers what we build, who builds which part, and when. [structure.md](structure.md) lists every file in this folder, and each file starts with a note saying what it does.
 
-Updated Sat Oct 24, 1:50 AM. Submission is Sun Oct 25, 9:00 AM. Judging is 10:30–12:30, and all four of us have to be at the table.
+Updated Sat Oct 24, 1:50 AM; the design part updated Sat 5:30 PM on branch `feat/orchestrator`, where an orchestrator (Droid) replaced the watcher ([checklists/orchestrator.md](checklists/orchestrator.md)). Submission is Sun Oct 25, 9:00 AM. Judging is 10:30–12:30, and all four of us have to be at the table.
 
 ## One line
 
-Live CI for a team's AI agents. It checks everyone's uncommitted work together and wakes up the agent that has to fix a break, before anyone commits.
+A team of AI agents that coordinates like a team: each human tells their own agent what they want, an orchestrator (Droid) assigns the work to the agents that own each feature, and the agents settle clashes with each other before anyone commits.
 
 ## Who it's for
 
@@ -18,51 +18,49 @@ Each agent only sees its own laptop. A changes `lastLogin` from seconds to milli
 
 ## How it works
 
-1. **Snapshot.** After every edit, a hook builds a throwaway commit of the working tree (without touching the agent's branch or index) and force-pushes it to `wip/<name>`. Then it calls the `post_snapshot` reducer.
-2. **Check.** The watcher subscribes to the `snapshot` table. It merges every agent's latest wip commit onto `main` in a temporary worktree and runs `tsc --noEmit` and `vitest run`.
-3. **Find the pair.** If the check is red, the watcher tests each wip alone and then in pairs, and picks a fixer (rule below). The `report_conflict` reducer creates the conflict, assigns the fixer and writes both inboxes in one transaction.
-4. **Diagnose.** Droid (Factory's SDK) runs in a throwaway worktree with its edit tools turned off, investigates the failure and writes the explanation. If Droid is flaky, one Claude call does it instead.
-5. **Wake and fix.** The fixer's listener hook sees the conflict and exits with code 2. Claude Code then wakes that agent, even if it's idle. The agent calls `pull_teammate` to bring the other agent's in-progress change into its own working tree (it isn't on that laptop otherwise), adapts its own files until the tests pass, and the next snapshot turns the check green.
-6. **Remember.** On green, the verified fact (for example "`lastLogin` is milliseconds") goes into shared memory and into every agent's inbox. Agents also post their intent before changing exported code, and hooks pass teammates' intents along.
+1. **Ask.** A human tells their own agent what they want. If it goes beyond that human's own feature, the agent calls `ask_orchestrator`, which stores a `request` row.
+2. **Plan.** The orchestrator (one process, `npm run orchestrator`) starts a Droid session on a disposable worktree of `main`. Droid reads the code, `cowork.owners.json` and the team's live state (tasks in flight, every agent's uncommitted snapshot) and plans with our tools: `assign_task` per owner, `request_review` for each human whose feature a major change affects, `flag_conflict` for overlaps it expects.
+3. **Contract rule.** Code applies it after Droid: a task touching a shared contract (`src/contracts/`) or another owner's files is major, and the owners whose code imports the contract (on `main` or in a snapshot) review it. `publish_plan` writes the plan in one transaction.
+4. **Review.** With a review, the tasks wait. The reviewer's human clicks Approve or Send back on the dashboard.
+5. **Work.** Each agent's listener hook wakes it with its task, even when idle (the listener also starts at session start and on every prompt). Snapshots still go to `wip/<name>` after every edit. Before finishing, an agent runs `check_with_team`: tsc + vitest on its work alone and merged with each teammate's work in progress. `complete_task` needs a green check.
+6. **Settle.** A flagged overlap, or a red pair from a check, opens a conflict thread between the two agents. They talk (`message_teammate` wakes the other), change their own files, and both `agree`. Both agreeing plus a current green check covering both resolves it, and the agreed sentence becomes a verified fact.
+7. **Escalate.** `escalate`, 12 messages without agreement, or 5 minutes open: the conflict goes to both humans, who decide on the dashboard. The decision wakes both agents.
 
-Git, tsc and the tests decide red or green. Droid and Claude only explain the failure.
+Git, tsc and the tests decide red or green. Droid plans and the agents negotiate; no model declares green.
 
-### Who fixes
+### Who adapts
 
-1. A snapshot that fails on its own: its author fixes it (kind `self`).
-2. A textual merge conflict: whoever pushed last (kind `merge`).
-3. A pair that only fails together: the agent whose changed lines contain the first error location. If that's neither or both of them, whoever pushed last (kind `pair`).
-
-In the demo the error shows up in B's new file, so B fixes it even though A pushed last.
+Nobody is assigned. A conflict row still names a suggested agent: the orchestrator's suggestion for a flagged overlap, or, for a red check, the agent whose changed lines contain the first error (B's rule). The two agents decide between them who changes what. A change that fails alone but passes together with a teammate's (A changes the contract, B adapts sessions) counts as green: the two land together.
 
 ### Listener
 
-Each edit starts a background hook (`asyncRewake`). The newest one per agent stays alive for up to 25 minutes and watches for conflicts assigned to that agent. Older ones exit as soon as a newer one starts. This is what lets an idle agent get woken: by the time the watcher turns red, the agent has usually finished its turn.
+Each edit, each prompt, each cowork tool call and each session start begins a background hook (`asyncRewake`). The newest one per agent stays alive for up to 25 minutes and wakes the agent for a task, a new conflict thread, or a message in one. Older ones exit as soon as a newer one starts.
 
 ## Architecture
 
 ```
-laptops: hooks + MCP server ──git push──▶ GitHub  wip/<name> ◀──fetch── watcher (tsc + vitest, Droid)
-        │                                                              │
-        └────────HTTP (hooks) / WebSocket (MCP)──▶ SpacetimeDB ◀──subscribe┘
-                                                       │
-                                                       └──subscribe──▶ UI (3 screens, live)
+human -> own agent (hooks + MCP) --ask_orchestrator--> SpacetimeDB <--requests/plan-- orchestrator (Droid)
+            |  ^ wakes: task, conflict, message           |
+  wip/<name>|  |                                           +--subscribe--> dashboard (plans, reviews, threads)
+            v  |
+         GitHub <-- each agent's check_with_team (git merge + tsc + vitest in its own clone)
 ```
 
-Git stores the code. SpacetimeDB holds the team's live state: who is doing what, snapshots, check results, conflicts, inboxes and memory.
+Git stores the code. SpacetimeDB holds the team's live state: requests, plans, tasks, reviews, snapshots, check results, conflict threads, inboxes and memory.
 
 ## Components
 
 | Part | What it does | Owner | Folder |
 |---|---|---|---|
-| Hooks | Snapshot and push, listener that wakes the agent, Stop guard, context injection | A | `hooks/` |
-| MCP server | `post_intent`, `team_status` and `pull_teammate` tools; keeps a live connection so the UI knows who's online | A | `mcp/` |
-| SpacetimeDB module | Tables, reducers, escalation timer, presence | C | `module/` |
-| Shared interface | Frozen table and reducer definitions, config, HTTP client | C (everyone reads) | `shared/` |
-| Watcher | Merge, check, find the pair, pick the fixer, guard against weakened tests, dependency heads-up | B | `watcher/` |
-| Diagnosis | Droid diagnosis, with a Claude call as fallback | C | `watcher/src/diagnose/` |
-| UI | Agent cards, conflict panel, Droid panel, memory, timeline, big-screen mode | D | `ui/` |
-| Demo app | The small app the agents edit during the demo, with the scripted conflict | C | `demo-app/` |
+| Hooks | Snapshot and push, listener that wakes the agent (tasks, conflicts, messages), Stop nudge, context injection | A | `hooks/` |
+| MCP server | `ask_orchestrator`, `post_intent`, `team_status`, `pull_teammate`, `check_with_team`, `message_teammate`, `agree`, `escalate`, `complete_task`; presence | A | `mcp/` |
+| SpacetimeDB module | Tables, reducers (plans in one transaction, conflict threads, reviews), escalation timer, presence | C | `module/` |
+| Shared interface | Frozen table and reducer definitions, config, HTTP client, owners file reader | C (everyone reads) | `shared/` |
+| Checks | Merge snapshots, run tsc + vitest, find the pair, suggest who adapts, guard against weakened tests | B | `checks/` |
+| Orchestrator | Droid planner with our tools, contract rule, import scan, publish | A (was B's watcher slot) | `orchestrator/` |
+| Diagnosis (not wired) | C's Droid and Claude diagnosis, kept with its tests | C | `orchestrator/src/diagnose/` |
+| UI | Agent cards, orchestrator drawer (plans, reviews), conflict threads, decisions, memory, timeline, big-screen mode | D | `ui/` |
+| Demo app | The small app the agents edit during the demo, its owners file and the scripted story | C | `demo-app/` |
 | Pitch | Demo script, Q&A, interviews, Devpost text, video | D | `pitch/` |
 
 Anything that isn't a file (accounts, keys, the hosted database, the MCP registration on each laptop) is written up in [external/](external/).
@@ -116,43 +114,44 @@ If a checkpoint slips by more than an hour, cut the lowest item in that block. P
 The full script is in [pitch/demo-script.md](pitch/demo-script.md), and the exact steps are in [demo-app/SCENARIO.md](demo-app/SCENARIO.md).
 
 1. Open with the other team's quote.
-2. Two laptops and the big screen. Agents are working and their intents show up live.
-3. B's agent adds an idle-time feature that assumes seconds, then goes idle. A's agent switches `lastLogin` to milliseconds and updates every caller it can see. Git merges cleanly and the types match. About 10 seconds later the screen turns red: `src/users/user.ts × src/sessions/idle.ts`, with Droid's steps and explanation. B's agent wakes up on its own, pulls A's in-progress change, and fixes its own code. The screen turns green and the verified fact appears in memory.
-4. C's agent starts a task that touches `lastLogin`, gets the fact injected and writes it correctly the first time.
-5. Close: "Git stores the code. SpacetimeDB holds the team's live state. Tests decide red or green; Droid explains." Then say where Claude goes wrong: it may try to weaken a test to get green, and we send that to a human.
+2. Two laptops and the big screen. B's agent has built an idle-time feature that assumes seconds and gone idle.
+3. A's human asks their agent for milliseconds; the agent asks the orchestrator. Droid's steps stream on the big screen and the plan lands: a task for a, a task for b, B's human to review, and a flagged clash a x b with B's uncommitted idle.ts.
+4. B's human clicks Approve. Both agents wake with their tasks. A changes the unit and tells B; B pulls A's change, adapts, and agrees on a green check; A agrees. The fact appears in memory.
+5. C's agent starts a task that touches `lastLogin`, gets the fact injected and writes it correctly the first time.
+6. Close: "Droid plans. The agents that own the code settle clashes between them. Tests decide red or green, and people decide what changes their features." Then say where it goes wrong: an agent may weaken a test to get green, and we send that to a person; two agents may disagree, and their humans decide.
 
 ## Prizes
 
-- **SpacetimeDB:** every bit of coordination state lives there. Fixer assignment is one transaction, escalation uses a schedule table, presence uses lifecycle reducers, and the UI updates live on three screens.
-- **Factory (Best Use of Droid SDK, $2,000 + credits, one winner):** Droid starts on a trigger we built (a red check), runs with permission controls (edit tools off, `git push` blocked, disposable worktree), and its steps are visible in the UI. The README has to say where Droid is used.
-- **Anthropic:** a named community, Claude Code hooks (`asyncRewake`, Stop, SessionStart), and failure modes we handle (weakened tests, false greens when a repo has no tests).
-- **Most Technically Advanced:** speculative merging of uncommitted work across machines, pairwise culprit search, and waking idle agents.
+- **SpacetimeDB:** every bit of coordination state lives there. A plan is one transaction (tasks, reviews, conflicts, wakeups), a conflict resolves only on two agreements plus a current green check, escalation uses a schedule table, presence uses lifecycle reducers, and the UI updates live on three screens.
+- **Factory (Best Use of Droid SDK, $2,000 + credits, one winner):** Droid is the orchestrator: our trigger (a request in the database), our own SDK tools, permission controls (autonomy off, read tools only, disposable worktree), and every step visible on the dashboard. The README says where Droid is used.
+- **Anthropic:** a named community, Claude Code hooks (`asyncRewake` on tool calls, prompts and session start; Stop; SessionStart), agents negotiating through MCP tools, and failure modes we handle (weakened tests, endless arguments, false greens when a repo has no tests).
+- **Most Technically Advanced:** an AI planner bounded by a code-enforced contract rule, speculative merging of uncommitted work run by each agent, agent-to-agent negotiation that only closes on tests, and waking idle agents.
 - **Hacker's Choice:** see stretch item 5.
 
 ## Stretch, in order
 
-1. Contract lock: a PreToolUse hook blocks edits under `src/contracts/`, and a person approves them in the UI.
-2. Claude "suspected conflict": compare each agent's intent with the other agents' diffs, and mark matches as suspected, never red.
+1. Contract lock: a PreToolUse hook blocks an agent's edit to a shared contract or another owner's file unless an approved task covers it.
+2. Droid explains a red check in the conflict thread (C's diagnosis code in `orchestrator/src/diagnose/`).
 3. Explanation as a SpacetimeDB procedure (beta).
-4. Function-level dependencies (who calls `getUser()`), on top of file-level `madge`.
+4. Function-level dependencies (who calls `getUser()`) for the contract rule, on top of the import scan.
 5. Another team uses it for an hour. That gets us a real quote and real numbers.
 
 ## Risks
 
 | Risk | What we do |
 |---|---|
-| `asyncRewake` doesn't wake an idle agent | Test it tonight. Fallback: warn on the next tool call, plus the Stop hook. |
-| Two agents fight over one fix | Only the fixer gets woken; the other agent only gets an info note. |
-| The fixer can't see the teammate's uncommitted change | `pull_teammate` brings it into the fixer's working tree. Tested with real git on Oct 24. |
-| An agent "fixes" things by weakening a test | Rule in `demo-app/CLAUDE.md`, and the watcher sends test edits made during a fix to a human. |
-| The watcher is slow | Small repo, cache per sha, and pairs only when the full check is red. |
-| Real teams don't write tests | tsc catches most breaks. Say so in Q&A; stretch item 2 covers the rest. |
+| Droid is slow (about 50 s per plan) | Its steps stream to the big screen, so the wait is part of the show. Try a faster DROID_MODEL_ID before the demo. |
+| Droid is down or out of credits | The request shows "Planning failed" with the reason; ask again. `COWORK_PLAN_FILE` runs a scripted plan, labeled as scripted on the dashboard: rehearsals only, never presented as Droid. |
+| Two agents argue in circles | 12 messages, or 5 minutes, and it goes to both humans. |
+| An agent "fixes" things by weakening a test | Rule in `demo-app/CLAUDE.md`; `agree` runs the test guard, and a fix that edited an existing test goes to a person. |
+| An idle agent isn't woken by its first task | The listener starts at session start and on every prompt as well as after edits. If it still doesn't wake, type `continue`: inject-context delivers it. |
+| The fixer can't see the teammate's uncommitted change | `pull_teammate` brings it into the agent's working tree. Tested with real git. |
+| Real teams don't write tests | tsc catches most breaks, and the orchestrator flags overlaps before any test runs. Say so in Q&A. |
 | The live demo is flaky | Scripted scenario, rehearsed five times, plus a recorded backup. Never fake agent output. |
-| Droid is slow or down | Claude fallback in `watcher/src/diagnose/claude.ts`. |
 
 ## Not building
 
-Our own version control, an integration branch or auto-merge, file ownership, a review UI, a permission system, or support for agents from other vendors.
+Our own version control, auto-merge to main, a permission system beyond the contract rule, or support for agents from other vendors.
 
 ## Team rules
 

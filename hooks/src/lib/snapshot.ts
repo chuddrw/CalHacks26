@@ -3,7 +3,7 @@
  *
  * WHAT IT'S FOR
  *   Takes a snapshot of the agent's working tree as a git commit and force-pushes it to
- *   wip/<name>, WITHOUT touching the agent's branch, index or stash. This is how the watcher
+ *   wip/<name>, WITHOUT touching the agent's branch, index or stash. This is how teammates' checks
  *   sees uncommitted work, new files included.
  *
  * OWNER: A.
@@ -31,7 +31,7 @@
  *     after the first finishes, sees nothing new, and skips the push.
  *   - The author and committer are set to "cowork-<name>" through the environment, so commit-tree
  *     works even on a laptop with no git identity, and wip commits are easy to spot.
- *   - <remote>/<main> may be a few minutes stale on the laptop. That's fine: the watcher merges onto
+ *   - <remote>/<main> may be a few minutes stale on the laptop. That's fine: check_with_team merges onto
  *     the real main itself. We don't `git fetch` here; it would slow down every edit.
  *   - State left inside .git: cowork-last-tree only. scripts/demo-reset.ts deletes it.
  */

@@ -5,10 +5,12 @@ submission-checklist.md; architecture intent is not proof of a working live loop
 
 ## Opening answer
 
-**What is Agent Cowork?** A shared workspace for a team's coding agents. The intended
-loop checks everyone's uncommitted changes together, assigns a fixer when the combined
-code fails, and shares a verified fact after recovery. The dashboard makes that
-coordination visible. Confirm the live-loop evidence before saying the full loop is running.
+**What is Agent Cowork?** A team of coding agents that coordinates like a team. Each
+human asks their own agent; an orchestrator built on Factory's Droid plans the request
+and assigns each part to the agent that owns that feature; the agents settle clashes
+with each other, and a fact they agree on (with a green check) becomes shared memory.
+People review major changes to their own features and break deadlocks. Confirm the
+live-loop evidence before saying the full loop is running.
 
 ## Differentiation
 
@@ -21,8 +23,18 @@ but the intended input is the combination of teammates' uncommitted snapshots. I
 fixer assignment and context delivery while agents are still working. It does not
 replace a team's normal pull requests, reviews, or release checks.
 
-**Is this just shared memory?** Intentions and facts supply context. The planned watcher
-also runs the combined code. A note saying the changes should work is not a passing test.
+**Is this just shared memory?** Intentions and facts supply context. Each agent also runs
+the combined code (its work merged with each teammate's). A note saying the changes should
+work is not a passing test, and a conflict only closes on a green check.
+
+**Isn't the orchestrator just a chatbot?** It never writes code or declares anything
+green. It reads the repository and the team's live state, then calls our tools to assign
+tasks, request reviews and flag clashes. Code applies the contract rule afterwards, and
+the plan lands in one database transaction. Its steps are visible on the dashboard.
+
+**What if two agents disagree?** Either can escalate, and twelve messages without
+agreement or five minutes also escalate. Both humans see the thread on the dashboard and
+send one decision, which wakes both agents.
 
 ## Correctness and limitations
 
@@ -38,9 +50,10 @@ deletions, and renames of existing test files during a fix for human review. Add
 new test is allowed. Show an actual guard run only after B's implementation is verified;
 the local UI includes a labeled simulation of that state.
 
-**Why pick B when A changed the timestamp unit?** The planned rule picks the author of
-the changed line containing the failure. If ownership is ambiguous, it uses the most
-recent pusher. That is deterministic assignment, not a claim that one teammate is to blame.
+**Who changes their code when A changed the timestamp unit?** The two agents decide.
+The conflict carries a suggestion (Droid's, or for a failing check the author of the
+changed line containing the failure), but the agents agree in their thread who changes
+what. It isn't a claim that one teammate is to blame.
 
 **Can a stale dashboard look green?** No: connection readiness is separate from check
 status. Disconnected data is marked stale, and a new snapshot after a passing check
@@ -51,13 +64,14 @@ only the tested combination and assertions. The shared fact is associated with t
 recovery; broader semantic correctness still depends on test coverage and review.
 
 **Does it scale?** For n agents, all pairs number n(n−1)/2: four agents means six pairs.
-The intended watcher only localizes after a full failure and caches checked combinations.
+Each agent only checks its own pairs, caches checked combinations, and the plan flags most
+clashes before any test runs.
 Actual throughput has not been measured. Three-way-only interactions need a better
 localization strategy than this project's planned fallback.
 
-**What if an agent stays idle or offline?** The intended module escalates unresolved
-conflicts after five minutes. The UI supports that status. Confirm C's actual scheduled
-reducer before demonstrating the timer as live behavior.
+**What if an agent stays idle or offline?** A background hook wakes an idle agent for a
+task or a message within a second or two. An unresolved conflict goes to both humans
+after five minutes. Confirm the timer on the deployed module before demonstrating it.
 
 **What happens when the teammate commits?** The fixer must reconcile the snapshot with
 main through the agreed Git workflow. Use the team's tested demo procedure and inspect

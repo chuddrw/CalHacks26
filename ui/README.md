@@ -33,7 +33,7 @@ Escape or the close button dismisses it and restores focus to the opening symbol
 
 The repository requires Node 24+ for the complete tool. D's dashboard was also
 built and typechecked on the available Node 22.21 runtime; that does not verify
-the hooks or watcher on Node 22.
+the hooks or the orchestrator on Node 22.
 
 If a sandboxed server is unreachable from the desktop browser, run the same
 local server outside that sandbox using the environment's normal approval flow.
@@ -118,7 +118,7 @@ machine do **not** prove three physical screens on the venue network.
 ## Working with A and B
 
 - Agent presence comes from A's MCP connection, not the seed script or UI.
-- The watcher owns check results, error locations, conflict status, and fixer assignment.
+- The agents' checks own check results and error locations; the module owns conflict status; the orchestrator owns plans. The dashboard shows them, and its buttons only record a person's review or decision.
 - The UI cannot prove an agent woke up: show the actual agent terminal during that demo beat.
 - Diff excerpts use the latest snapshot. They are explicitly labeled because merged line
   numbers can shift and the stored diff can be truncated.

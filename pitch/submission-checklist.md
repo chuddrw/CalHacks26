@@ -35,15 +35,17 @@ demo/video URLs. Do not infer team names from repository contributors.
 
 | Claim                                | Required evidence                                        | Current status                  |
 | ------------------------------------ | -------------------------------------------------------- | ------------------------------- |
-| Dashboard shows team state           | Browser inspection and screenshots                       | Local simulated scenes verified |
-| Dashboard uses live SpacetimeDB data | Published module, generated bindings, real table changes | Pending C                       |
-| Every edit produces a snapshot       | Observe A's hook and pushed wip branch                   | Pending A                       |
-| Combined check detects the pair      | Watcher log and matching conflict/check rows             | Pending B                       |
-| Idle agent wakes and fixes           | Recording of actual agent terminal and unchanged tests   | Pending A/B/C                   |
-| Droid investigates                   | Actual SDK steps and final explanation from a real run   | Pending C                       |
+| Dashboard shows team state           | Browser inspection and screenshots                       | Local simulated scenes verified, including the orchestrator drawer, threads and decisions (Oct 24) |
+| Dashboard uses live SpacetimeDB data | Published module, generated bindings, real table changes | Pending C (deploy from `feat/orchestrator`) |
+| Every edit produces a snapshot       | Observe A's hook and pushed wip branch                   | Verified on a local server (`npm run test:live`); pending the team database |
+| Droid plans a request                | Actual SDK steps and the published plan from a real run  | One real run, Oct 24: 52 s, tasks for a and b, reviews by b and d, conflict a x b. Not yet shown on the dashboard |
+| Major change waits for a review      | Approve on the dashboard releasing the held tasks        | Verified on a local server and in the simulated dashboard |
+| Combined check detects the pair      | check_with_team output and matching conflict/check rows  | Verified with real tsc and vitest on a local server |
+| Agents settle a conflict themselves  | Two real Claude Code sessions messaging and agreeing     | Verified with scripted agents on a local server; pending real sessions |
+| Idle agent wakes with its task       | Recording of actual agent terminal                       | Hooks verified (wake 0.2-0.7 s after approval, local server); pending real sessions |
 | Fact reaches a fresh agent           | New session output and matching verified fact row        | Pending A/C                     |
-| Test edits trigger human review      | Actual modified-test snapshot and guard result           | Pending B/C                     |
-| Conflict escalates after timeout     | Actual module timer and status change                    | Pending C                       |
+| Test edits trigger human review      | Actual modified-test snapshot and guard result           | Guard runs inside agree; not yet exercised end to end |
+| Conflict goes to both humans         | escalate or timer, then the dashboard decision           | Verified on the mock database and in module tests; pending a live run |
 | Rehearsals pass consistently         | Five recorded outcomes with revisions and timings        | Not measured                    |
 | Real team pain point                 | Three interviews, one usable quote with permission       | Not collected                   |
 

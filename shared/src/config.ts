@@ -2,11 +2,11 @@
  * shared/src/config.ts
  *
  * WHAT IT'S FOR
- *   The one place where Node code (hooks, MCP server, watcher, scripts) reads its settings.
+ *   The one place where Node code (hooks, MCP server, orchestrator, scripts) reads its settings.
  *   It loads the .env file at the root of repo 1 no matter what the current directory is.
  *   That matters for the hooks: Claude Code runs them from the demo-app folder, not from here.
  *
- * OWNER: C. USED BY: hooks/, mcp/, watcher/, scripts/.
+ * OWNER: C. USED BY: hooks/, mcp/, orchestrator/, checks/, scripts/.
  * NOT USED BY the UI: browser code reads import.meta.env.VITE_* instead.
  *
  * NOTES

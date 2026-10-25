@@ -28,4 +28,4 @@ BRANCHES IN REPO 2
 
 ACCESS FROM THE HOOKS
   The hooks push from each laptop with that laptop's normal git credentials. If `git push` works in
-  your clone, the hooks can push too. The watcher machine only needs read access.
+  your clone, the hooks can push too. The orchestrator's laptop only needs read access.

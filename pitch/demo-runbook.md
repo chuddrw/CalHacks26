@@ -5,8 +5,9 @@ and the table presentation. Record real results here before using them in the pi
 
 ## Prerequisites from the team
 
-- A: working hooks, MCP registration, teammate pull, and confirmed idle wake behavior.
-- B: a running watcher, combined checks, conflict localization, and test-edit guard.
+- A: working hooks, MCP registration, teammate pull, confirmed idle wake behavior, and the
+  orchestrator (Droid) running on one laptop with FACTORY_API_KEY.
+- B: combined checks (each agent's check_with_team), conflict localization, and test-edit guard.
 - C: published database, generated bindings, diagnosis, and the separate demo repository.
 - Everyone: correct local configuration, git access, and an agreed demo baseline.
 - D: dashboard connected to the same database, presentation assets, and backup playback.

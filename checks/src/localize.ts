@@ -12,7 +12,7 @@
  *            (Fixture: one failure, 1 new check run, about 1 s.)
  *
  * WHAT IT EXPORTS
- *   new Checker()                   the cache and the worktree work, one per watcher process
+ *   new Checker()                   the cache and the worktree work, one per process
  *     .check(main, snapshots)       main + the snapshots merged in agent order, then check.ts.
  *                                   { result, fresh }: fresh is false when it came from the cache.
  *     .baseline(main)               failure signatures of main by itself, or null if main's check
@@ -33,11 +33,11 @@
  *
  * RED MEANS NEW
  *   Every result is compared with main by itself (Checker.baseline): failures main already has
- *   don't make anyone red. If main's own check crashes, the watcher skips the run and says so.
+ *   don't make anyone red. If main's own check crashes, nothing can be judged and the run says so.
  *
  * CACHE
  *   Key every result by main's sha plus runKey(shas) from shared/src/schema.ts. A sha never changes
- *   content, so cached results never expire while the watcher runs. The full run and the singles
+ *   content, so cached results never expire while the process runs. The full run and the singles
  *   and pairs share the cache: in the demo, b alone was the previous full run and a x b is this
  *   full run, so localizing costs one new run (a alone).
  *

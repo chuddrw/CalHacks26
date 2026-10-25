@@ -21,15 +21,15 @@ Latest code: branch `integration` on github.com/chuddrw/CalHacks26 (A + B + C + 
 
 - [x] Dashboard live mode: the browser signs in with the dashboard laptop's `spacetime login` and shows real data
 - [x] Human review: when a fix changes tests, a person clicks Accept or Send back on the dashboard (or runs `npm run review`). Send back wakes the fixer with the note.
-- [ ] Rehearsal script: one command sets up two demo clones (a and b) with hooks and starts the watcher. The local database part is done: `npm run local-db`
+- [ ] Rehearsal script: one command sets up two demo clones (a and b) with hooks and starts the orchestrator. The local database part is done: `npm run local-db`. (Branch `feat/orchestrator`: `npm run test:live` already plays the whole story with scripted agents.)
 - [ ] **Real run with Claude Code**: two VS Code windows play a and b, following the scenario. b must fix its own code, keep the tests as they are, and turn the check green. This is our biggest risk.
-- [ ] Factory API key in `.env` on the watcher laptop, and Droid writes a real explanation once (we need this for the Factory track)
+- [x] Factory API key in `.env` on the orchestrator's laptop, and Droid plans a real request once (Oct 24, 52 s; needed for the Factory track)
 - [x] The wake message includes the teammate's plan, so b knows why a changed the code
 
 ## Database (C, Catherine)
 
 - [ ] Deploy the module from the `integration` branch to maincloud. It's missing `resolve_conflict_if_current`, `set_explanation_if_current` and `review_test_change`, so conflicts can't resolve on the team database yet.
-- [ ] Grant editor to every teammate's identity, plus the watcher's
+- [ ] Grant editor to every teammate's identity, plus the orchestrator's
 - [ ] Reset steps everyone can run between rehearsals
 
 ## Every teammate's laptop
@@ -62,7 +62,7 @@ Latest code: branch `integration` on github.com/chuddrw/CalHacks26 (A + B + C + 
 
 - [ ] Only claims we've verified (tick through the Evidence gates in `pitch/submission-checklist.md`)
 - [ ] Real numbers and screenshots from real runs, never the `?demo` data
-- [ ] Architecture slide with the roles: the watcher detects and picks the fixer, b's own agent fixes its code, Droid explains why
+- [ ] Architecture slide with the roles: Droid plans and assigns, the two agents settle conflicts between them, tests decide green, people review major changes and break deadlocks
 - [ ] One slide each for SpacetimeDB and Factory Droid: what they do in our system
 
 ## Submission

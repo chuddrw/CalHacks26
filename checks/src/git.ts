@@ -35,11 +35,11 @@
  *   nameStatus(from, to)        git diff --name-status --no-renames, for guard.ts
  *   blobId(sha, path), readFileAt(sha, path)
  *   removeAllWorktrees()        every worktree we made, then git worktree prune. Call it on exit and on SIGINT.
- *   removeStaleWorktrees()      worktrees left behind by a watcher that was killed. Call it on start.
+ *   removeStaleWorktrees()      worktrees left behind by a process that was killed. Call it on start.
  *
  * NOTES
  *   - execFile with an argument array (no shell), LC_ALL=C so git's messages stay parseable.
- *   - Merges run with --no-verify, commit signing off and rerere off, so the watcher machine's own git
+ *   - Merges run with --no-verify, commit signing off and rerere off, so the laptop's own git
  *     settings can't block or silently resolve a merge.
  *   - Worktrees live under os.tmpdir(), never inside a repo.
  *   - node_modules link: a "junction" on Windows (no admin rights needed), a "dir" symlink on Mac and

@@ -6,17 +6,17 @@ WHAT THIS IS
 
 KEYS
   name               used for                                   needed on      where to get it
-  SpacetimeDB        hooks, MCP server, watcher, scripts        every laptop   NOT in .env: `spacetime login` on that laptop,
+  SpacetimeDB        hooks, MCP server, orchestrator, scripts   every laptop   NOT in .env: `spacetime login` on that laptop,
   session                                                                      then the database owner approves your public
                                                                                identity (module/ACCESS.md). The tools read the
                                                                                session from the CLI. `npm run doctor` checks it.
-  FACTORY_API_KEY    Droid SDK diagnosis                        watcher only   Factory dashboard or booth (factory-droid.txt)
-  ANTHROPIC_API_KEY  Claude fallback diagnosis                  watcher only   console.anthropic.com; ask the Anthropic
+  FACTORY_API_KEY    Droid SDK: the orchestrator's planner      orchestrator   Factory dashboard or booth (factory-droid.txt)
+  ANTHROPIC_API_KEY  C's diagnosis fallback (not wired in)      not needed     console.anthropic.com; ask the Anthropic
                                                                                booth about hackathon credits
   GitHub             pushing wip/* branches                     every laptop   each laptop's normal git login; nothing in .env
 
 NOT SECRET, BUT PER LAPTOP
-  COWORK_NAME (a, b, c or d) and, on the watcher, DEMO_REPO_PATH. See .env.example.
+  COWORK_NAME (a, b, c or d) and, on the orchestrator's laptop, DEMO_REPO_PATH. See .env.example.
 
 IF A KEY LEAKS
   Revoke it in that service's dashboard right away, make a new one, and tell the team.

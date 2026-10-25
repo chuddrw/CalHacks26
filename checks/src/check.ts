@@ -8,7 +8,7 @@
  * OWNER: B. WHEN: tonight (spike.ts uses the tsc half), Sat 9:20-13:00.
  * DONE WHEN: on the demo scenario, the combined worktree gives one failing test in
  *            src/sessions/idle.test.ts with a line number, and each snapshot alone is green.
- *            (Checked on the watcher/src/fixture.ts copy of the scenario.)
+ *            (Checked on the checks/src/fixture.ts copy of the scenario.)
  *
  * WHAT IT EXPORTS
  *   runChecks(worktree): Promise<CheckOutcome>

@@ -34,7 +34,7 @@ The query names remain `agent`, `snapshot`, `intent`, `check_run`, `conflict`, `
 
 HTTP clients must send the user's own valid session token in the Authorization header. WebSocket clients must supply that user's session token through `withToken`; browser sign-in cookies alone do not authenticate an independent agent connection. Clients must obtain/refresh credentials through their own sign-in integration and retain them in their credential/session store or process memory. No token belongs in source, shared setup instructions, or the project `.env`.
 
-A/B/D implementations are not changed here. They must wire their existing token inputs to each user's signed-in session and handle permission failures. Read-only clients should not call `register_agent`, which changes presence and therefore requires Editor access. The watcher needs an explicitly approved Editor identity; reset tooling needs the Owner identity.
+A/B/D implementations are not changed here. They must wire their existing token inputs to each user's signed-in session and handle permission failures. Read-only clients should not call `register_agent`, which changes presence and therefore requires Editor access. The orchestrator needs an explicitly approved Editor identity; reset tooling needs the Owner identity.
 
 Maincloud dashboard collaborators govern platform administration, such as publishing and privileged SQL. They are separate from this application access list and are not automatically synchronized. Ordinary agent users do not need native database-administrator rights. Native administrators capable of publishing code or executing privileged SQL remain trusted administrators and can change the module's policy.
 

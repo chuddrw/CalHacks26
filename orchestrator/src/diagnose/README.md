@@ -1,6 +1,8 @@
 <!-- Part C integration contract for Part B; no watcher orchestration is implemented here. -->
 # Diagnosis integration
 
+> On branch `feat/orchestrator` the watcher is gone and nothing calls this runner at run time: Droid is the orchestrator's planner (`orchestrator/src/planner.ts`), and the two agents explain a clash to each other in their conflict thread. The code and its tests are kept as they were (moved from `watcher/src/diagnose/`) for a possible "Droid explains this red check" step; see plan.md, stretch item 2. Note that a real Droid session needs direct tool calls (see `directToolTransport` in planner.ts): with the CLI's default script-only mode and the Script tool disabled, Droid has no tools.
+
 `createDiagnosisRunner` accepts plain frozen-schema rows and injected operations. It does not import B's `git.ts`, `stdb.ts` or `index.ts`. Example inside B's eventual watcher wiring:
 
 ```ts

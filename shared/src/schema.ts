@@ -23,7 +23,7 @@
  *     version, switch them to comma-joined strings here AND in the module, together.
  *   - Table and column names avoid SQL keywords (no "check", "key", "read", "text", "output").
  *
- * The generated bindings in ../module_bindings are the typed WebSocket client for the watcher,
+ * The generated bindings in ../module_bindings are the typed WebSocket client for
  * the MCP server and the UI. If they disagree with this file, fix the module.
  */
 
@@ -61,7 +61,7 @@ export function wipBranch(agent: AgentName): string {
   return `wip/${agent}`;
 }
 
-/** Key of one watcher run: the sorted snapshot shas joined with "+". Same shas, same key. */
+/** Key of one check run: the sorted snapshot shas joined with "+". Same shas, same key. */
 export function runKey(shas: string[]): string {
   return [...shas].sort().join("+");
 }

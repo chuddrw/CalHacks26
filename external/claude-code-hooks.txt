@@ -13,12 +13,19 @@ TONIGHT, BEFORE ANYTHING ELSE
   depends on it. Instructions are in that file's header.
 
 WHAT GETS REGISTERED
-  event              matcher                                 script                 options
-  PostToolUse        Edit|Write|MultiEdit|NotebookEdit|Bash  snapshot-and-wait.ts   asyncRewake, timeout 1800
-  PostToolUse        *                                       inject-context.ts      timeout 5
-  UserPromptSubmit   (none)                                  inject-context.ts      timeout 5
-  Stop               (none)                                  stop.ts                timeout 5
-  SessionStart       (none)                                  session-start.ts       timeout 10
+  event              matcher                                                  script                 options
+  PostToolUse        Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__cowork__.*   snapshot-and-wait.ts   asyncRewake, timeout 1800
+  PostToolUse        *                                                        inject-context.ts      timeout 5
+  UserPromptSubmit   (none)                                                   inject-context.ts      timeout 5
+  UserPromptSubmit   (none)                                                   snapshot-and-wait.ts   asyncRewake, timeout 1800
+  Stop               (none)                                                   stop.ts                timeout 5
+  SessionStart       (none)                                                   session-start.ts       timeout 10
+  SessionStart       (none)                                                   snapshot-and-wait.ts   asyncRewake, timeout 1800
+  (Branch feat/orchestrator: snapshot-and-wait also runs at session start and on every prompt, where it
+  only listens, so an agent that hasn't edited anything yet can be woken by a task. asyncRewake on
+  those two events follows the hooks reference, which limits asyncRewake to command hooks, not to
+  events; only PostToolUse was proven with a real session, so check it once: open a fresh session,
+  ask the orchestrator for something from another laptop, and the idle session should wake.)
   Each one in exec form: "command": "node", "args": ["<absolute path to the .ts file>"].
   Install it:  npm run install-hooks -- --demo <your demo clone> --name <you>
   See every file it would write first, without writing:  add --dry-run

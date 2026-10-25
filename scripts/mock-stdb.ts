@@ -26,7 +26,8 @@
  *     revoke_access are accepted and do nothing.
  *   - No connections: register_agent marks the agent online over HTTP (the real module rejects it
  *     without a live WebSocket), and nothing ever marks an agent offline.
- *   - No WebSocket subscriptions, so the watcher and the UI need a real server (local or cloud).
+ *   - No WebSocket subscriptions, so the UI needs a real server (local or cloud). The orchestrator and
+ *     the hooks poll over HTTP, so they work with the mock.
  *   - No persistence: restarting it empties every table. Escalation uses a timer in memory.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
