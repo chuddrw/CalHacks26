@@ -180,13 +180,15 @@ carousel.addEventListener('pointerup', event => {
 });
 carousel.addEventListener('pointercancel', () => { cardDrag = undefined; });
 
-const capabilityButtons = [...document.querySelectorAll('.solution-network button')];
-capabilityButtons.forEach(button => button.addEventListener('click', () => {
+const capabilityCards = [...document.querySelectorAll('.solution-network article')];
+capabilityCards.forEach(card => card.addEventListener('click', () => {
+  const button = card.querySelector('button');
   const expand = button.getAttribute('aria-expanded') !== 'true';
-  capabilityButtons.forEach(item => {
-    const open = item === button && expand;
-    item.setAttribute('aria-expanded', String(open));
-    item.nextElementSibling.hidden = !open;
+  capabilityCards.forEach(item => {
+    const itemButton = item.querySelector('button');
+    const open = item === card && expand;
+    itemButton.setAttribute('aria-expanded', String(open));
+    itemButton.nextElementSibling.hidden = !open;
   });
 }));
 

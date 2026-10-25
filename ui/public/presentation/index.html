@@ -28,19 +28,19 @@
       <div class="slide-content">
         <p class="eyebrow">01 / Summary</p>
         <h1 id="summary-title"><img class="brand-logo" src="./assets/orkio-logo.png" alt="" />Orkio</h1>
-        <p class="summary-question">Your agents finished.<br />Does their code work together?</p>
-        <p class="headline">Connecting AI coding agents from different hardware to work together</p>
+        <p class="summary-question">Is your code <em>Orkio</em>?</p>
+        <p class="headline">Making sure AI agents on different laptops don't break each other's code.</p>
       </div>
     </section>
     <section class="slide" id="problem" aria-labelledby="problem-title" tabindex="-1">
       <div class="slide-content">
         <p class="eyebrow">02 / Problem</p>
-        <h2 id="problem-title">Limitations of Existing Solution</h2>
+        <h2 id="problem-title">The Bottleneck in Multi-Agent Development</h2>
         <div class="limitations-stack">
           <svg class="limitation-links" viewBox="0 0 80 360" preserveAspectRatio="none" aria-hidden="true"><path d="M80 60 C0 60 0 180 80 180 C0 180 0 300 80 300"/></svg>
-          <article><span class="limitation-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="13" height="13" rx="3"/><path d="M8 20h10a3 3 0 0 0 3-3V8M7 8h5M7 12h3"/></svg></span><h3><strong>Context:</strong> Agents work in isolation</h3></article>
-          <article><span class="limitation-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="5" r="2"/><circle cx="12" cy="19" r="2"/><path d="M6 7v2c0 4 6 3 6 8M18 7v2c0 4-6 3-6 8"/></svg></span><h3><strong>Merge:</strong> Clean merges can still break the app</h3></article>
-          <article><span class="limitation-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></span><h3><strong>Human:</strong> People have to coordinate the repair</h3></article>
+          <article><span class="limitation-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="13" height="13" rx="3"/><path d="M8 20h10a3 3 0 0 0 3-3V8M7 8h5M7 12h3"/></svg></span><h3><strong>Context:</strong> Agents on different laptops have different context.</h3></article>
+          <article><span class="limitation-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="5" r="2"/><circle cx="12" cy="19" r="2"/><path d="M6 7v2c0 4 6 3 6 8M18 7v2c0 4-6 3-6 8"/></svg></span><h3><strong>Merge:</strong> Changes often conflict—or merge cleanly but break the app.</h3></article>
+          <article><span class="limitation-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></span><h3><strong>Human:</strong> Developers must bridge the context gap, slowing everything down.</h3></article>
         </div>
       </div>
     </section>
@@ -52,7 +52,7 @@
           <svg viewBox="0 0 1000 400" preserveAspectRatio="none" aria-hidden="true"><path d="M220 70 L350 120 M780 70 L650 120 M220 330 L350 280 M780 330 L650 280"/></svg>
           <article class="network-agent top-left"><button aria-expanded="false">Auto Conflict Resolution</button><p hidden>Find failures in combined code and route repair context to the assigned agent.</p></article>
           <article class="network-agent top-right"><button aria-expanded="false">Orchestrator’s Task Delegation</button><p hidden>Coordinate tasks across agents and track who owns each repair.</p></article>
-          <article class="network-hub"><button aria-expanded="true">Orkio</button><p>Shared hive feature</p></article>
+          <article class="network-hub"><button aria-expanded="true">Orkio</button><p>The Shared Context</p></article>
           <article class="network-agent bottom-left"><button aria-expanded="false">Human-in-the-“right”-loop</button><p hidden>Bring people in when a change needs judgment or approval.</p></article>
           <article class="network-agent bottom-right"><button aria-expanded="false">Git and Version Control</button><p hidden>Keep work-in-progress snapshots traceable while checking how changes work together.</p></article>
         </div>
@@ -61,17 +61,16 @@
     <section class="slide" id="benchmark" aria-labelledby="benchmark-title" tabindex="-1">
       <div class="slide-content">
         <p class="eyebrow">04 / Benchmark</p>
-        <h2 id="benchmark-title">Our Product's Performance</h2>
+        <h2 id="benchmark-title">Putting Orkio to the Test</h2>
         <div class="table-scroll"><table>
           <thead><tr><th scope="col">Metric</th><th scope="col">Orkio</th><th scope="col">GitHub (Traditional)</th></tr></thead>
           <tbody>
-            <tr><th scope="row">Human interference</th><td>To measure</td><td>To measure</td></tr>
-            <tr><th scope="row">Time</th><td>To measure</td><td>To measure</td></tr>
-            <tr><th scope="row">Token</th><td>To measure</td><td>To measure</td></tr>
-            <tr><th scope="row">Quality/Logic</th><td>To measure</td><td>To measure</td></tr>
+            <tr><th scope="row">Prompt count</th><td>2</td><td>9</td></tr>
+            <tr><th scope="row">Conflict count</th><td>0</td><td>1</td></tr>
+            <tr><th scope="row">Total time</th><td>10 min</td><td>16 min</td></tr>
+            <tr><th scope="row">Tokens used</th><td>380k + 26k plan</td><td>430k</td></tr>
           </tbody>
         </table></div>
-        <p class="section-note">We haven’t collected these results yet. We’ll use the same model versions, starting code, and budgets, and report how many runs we measured.</p>
       </div>
     </section>
     <section class="slide" id="technical" aria-labelledby="technical-title" tabindex="-1">

@@ -1,4 +1,25 @@
 /* Presentation deck styled to match the Orkio workspace: warm charcoal, terracotta, node cards. */
+@font-face {
+  font-family: "EB Garamond";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/eb-garamond-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "EB Garamond";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/eb-garamond-400-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "EB Garamond";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/eb-garamond-700.woff2") format("woff2");
+}
 :root {
   font-family: Inter, "Segoe UI", system-ui, sans-serif;
   color: #ece8e2;
@@ -179,8 +200,8 @@ body:has(#technical.is-active) .deck-controls { display: none; }
 .limitations-stack h3 { margin: 0; font-size: clamp(1.2rem, 2vw, 1.7rem); }
 .limitation-links { position: absolute; left: 0; top: 0; width: 65px; height: 100%; fill: none; stroke: #5c5955; stroke-width: 2; stroke-dasharray: 3 7; }
 .solution-network { position: relative; height: 400px; width: 100%; }
-.solution-network svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: #5c5955; stroke-width: 1.6; stroke-dasharray: 3 8; }
-.solution-network article { position: absolute; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 18px; }
+.solution-network svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: #5c5955; stroke-width: 1.6; stroke-dasharray: 3 8; pointer-events: none; }
+.solution-network article { position: absolute; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 18px; cursor: pointer; }
 .network-agent { width: 24%; height: 30%; }
 .network-agent h3 { margin: 10px 0 0; }
 .top-left { top: 0; left: 0; } .top-right { top: 0; right: 0; }
@@ -203,9 +224,10 @@ body:has(#technical.is-active) .deck-controls { display: none; }
 .limitations-stack h3 strong { font-weight: 700; color: var(--text); }
 @media(max-width:600px) { .limitations-stack article { gap: 14px; } .limitation-icon { width: 38px; height: 38px; flex-basis: 38px; } }
 
-#summary h1 { display: flex; align-items: center; gap: 0.14em; font-size: clamp(6rem, 15vw, 12rem); margin-bottom: 20px; }
+#summary h1 { display: flex; align-items: center; gap: 0.14em; font-family: "EB Garamond", Garamond, serif; font-weight: 700; font-size: clamp(6rem, 15vw, 12rem); letter-spacing: 0.0em; margin-bottom: 20px; }
 .brand-logo { width: 0.82em; height: 0.82em; border-radius: 0.14em; object-fit: cover; flex-shrink: 0; }
-#summary .summary-question { font-size: clamp(2rem, 4.5vw, 4.5rem); line-height: 1.16; }
+#summary .summary-question { font-family: "EB Garamond", Garamond, serif; font-weight: 400; font-size: clamp(2rem, 4.5vw, 4.5rem); line-height: 1.16; }
+#summary .summary-question em { font-style: italic; color: var(--accent); }
 .solution-network .network-agent { width: 29%; height: 28%; transition: height .3s ease, border-color .2s ease; }
 .solution-network .network-agent:has(button[aria-expanded="true"]) { height: 48%; border-color: var(--accent); }
 .solution-network .network-hub { left: 33%; width: 34%; height: 32%; top: 34%; transition: height .3s ease, top .3s ease; }
@@ -213,7 +235,7 @@ body:has(#technical.is-active) .deck-controls { display: none; }
 .solution-network article { overflow: auto; scrollbar-width: none; }
 .solution-network article::-webkit-scrollbar { display: none; }
 .solution-network button { background: none; border: 0; color: inherit; font: 650 clamp(.9rem, 1.65vw, 1.35rem)/1.3 Inter, "Segoe UI", sans-serif; padding: 10px 0; cursor: pointer; width: 100%; }
-.solution-network .network-hub button { font-size: 2rem; color: var(--accent); }
+.solution-network .network-hub button { font-family: "EB Garamond", Garamond, serif; font-weight: 700; font-size: 3rem; color: var(--accent); }
 .solution-network article p { font-size: .85rem; line-height: 1.45; margin-top: 8px; }
 .solution-network article p[hidden] { display: none; }
 .technical-points { margin: 0; padding-left: 24px; display: grid; gap: 12px; font-size: clamp(.85rem, 1.4vw, 1.1rem); }
@@ -226,7 +248,7 @@ body:has(#technical.is-active) .deck-controls { display: none; }
 #benchmark thead th { background: var(--surface-2); color: var(--text); font-size: 1rem; font-weight: 700; padding: 20px 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 #benchmark thead th:first-child { border-radius: 14px 0 0 14px; border-left: 1px solid var(--line); }
 #benchmark thead th:last-child { border-radius: 0 14px 14px 0; border-right: 1px solid var(--line); }
-#benchmark thead th:nth-child(2) { color: var(--accent); }
+#benchmark thead th:nth-child(2) { color: var(--accent); font-family: "EB Garamond", Garamond, serif; font-weight: 700; font-size: 1.45rem; }
 #benchmark tbody th { color: var(--text); font-weight: 550; }
 
 #closing h2 { text-align: center; max-width: none; }
