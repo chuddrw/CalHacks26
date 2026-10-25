@@ -3,17 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A standalone task-list app that uses the local Orkio coding-agent tool.",
-  "engines": { "node": ">=24" },
+  "description": "A simple shopping app using the shared catalog, cart service, and simulated checkout, coordinated with Orkio.",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "start": "node src/index.js",
-    "typecheck": "node --check src/index.js && node --check src/tasks.js",
-    "test": "node --test",
+    "start": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit -p . && node --check src/checkout/checkout.js && node --check src/checkout/payment.js",
+    "test": "vitest run && node --test test/payment.test.js",
     "orkio": "orkio",
     "orkio:connect": "orkio install",
-    "orkio:doctor": "orkio doctor"
+    "orkio:doctor": "orkio doctor",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
   },
   "devDependencies": {
-    "orkio": "file:../orkio"
+    "happy-dom": "^21.0.4",
+    "orkio": "file:../orkio",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }

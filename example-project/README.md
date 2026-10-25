@@ -3,14 +3,18 @@
 This is a separate app with its own source and package manifest. Orkio is a development tool dependency (`file:../orkio`): it coordinates the coding agents working on the app through Claude Code hooks and MCP. The app runs independently of the database.
 
 ```sh
-npm install --offline
+npm ci
 npm start
 npm run typecheck
 npm test
 npm run orkio -- --help
 ```
 
-The initial app prints a small task list and has no behavior tests yet. Replace it with your own application.
+Open the URL printed by `npm start`. Add products to the cart and choose Checkout. Payment is explicitly simulated: use card `4242 4242 4242 4242`, CVC `123`, any name, a valid email, and an unexpired date. No money is charged. Successful payment shows the paid amount and empties the cart.
+
+The app's `src/main.ts` mounts the catalog and cart view using one shared cart, then connects `initializeCheckout(cart)` and `openCheckout()`. All totals come from the cart service. `npm test` runs the feature tests and combined DOM integration checks; `npm run build` creates the production app in `dist/`.
+
+The cart and catalog modules were imported unchanged from the team repository, [CalHacks26-Demo](https://github.com/chuddrw/CalHacks26-Demo): cart agent commit `11d4a02` and catalog agent commit `6a1d203`. Checkout and the app entry compose those implementations locally. This import does not update that separate repository.
 
 ## Connect Orkio
 
