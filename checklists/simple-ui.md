@@ -96,3 +96,14 @@ Known limit: in big-screen mode with the Needs you bar, one task label may find 
 
 Checked: UI tests 38 / 38, typecheck, build. In the browser: the whole story plays 14 transfers through the right hubs (review, message, conflict, memory and task into SpacetimeDB; wip/a, wip/b and cowork/full-stack into GitHub). Also checked an 800 px window, big screen, and live mode against the team database (read only, no burst on load).
 
+
+## Round 4: look (A, 2026-10-24)
+
+A: no color on the sides; think of Apple and Claude. A chose the dark version: warm charcoal.
+
+- [x] No colored side or top bars anywhere (nodes, the orchestrator, thread messages, the review card). Status shows as a small dot and colored text only.
+- [x] Palette from Claude's dark mode: warm charcoal surfaces, ivory text, clay (#D97757) for the brand mark, primary buttons, selection rings and the SpacetimeDB title. Clay is never a status.
+- [x] Work in progress (tasks, "Checking", the orchestrator working) is soft parchment, so it can't be confused with conflict red.
+- [x] Apple-like surfaces: shadows instead of outlines, larger radii, more spacing, system font, serif for the brand, the hubs and the drawer titles; tinted pills without outlines; the drawer floats as a rounded panel.
+- [x] Arrows that detour around the database hub go on the side away from it.
+- [x] Checked in the browser (conflict scene, drawer, arrows); UI tests 38 / 38, typecheck, build.

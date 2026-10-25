@@ -230,7 +230,7 @@ function crosses(a: Point, b: Point, r: Rect): boolean {
 /**
  * A slightly bowed arrow from border to border; in and out of the same hub bow to opposite sides.
  * If `avoid` (the database hub) is in the way, as it is between the orchestrator and GitHub,
- * the arrow bows wide enough to go around it.
+ * the arrow bows wide enough to go around it, on the side away from it.
  */
 function hop(a: Rect, b: Rect, avoid?: Rect): Hop {
   const ac = centerOf(a);
@@ -238,14 +238,20 @@ function hop(a: Rect, b: Rect, avoid?: Rect): Hop {
   const dx = bc.x - ac.x;
   const dy = bc.y - ac.y;
   const dist = Math.hypot(dx, dy) || 1;
-  const bow =
-    avoid && avoid !== a && avoid !== b && crosses(ac, bc, avoid)
-      ? 2 * (avoid.w / 2 + 28)
-      : Math.min(36, dist * 0.12);
-  const ctrl = {
-    x: (ac.x + bc.x) / 2 - (dy / dist) * bow,
-    y: (ac.y + bc.y) / 2 + (dx / dist) * bow,
-  };
+  const detour = !!avoid && avoid !== a && avoid !== b && crosses(ac, bc, avoid);
+  const bow = detour ? 2 * (avoid.w / 2 + 28) : Math.min(36, dist * 0.12);
+  const side = (sign: number) => ({
+    x: (ac.x + bc.x) / 2 - (dy / dist) * bow * sign,
+    y: (ac.y + bc.y) / 2 + (dx / dist) * bow * sign,
+  });
+  let ctrl = side(1);
+  if (detour) {
+    // Go around on whichever side is further from the hub.
+    const hub = centerOf(avoid);
+    const other = side(-1);
+    if (Math.hypot(other.x - hub.x, other.y - hub.y) > Math.hypot(ctrl.x - hub.x, ctrl.y - hub.y))
+      ctrl = other;
+  }
   const s = borderPoint(a, ctrl);
   const e = borderPoint(b, ctrl);
   return {

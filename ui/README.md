@@ -16,7 +16,7 @@ The simulator runs entirely in the browser and performs no database writes.
 Use the scene selector or **Play story** to inspect working → conflict → fixing →
 resolved. Escalation and test-review scenes are available separately.
 
-One screen, plain dark. On the left is the team graph, drawn as a hive. **SpacetimeDB** sits in
+One screen in warm charcoal, after Claude's dark mode with Apple-like restraint: soft surfaces and shadows instead of outlines, no colored edges, Claude's clay only for the brand, primary buttons, selection and the database hub. Color appears only in small dots and text: parchment for work in progress, green passing, red conflict, amber waiting on a person. On the left is the team graph, drawn as a hive. **SpacetimeDB** sits in
 the middle, because no agent talks to another directly: each writes to the shared database and the
 others get it through their subscription. The hub shows how many agents are connected, the rows per
 table and the latest verified fact. **GitHub** is the smaller hub below it, where the code itself

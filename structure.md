@@ -258,7 +258,7 @@ B's code from the watcher, moved here so every agent can run it on its own clone
 | `src/team.ts` | Pure derivations for the screen: the team graph (tasks, reviews, conflict threads), what each agent is doing, what needs a human, the activity feed, the hubs' numbers | A | Oct 24 |
 | `src/stdb.ts` | Connects to SpacetimeDB, subscribes to every table, exposes the rows to React; `reviewTestChange`, `decideReview` and `decideConflict` for the buttons people press | D | Tonight |
 | `src/session.ts` | The page side of `dev-session.ts`: fetches the token once and keeps it in memory | A (for D) | Done Oct 24 |
-| `src/app.css` | The only stylesheet: plain dark, color only for meaning, `.big` scales it for the projector | A | Oct 24 |
+| `src/app.css` | The only stylesheet: warm charcoal (Claude dark mode, Apple restraint), no colored edges, clay accent never used as a status, `.big` scales it for the projector | A | Oct 24 |
 | `src/components/Graph.tsx` | The team graph as a hive: SpacetimeDB and GitHub hubs in the middle, the orchestrator, agents and people in a ring, task / review / conflict curves, and each transfer as two hops through a hub | A | Oct 24 |
 | `src/components/NowList.tsx` | One row per agent: state, what it is doing, files, last activity | A | Oct 24 |
 | `src/components/NeedsYou.tsx` | Bar shown only when a person must act | A | Oct 24 |
