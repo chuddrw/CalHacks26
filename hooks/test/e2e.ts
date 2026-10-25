@@ -351,8 +351,8 @@ try {
   client = new Client({ name: "cowork-e2e", version: "0.0.0" });
   await client.connect(transport);
   const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-  const expectedTools = ["agree", "ask_orchestrator", "check_with_team", "complete_task", "escalate", "message_teammate", "post_intent", "pull_teammate", "team_status"];
-  check("MCP server lists its 9 tools", JSON.stringify(tools) === JSON.stringify(expectedTools), tools.join(", "));
+  const expectedTools = ["agree", "ask_orchestrator", "check_with_team", "complete_task", "escalate", "get_full_stack", "message_teammate", "post_intent", "pull_teammate", "team_status"];
+  check("MCP server lists its 10 tools", JSON.stringify(tools) === JSON.stringify(expectedTools), tools.join(", "));
   await waitFor("register_agent from the MCP server", () => mock!.calls.some((c) => c.reducer === "register_agent" && c.args[0] === "b"), 5000);
   check("MCP server marks b online", db.agent.find((x) => x.name === "b")?.online === true);
 
@@ -373,6 +373,8 @@ try {
   check("pulling twice is safe", again.includes("already in your working tree"), again.slice(0, 80));
   const nobody = textOf(await client.callTool({ name: "pull_teammate", arguments: { agent: "zed" } }));
   check("pulling an agent with no snapshot explains why", nobody.includes("has no snapshot yet"));
+  const noStack = textOf(await client.callTool({ name: "get_full_stack", arguments: {} }));
+  check("get_full_stack says when there's no full stack yet", noStack.includes("no full stack yet") && !existsSync(`${cloneB}-full-stack`), noStack.slice(0, 80));
 
   // ---- 9. orchestrator: c's human asks; Droid's plan (scripted here); the contract rule; review ----
   // The orchestrator's own clone, with cowork.owners.json on main (demo-app has it).
@@ -401,7 +403,7 @@ try {
     conflicts: [{ agentA: "a", agentB: "b", topic: "lastLogin unit", details: "b's in-progress idle.ts assumes seconds", suggested: "b" }],
   }));
   const orchestrator = spawn(process.execPath, [tsxCli, path.join(repoRoot, "orchestrator", "src", "index.ts")], {
-    env: { ...process.env, ...envFor("orchestrator"), DEMO_REPO_PATH: orchestratorClone, COWORK_PLAN_FILE: planFile },
+    env: { ...process.env, ...envFor("orchestrator"), DEMO_REPO_PATH: orchestratorClone, COWORK_PLAN_FILE: planFile, COWORK_FULL_STACK: "0" },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });

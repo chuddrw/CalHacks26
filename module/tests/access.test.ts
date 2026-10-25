@@ -61,10 +61,11 @@ const mutations: Array<[string, (ctx: Ctx) => void]> = [
   ['complete_task', ctx => module.complete_task(ctx, { taskId: 1, agent: 'a', summary: 'done' })],
   ['post_message', ctx => module.post_message(ctx, { conflictId: 1, agent: 'a', kind: 'message', body: 'hi' })],
   ['decide_conflict', ctx => module.decide_conflict(ctx, { conflictId: 1, decision: 'use milliseconds' })],
+  ['publish_build', ctx => module.publish_build(ctx, { branch: 'cowork/full-stack', sha: 'abc1234', mainSha: 'base', agents: ['a', 'b'], result: 'green', log: 'ok', requestId: 1 })],
 ];
 function state(h: ReturnType<typeof setup>['h']) {
   const names = ['agentData', 'snapshotData', 'intentData', 'checkRunData', 'conflictData', 'inboxData', 'diagnosisStepData', 'agent_connection', 'escalation_timer', 'accessMember', 'testReview',
-    'requestData', 'taskData', 'reviewData', 'messageData', 'planStepData'] as const;
+    'requestData', 'taskData', 'reviewData', 'messageData', 'planStepData', 'buildData'] as const;
   return Object.fromEntries(names.map(name => [name, [...h.db[name].iter()]]));
 }
 function seed(s: ReturnType<typeof setup>) {
@@ -81,6 +82,7 @@ function seed(s: ReturnType<typeof setup>) {
     module.add_plan_step(ctx, { requestId: 1, kind: 'status', detail: 'planning' });
     module.publish_plan(ctx, { requestId: 1, summary: 'plan', plan: orchestratorPlan });
     module.post_message(ctx, { conflictId: 1, agent: 'a', kind: 'message', body: 'I changed the unit' });
+    module.publish_build(ctx, { branch: 'cowork/full-stack', sha: 'abc1234', mainSha: 'base', agents: ['a', 'b'], result: 'green', log: 'ok', requestId: 0 });
   });
 }
 const views = {
@@ -96,6 +98,7 @@ const views = {
   review: { fn: module.review, backing: 'reviewData' },
   message: { fn: module.message, backing: 'messageData' },
   plan_step: { fn: module.plan_step, backing: 'planStepData' },
+  build: { fn: module.build, backing: 'buildData' },
 } as const;
 
 it.each(mutations)('%s denies unsigned, nonmember and reader mutations without changing any rows', (_name, mutation) => {

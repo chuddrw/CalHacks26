@@ -25,6 +25,7 @@ Each agent only sees its own laptop. A changes `lastLogin` from seconds to milli
 5. **Work.** Each agent's listener hook wakes it with its task, even when idle (the listener also starts at session start and on every prompt). Snapshots still go to `wip/<name>` after every edit. Before finishing, an agent runs `check_with_team`: tsc + vitest on its work alone and merged with each teammate's work in progress. `complete_task` needs a green check.
 6. **Settle.** A flagged overlap, or a red pair from a check, opens a conflict thread between the two agents. They talk (`message_teammate` wakes the other), change their own files, and both `agree`. Both agreeing plus a current green check covering both resolves it, and the agreed sentence becomes a verified fact.
 7. **Escalate.** `escalate`, 12 messages without agreement, or 5 minutes open: the conflict goes to both humans, who decide on the dashboard. The decision wakes both agents.
+8. **Full stack.** The orchestrator merges main and every agent's latest snapshot in a disposable worktree whenever one changes, runs tsc + vitest, and pushes the result to `cowork/full-stack` only when it's green (the team's working main; real `main` is never written). A finished request triggers a build and a note to every agent; `get_full_stack` / `npm run full-stack` puts it in `<clone>-full-stack` on any laptop. Droid's planning worktree starts from it.
 
 Git, tsc and the tests decide red or green. Droid plans and the agents negotiate; no model declares green.
 

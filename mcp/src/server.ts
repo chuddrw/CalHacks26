@@ -14,6 +14,7 @@
  *     agree             "my side is done and I agree": both agreeing on a green check resolves it
  *     escalate          hand the conflict to both humans (they decide on the dashboard)
  *     complete_task     finish an orchestrator task, on a green check
+ *     get_full_stack    the orchestrator's full stack (everyone's work, checked) in <clone>-full-stack
  *
  * OWNER: A. Since branch feat/orchestrator there's no watcher and no single fixer: the agents check
  *        their own work against their teammates' and settle conflicts with each other directly.
@@ -53,6 +54,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { config, missingSettings } from "../../shared/src/config.ts";
+import { getFullStack } from "../../shared/src/full-stack.ts";
 import { git } from "../../shared/src/git.ts";
 import { pairKey, wipBranch, type ConflictRow, type SnapshotRow } from "../../shared/src/schema.ts";
 import { callReducer, selectRows, sqlString } from "../../shared/src/stdb-http.ts";
@@ -399,6 +401,22 @@ server.registerTool(
       return reply(`${check.text}\nTask #${taskId} is done. The human who asked gets your summary.`);
     } catch (error) {
       return reply(`complete_task failed: ${errorMessage(error)}`, true);
+    }
+  },
+);
+
+server.registerTool(
+  "get_full_stack",
+  {
+    description:
+      "Put the team's full stack in a folder next to your clone: main plus everyone's latest work that passes the checks together, kept by the orchestrator on cowork/full-stack. Your own working tree isn't touched. Use it when a [cowork] note says the full stack is ready, or when your human wants to run the whole project.",
+  },
+  async () => {
+    try {
+      const result = await getFullStack(process.cwd());
+      return reply(result.text, !result.ok);
+    } catch (error) {
+      return reply(`get_full_stack failed: ${errorMessage(error)}`, true);
     }
   },
 );

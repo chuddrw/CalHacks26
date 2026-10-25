@@ -34,8 +34,8 @@ PRESENCE
 CHECK IT WORKS
   - npm run doctor -- --demo <your demo clone>   (sign-in, approval, hooks, .mcp.json, push rights)
   - Open the demo clone in Claude Code (VS Code: File > Open Folder). Trust the workspace when asked.
-  - /mcp shows cowork as connected, with its nine tools: ask_orchestrator, post_intent, team_status,
-    pull_teammate, check_with_team, message_teammate, agree, escalate, complete_task.
+  - /mcp shows cowork as connected, with its ten tools: ask_orchestrator, post_intent, team_status,
+    pull_teammate, check_with_team, message_teammate, agree, escalate, complete_task, get_full_stack.
   - check_with_team needs the demo clone's own node_modules (npm install in the clone): it runs tsc and
     vitest in temporary worktrees of your clone, which it removes when the session ends.
   - Your agent's card in the UI turns online.

@@ -308,6 +308,36 @@ export interface PlanStepRow {
 }
 
 /**
+ * The branch where the orchestrator keeps the team's full stack: main plus every agent's latest
+ * work, merged and checked. It works like the team's main: only green builds are pushed to it, and
+ * every laptop can run it (get_full_stack). The real main is never written.
+ */
+export const FULL_STACK_BRANCH = "cowork/full-stack";
+
+/**
+ * Authenticated view `build`. One row per full-stack build the orchestrator recorded: a green one was
+ * pushed to `branch`; a red one (only recorded when a finished request triggered it) says why not.
+ * Primary key: id (auto-increment).
+ */
+export interface BuildRow {
+  id: number;
+  /** FULL_STACK_BRANCH for a green build; "" for a red one (nothing was pushed). */
+  branch: string;
+  /** The merged commit: main plus every agent's latest snapshot. */
+  sha: string;
+  /** The main commit it was built on. */
+  mainSha: string;
+  /** Agents whose work is in it. */
+  agents: AgentName[];
+  result: RunResult;
+  /** What it contains, or why it's red. Cut to 4 KB. */
+  log: string;
+  /** The request whose completion triggered it; 0 for a build after ordinary progress. */
+  requestId: number;
+  createdAt: Millis;
+}
+
+/**
  * The plan the orchestrator publishes for one request (publish_plan's `plan` argument, as JSON).
  * The module validates it and writes it in one transaction.
  */
@@ -340,6 +370,7 @@ export const Columns = {
   review: ["id", "requestId", "reviewer", "summary", "status", "answer", "createdAt", "decidedAt"],
   message: ["id", "conflictId", "author", "kind", "body", "createdAt"],
   plan_step: ["id", "requestId", "kind", "detail", "createdAt"],
+  build: ["id", "branch", "sha", "mainSha", "agents", "result", "log", "requestId", "createdAt"],
 } as const;
 
 export interface TableRows {
@@ -355,6 +386,7 @@ export interface TableRows {
   review: ReviewRow;
   message: MessageRow;
   plan_step: PlanStepRow;
+  build: BuildRow;
 }
 export type TableName = keyof TableRows;
 
@@ -455,5 +487,10 @@ export interface ReducerArgs {
   post_message: [conflictId: number, agent: AgentName, kind: AgentMessageKind, body: string];
   /** Dashboard: both humans' decision on a conflict. Reopens it and wakes both agents with the decision. */
   decide_conflict: [conflictId: number, decision: string];
+  /**
+   * Orchestrator: a full-stack build. A green one built for a finished request (requestId > 0)
+   * sends every agent an info note: the full stack is ready, call get_full_stack.
+   */
+  publish_build: [branch: string, sha: string, mainSha: string, agents: AgentName[], result: RunResult, log: string, requestId: number];
 }
 export type ReducerName = keyof ReducerArgs;

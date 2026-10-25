@@ -43,6 +43,7 @@ const enums: Partial<Record<TableName, Record<string, string[]>>> = {
   review: { status: ["pending", "approved", "rejected", "cancelled"] },
   message: { kind: ["message", "agree", "escalate", "decision"] },
   plan_step: { kind: ["status", "tool_call", "tool_result", "thought", "final", "error"] },
+  build: { result: ["green", "red"] },
 };
 const camelCase = (value: string) =>
   value.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());

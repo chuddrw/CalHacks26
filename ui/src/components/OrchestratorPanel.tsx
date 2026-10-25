@@ -120,6 +120,43 @@ function PlanSteps({ request }: { request: RequestRow }) {
   );
 }
 
+/** The orchestrator's full stack: everyone's work merged and checked on cowork/full-stack. */
+function FullStack() {
+  const builds = useRows("build");
+  const now = useNow();
+  const newest = [...builds].sort((a, b) => b.createdAt - a.createdAt || b.id - a.id);
+  const green = newest.find((build) => build.result === "green");
+  const red = newest[0]?.result === "red" ? newest[0] : undefined;
+  return (
+    <section className="inspector-section full-stack">
+      <h3>Full stack (the team's working main)</h3>
+      {!green ? (
+        <p className="muted small">
+          No full stack yet. The orchestrator pushes cowork/full-stack once everyone's work passes the checks together.
+        </p>
+      ) : (
+        <div className="explanation resolved">
+          <Icon name="check" />
+          <div>
+            <strong>
+              {green.branch} @ {green.sha.slice(0, 8)} · checks pass
+            </strong>
+            <p>
+              {green.agents.length ? `Main plus work from ${green.agents.map((a) => a.toUpperCase()).join(", ")}` : "Main only"} ·{" "}
+              <time title={absoluteTime(green.createdAt)}>{relativeTime(green.createdAt, now)}</time>
+            </p>
+            <p className="small muted">
+              Run it on any laptop: ask your agent for get_full_stack, or npm run full-stack -- --demo &lt;your clone&gt;. It lands in
+              &lt;clone&gt;-full-stack; your own work isn't touched.
+            </p>
+          </div>
+        </div>
+      )}
+      {red && <p className="small">The latest build for a finished request is red: {red.log.split("\n")[0]}</p>}
+    </section>
+  );
+}
+
 export function OrchestratorPanel({ requestId }: { requestId?: number }) {
   const requests = useRows("request");
   const tasks = useRows("task");
@@ -130,16 +167,19 @@ export function OrchestratorPanel({ requestId }: { requestId?: number }) {
   const selected = sorted.find((r) => r.id === selectedId) ?? sorted[0];
   if (!selected) {
     return (
-      <div className="workspace-empty">
-        <span className="empty-orbit">
-          <Icon name="sparkle" size={30} />
-        </span>
-        <h3>No requests yet</h3>
-        <p>
-          A human tells their own agent what they want; the agent forwards it with ask_orchestrator. Droid then plans it and assigns
-          each part to the agent that owns that feature.
-        </p>
-      </div>
+      <section className="orchestrator-content">
+        <FullStack />
+        <div className="workspace-empty">
+          <span className="empty-orbit">
+            <Icon name="sparkle" size={30} />
+          </span>
+          <h3>No requests yet</h3>
+          <p>
+            A human tells their own agent what they want; the agent forwards it with ask_orchestrator. Droid then plans it and assigns
+            each part to the agent that owns that feature.
+          </p>
+        </div>
+      </section>
     );
   }
   const mineReviews = reviews.filter((r) => r.requestId === selected.id).sort((a, b) => a.id - b.id);
@@ -152,8 +192,9 @@ export function OrchestratorPanel({ requestId }: { requestId?: number }) {
           <Icon name="sparkle" />
           Orchestrator
         </h2>
-        <span className="eyebrow">REQUEST → PLAN → TASKS</span>
+        <span className="eyebrow">REQUEST → PLAN → TASKS → FULL STACK</span>
       </div>
+      <FullStack />
       {sorted.length > 1 && (
         <div className="conflict-tabs" aria-label="Select a request">
           {sorted.map((r) => (

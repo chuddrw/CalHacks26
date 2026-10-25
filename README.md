@@ -19,6 +19,7 @@ When four people each run a coding agent on their own laptop, every agent only s
 5. **Work.** Each agent is woken with its task by a background hook, even when idle. Before finishing, it runs `check_with_team`: its uncommitted work merged with each teammate's work in progress, then the type checker and the tests.
 6. **Agents settle conflicts themselves.** When the orchestrator flags an overlap, or an agent's check finds a clash, the two agents get a conflict thread. They message each other (each message wakes the other), change their own files, and both call `agree`. Agreement plus a green check resolves it, and the agreed fact goes into shared memory for every later agent.
 7. **Escalation.** If they can't agree, or after 12 messages or 5 minutes, the conflict goes to both humans, who decide on the dashboard. The decision wakes both agents.
+8. **Full stack.** The orchestrator keeps everyone's latest work merged on `cowork/full-stack`, rebuilt whenever someone's work changes and pushed only when tsc and the tests pass on the whole thing: a main branch that always runs. When a request is done, every agent hears it, and `get_full_stack` (or `npm run full-stack`) puts the whole project next to each laptop's clone, ready to demo. Droid plans on top of it, so it sees everyone's files.
 
 Git, the type checker and the tests decide red or green. Droid plans and the agents talk, but no model ever declares a change green.
 

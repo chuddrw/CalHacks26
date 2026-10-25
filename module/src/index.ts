@@ -75,9 +75,15 @@ const planStepData = table({ name: 'plan_step_data' }, {
   id: t.u32().primaryKey().autoInc(), requestId: t.u32().name("requestId").index('btree'), kind: t.string(),
   detail: t.string(), createdAt: t.f64().name("createdAt"),
 });
+/** The orchestrator's full-stack builds: main plus every agent's latest work, merged and checked. */
+const buildData = table({ name: 'build_data' }, {
+  id: t.u32().primaryKey().autoInc(), branch: t.string(), sha: t.string(), mainSha: t.string().name("mainSha"),
+  agents: t.array(t.string()), result: t.string(), log: t.string(), requestId: t.u32().name("requestId"),
+  createdAt: t.f64().name("createdAt"),
+});
 const spacetimedb = schema({ agentData, snapshotData, intentData, checkRunData, conflictData, inboxData,
   diagnosisStepData, accessMember, agent_connection, escalation_timer, testReview,
-  requestData, taskData, reviewData, messageData, planStepData }, {
+  requestData, taskData, reviewData, messageData, planStepData, buildData }, {
   // SQL callers already use the frozen camelCase column names; don't normalize them.
   CASE_CONVERSION_POLICY: CaseConversionPolicy.None,
   env: { ACCESS_OWNER_IDENTITY: t.string() },
@@ -151,6 +157,8 @@ export const review = spacetimedb.view({ name: 'review', public: true }, t.array
   ctx => ctx.from.reviewData.where(() => role(ctx) !== null).build());
 export const message = spacetimedb.view({ name: 'message', public: true }, t.array(messageData.rowType),
   ctx => ctx.from.messageData.where(() => role(ctx) !== null).build());
+export const build = spacetimedb.view({ name: 'build', public: true }, t.array(buildData.rowType),
+  ctx => ctx.from.buildData.where(() => role(ctx) !== null).build());
 export const plan_step = spacetimedb.view({ name: 'plan_step', public: true }, t.array(planStepData.rowType),
   ctx => ctx.from.planStepData.where(() => role(ctx) !== null).build());
 
@@ -485,6 +493,7 @@ export const mark_delivered = spacetimedb.reducer({ inboxIds: t.array(t.u32()) }
 });
 export const reset_all = spacetimedb.reducer({}, ctx => {
   requireOwner(ctx);
+  for (const row of ctx.db.buildData.iter()) ctx.db.buildData.id.delete(row.id);
   for (const row of ctx.db.planStepData.iter()) ctx.db.planStepData.id.delete(row.id);
   for (const row of ctx.db.messageData.iter()) ctx.db.messageData.id.delete(row.id);
   for (const row of ctx.db.reviewData.iter()) ctx.db.reviewData.id.delete(row.id);
@@ -804,5 +813,28 @@ export const decide_conflict = spacetimedb.reducer({ conflictId: t.u32().name("c
   post(ctx, row.id, HUMAN, 'decision', decision);
   for (const agent of participants(row)) {
     note(ctx, agent, 'message', row.id, `[cowork] Your humans decided conflict #${row.id}: ${cut(decision, 1000)}`);
+  }
+});
+
+/**
+ * Orchestrator: one full-stack build. Green ones were pushed to `branch` (the team's full stack,
+ * like a main only the orchestrator writes). A green build for a finished request tells every agent
+ * that the whole project is ready to run on their laptop.
+ */
+export const publish_build = spacetimedb.reducer({ branch: t.string(), sha: t.string(), mainSha: t.string().name("mainSha"),
+  agents: t.array(t.string()), result: t.string(), log: t.string(), requestId: t.u32().name("requestId") }, (ctx, args) => {
+  requireEditor(ctx);
+  oneOf(args.result, ['green', 'red']);
+  args.agents.forEach(name);
+  if (!/^[0-9a-f]{7,64}$/.test(args.sha)) throw new SenderError('A build needs the commit it is');
+  if (args.result === 'green' && !args.branch) throw new SenderError('A green build names the branch it was pushed to');
+  ctx.db.buildData.insert({ id: 0, ...args, log: cut(args.log, 4 * 1024), createdAt: now(ctx) });
+  if (args.result !== 'green' || !args.requestId) return;
+  const request = findRequest(ctx, args.requestId);
+  const who = args.agents.length ? args.agents.join(', ') : 'main only';
+  // Every known agent, plus everyone whose work is in it.
+  const recipients = new Set([...[...ctx.db.agentData.iter()].map(row => row.name), ...args.agents]);
+  for (const agent of recipients) {
+    note(ctx, agent, 'info', 0, `[cowork] ${request ? `Request #${request.id} is done. ` : ''}The full stack (work from ${who}) is on ${args.branch} @ ${args.sha.slice(0, 8)} and its checks pass. Call get_full_stack to run the whole project on this laptop.`);
   }
 });

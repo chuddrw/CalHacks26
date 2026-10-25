@@ -72,6 +72,13 @@ Defaults I picked (say if you want them different):
 - [x] plan.md, structure.md, README.md (where Droid is used now), external/*.txt, pitch files (demo script, Q&A, Devpost text, evidence gates).
 - [ ] Real run with two Claude Code sessions (needs two people at two laptops).
 
+### Full stack (asked Oct 24, 6 PM: "orchestrator knows all the files, like a main branch, and gives the finished project to every laptop")
+- [x] `orchestrator/src/full-stack.ts`: main + every agent's latest snapshot merged in a disposable worktree, tsc + vitest, pushed to `cowork/full-stack` only when green (real `main` is never written). Rebuilt whenever someone's work changes (checked every 5 s) and when a request finishes; a finished request's build is announced to every agent. Droid plans on top of it.
+- [x] Module: `build` table and `publish_build` reducer (2 more component tests; module 120/120).
+- [x] Each laptop: MCP tool `get_full_stack` and `npm run full-stack -- --demo <clone>` put it in `<clone>-full-stack` (a git worktree, node_modules linked); the clone's own work isn't touched.
+- [x] Dashboard: the Orchestrator drawer shows the latest full stack and how to run it.
+- [x] Tests: `npm run test:a` 84/84; `npm run test:live` 35/35, ending with the full stack announced, pulled next to a's clone, and the whole project's tests passing there.
+
 ## Commits (branch feat/orchestrator, local only)
 - c0ffb87 Replace the watcher with an orchestrator (Droid) and agent-to-agent conflict threads
 - a0c1cbd Orchestrator: start Droid sessions with direct tool calls

@@ -26,6 +26,11 @@
  *   5. publish_plan(request, summary, plan JSON). The module writes it all in one transaction.
  *   6. Remove the worktree. Anything that fails on the way: fail_request(reason), and the
  *      requester's agent is told why.
+ *   7. Between requests, the full stack (full-stack.ts): whenever main or any agent's latest
+ *      snapshot changed (checked every 5 s), rebuild it and push it if green. When a request is
+ *      done, rebuild (or re-announce an unchanged green build) and tell every agent it's ready.
+ *      Droid plans on top of the full stack, so it sees everyone's files. COWORK_FULL_STACK=0 turns
+ *      this off.
  */
 import { readFileSync } from "node:fs";
 import { config, missingSettings } from "../../shared/src/config.ts";
@@ -33,6 +38,7 @@ import { humanOf, readOwners } from "../../shared/src/owners.ts";
 import type { DiagnosisStepKind, RequestRow } from "../../shared/src/schema.ts";
 import { callReducer, selectRows } from "../../shared/src/stdb-http.ts";
 import * as git from "../../checks/src/git.ts";
+import { announce, buildFullStack, currentInputs, fullStackHead, type BuildResult } from "./full-stack.ts";
 import { importIndex } from "./imports.ts";
 import { createDroidPlanner, type Planner } from "./planner.ts";
 import { applyContractRule, type DraftPlan } from "./rules.ts";
@@ -40,6 +46,7 @@ import { describeTeam, latestSnapshots, readTeam } from "./team.ts";
 
 const POLL_MS = 1500;
 const MAX_STEPS = 300;
+const BUILD_EVERY_MS = 5000;
 
 function log(message: string): void {
   console.log(`[orchestrator] ${message}`);
@@ -84,6 +91,9 @@ export async function planRequest(request: RequestRow, planner: Planner): Promis
   try {
     await git.fetchWip();
     worktree = await git.makeWorktree(`plan-${request.id}`);
+    // Plan on the full stack (main plus everyone's latest green work) when there is one.
+    const stack = await fullStackHead();
+    if (stack) await git.resetWorktree(worktree, stack);
     const owners = readOwners(worktree);
     const draft = await planner(
       {
@@ -122,6 +132,44 @@ export async function planRequest(request: RequestRow, planner: Planner): Promis
 
 let exiting = false;
 
+// ---- The full stack ------------------------------------------------------------------------------
+let lastBuild: { key: string; result: BuildResult } | null = null;
+let lastInputsCheck = 0;
+let primed = false;
+const announced = new Set<number>();
+
+/** Keeps cowork/full-stack current; rebuilds and announces when a request is done. */
+async function keepFullStack(requests: RequestRow[]): Promise<void> {
+  const done = requests.filter((r) => r.status === "done");
+  if (!primed) {
+    // Requests finished before this orchestrator started were announced already (or never will be).
+    for (const r of done) announced.add(r.id);
+    primed = true;
+  }
+  const finished = done.filter((r) => !announced.has(r.id));
+  for (const r of finished) announced.add(r.id);
+  const requestId = finished.length ? Math.max(...finished.map((r) => r.id)) : 0;
+  if (!requestId && Date.now() - lastInputsCheck < BUILD_EVERY_MS) return;
+  lastInputsCheck = Date.now();
+  const inputs = await currentInputs();
+  if (lastBuild?.key === inputs.key) {
+    if (!requestId) return;
+    if (lastBuild.result.result === "green") {
+      await announce(lastBuild.result, inputs, requestId);
+      log(`request #${requestId} is done; the full stack ${lastBuild.result.sha.slice(0, 8)} is unchanged and green, announced`);
+      return;
+    }
+  }
+  const started = Date.now();
+  const result = await buildFullStack(inputs, requestId);
+  lastBuild = { key: inputs.key, result };
+  log(
+    `full stack ${result.result} in ${((Date.now() - started) / 1000).toFixed(1)} s` +
+      ` (${result.agents.join(", ") || "main only"})${result.result === "green" ? `: pushed ${result.sha.slice(0, 8)}` : `: ${result.log.split("\n")[0]}`}` +
+      `${requestId ? `; request #${requestId} is done` : ""}`,
+  );
+}
+
 async function shutdown(reason: string, code: number): Promise<void> {
   if (exiting) return;
   exiting = true;
@@ -159,6 +207,9 @@ async function main(): Promise<void> {
       if (next) {
         await planRequest(next, planner);
         continue;
+      }
+      if (process.env.COWORK_FULL_STACK !== "0") {
+        await keepFullStack(requests).catch((error: unknown) => console.error(`[orchestrator] full stack failed: ${errorMessage(error)}`));
       }
     } catch (error) {
       console.error(`[orchestrator] poll failed: ${errorMessage(error)}`);

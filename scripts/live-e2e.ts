@@ -15,6 +15,8 @@
  *     5. b pulls a's change, adapts sessions, and agrees on a green check; that wakes a.
  *     6. a agrees too: their work passes together, so the conflict resolves and the fact goes into
  *        shared memory. Both complete their tasks; the request is done.
+ *     7. The orchestrator's full stack (main + a's and b's work, checked) is on cowork/full-stack and
+ *        announced; get_full_stack puts it next to a's clone, and the whole project's tests pass there.
  *
  * OWNER: A (rewritten for the orchestrator; the first version tested the watcher, Oct 24).
  * USAGE: npm run test:live          needs the spacetime CLI 2.13.0 installed (it uses the CLI's
@@ -313,6 +315,24 @@ try {
   check("the request is done", (await rows("request")).find((r) => r.id === request.id)?.status === "done");
   const agents = await rows("agent");
   check("a and b are green", ["a", "b"].every((name) => agents.find((x) => x.name === name)?.status === "green"), agents.map((x) => `${x.name}:${x.status}`).join(" "));
+
+  // ---- 11. The full stack: everyone's work, checked, on every laptop ------------------------------------
+  const announcedBuild = await waitFor("the full stack for the finished request", async () =>
+    (await rows("build")).find((b) => b.requestId === request.id && b.result === "green"), 60_000).catch(() => undefined);
+  check("the orchestrator announces a green full stack for the finished request", announcedBuild?.branch === "cowork/full-stack" && announcedBuild.agents.includes("a") && announcedBuild.agents.includes("b"), announcedBuild ? `${announcedBuild.sha.slice(0, 8)}: ${announcedBuild.log}` : orchestrator.output().slice(-300));
+  const remoteHead = spawnSync("git", ["ls-remote", path.join(fixture, "remote.git"), "refs/heads/cowork/full-stack"], { encoding: "utf8" }).stdout.split(/\s+/)[0];
+  check("cowork/full-stack on the remote is that build (main is untouched)", remoteHead === announcedBuild?.sha, remoteHead?.slice(0, 8));
+  const readyNotes = (await rows("inbox")).filter((r) => r.message.includes("Call get_full_stack")).map((r) => r.agent);
+  check("every agent hears the full stack is ready", ["a", "b"].every((agent) => readyNotes.includes(agent)), [...new Set(readyNotes)].join(","));
+  const stackText = textOf(await mcpA.callTool({ name: "get_full_stack", arguments: {} }));
+  const stackFolder = path.join(fixture, "a-full-stack");
+  links.push(path.join(stackFolder, "node_modules"));
+  check("get_full_stack puts it next to a's clone", stackText.includes(stackFolder) && existsSync(path.join(stackFolder, "src", "sessions", "idle.ts")), stackText.slice(0, 120));
+  const stackSession = readFileSync(path.join(stackFolder, "src", "sessions", "session.ts"), "utf8");
+  const stackUsers = readFileSync(path.join(stackFolder, "src", "users", "user.ts"), "utf8");
+  check("it has b's sessions change and a's users change", stackSession.includes("elapsedMs") && stackUsers.includes("at.getTime()"));
+  const runAll = spawnSync(process.execPath, [path.join(stackFolder, "node_modules", "vitest", "vitest.mjs"), "run"], { cwd: stackFolder, encoding: "utf8", timeout: 120_000, windowsHide: true });
+  check("the whole project's tests pass in the full stack on a's laptop", runAll.status === 0, (runAll.stdout + runAll.stderr).split("\n").filter((l) => /Tests|passed|failed/.test(l)).slice(-2).join(" | ").slice(0, 160));
 
   for (const client of clients.splice(0)) await client.close();
   const offline = await waitFor("a and b offline", async () => (await rows("agent")).every((x) => !x.online), 20_000).catch(() => false);

@@ -36,6 +36,22 @@ export const AgentData = __t.object("AgentData", {
 });
 export type AgentData = __Infer<typeof AgentData>;
 
+export const Build = __t.object("Build", {});
+export type Build = __Infer<typeof Build>;
+
+export const BuildData = __t.object("BuildData", {
+  id: __t.u32(),
+  branch: __t.string(),
+  sha: __t.string(),
+  mainSha: __t.string(),
+  agents: __t.array(__t.string()),
+  result: __t.string(),
+  log: __t.string(),
+  requestId: __t.u32(),
+  createdAt: __t.f64(),
+});
+export type BuildData = __Infer<typeof BuildData>;
+
 export const CheckRun = __t.object("CheckRun", {});
 export type CheckRun = __Infer<typeof CheckRun>;
 

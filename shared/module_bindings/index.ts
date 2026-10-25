@@ -46,6 +46,7 @@ import MarkDeliveredReducer from "./mark_delivered_reducer";
 import PostIntentReducer from "./post_intent_reducer";
 import PostMessageReducer from "./post_message_reducer";
 import PostSnapshotReducer from "./post_snapshot_reducer";
+import PublishBuildReducer from "./publish_build_reducer";
 import PublishPlanReducer from "./publish_plan_reducer";
 import RegisterAgentReducer from "./register_agent_reducer";
 import ReportCheckReducer from "./report_check_reducer";
@@ -65,6 +66,7 @@ import SubmitRequestReducer from "./submit_request_reducer";
 
 // Import all table schema definitions
 import AgentRow from "./agent_table";
+import BuildRow from "./build_table";
 import CheckRunRow from "./check_run_table";
 import ConflictRow from "./conflict_table";
 import DiagnosisStepRow from "./diagnosis_step_table";
@@ -88,6 +90,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, AgentRow),
+  build: __table({
+    name: 'build',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, BuildRow),
   checkRun: __table({
     name: 'check_run',
     indexes: [
@@ -181,6 +190,7 @@ const reducersSchema = __reducers(
   __reducerSchema("post_intent", PostIntentReducer),
   __reducerSchema("post_message", PostMessageReducer),
   __reducerSchema("post_snapshot", PostSnapshotReducer),
+  __reducerSchema("publish_build", PublishBuildReducer),
   __reducerSchema("publish_plan", PublishPlanReducer),
   __reducerSchema("register_agent", RegisterAgentReducer),
   __reducerSchema("report_check", ReportCheckReducer),

@@ -268,12 +268,31 @@ describe('conflict threads', () => {
     for (const agent of ['a', 'b']) expect(s.inbox(agent).filter(row => row.kind === 'message')).toMatchObject([{ conflictId: id, delivered: false }]);
   });
 
+  it('a green full-stack build for a finished request tells every agent; others stay quiet', () => {
+    const s = setup();
+    const id = s.ask({ tasks: [lastLoginTask], reviews: [], conflicts: [] });
+    const before = [...s.h.db.inboxData.iter()].length;
+    s.as(ctx => module.publish_build(ctx, { branch: 'cowork/full-stack', sha: 'aaaa111', mainSha: 'base', agents: ['a', 'b'], result: 'green', log: 'progress', requestId: 0 }));
+    s.as(ctx => module.publish_build(ctx, { branch: '', sha: 'bbbb222', mainSha: 'base', agents: ['a', 'b'], result: 'red', log: 'session test fails', requestId: id }));
+    expect([...s.h.db.inboxData.iter()]).toHaveLength(before);
+    s.as(ctx => module.publish_build(ctx, { branch: 'cowork/full-stack', sha: 'cccc333', mainSha: 'base', agents: ['a', 'b'], result: 'green', log: 'all green', requestId: id }));
+    const notes = [...s.h.db.inboxData.iter()].slice(before);
+    expect(notes.map(row => row.agent).sort()).toEqual(['a', 'b']);
+    expect(notes[0]!.message).toContain(`Request #${id} is done`);
+    expect(notes[0]!.message).toContain('get_full_stack');
+    expect([...s.h.db.buildData.iter()].map(row => [row.result, row.branch])).toEqual([['green', 'cowork/full-stack'], ['red', ''], ['green', 'cowork/full-stack']]);
+    expect(() => s.as(ctx => module.publish_build(ctx, { branch: '', sha: 'dddd444', mainSha: 'base', agents: [], result: 'green', log: '', requestId: 0 }))).toThrow(/names the branch/);
+    expect(() => s.as(ctx => module.publish_build(ctx, { branch: 'x', sha: 'not a sha', mainSha: 'base', agents: [], result: 'green', log: '', requestId: 0 }))).toThrow(/commit/);
+  });
+
   it('reset clears requests, tasks, reviews, messages and plan steps', () => {
     const s = setup(); open(s);
     s.ask({ tasks: [lastLoginTask], reviews: [{ reviewer: 'b', summary: 'x' }], conflicts: [] });
     s.as(ctx => module.add_plan_step(ctx, { requestId: 1, kind: 'status', detail: 'x' }));
     s.tx(s.owner, ctx => module.reset_all(ctx, {}));
-    for (const table of [s.h.db.requestData, s.h.db.taskData, s.h.db.reviewData, s.h.db.messageData, s.h.db.planStepData]) {
+    s.as(ctx => module.publish_build(ctx, { branch: 'cowork/full-stack', sha: 'aaaa111', mainSha: 'base', agents: ['a'], result: 'green', log: '', requestId: 0 }));
+    s.tx(s.owner, ctx => module.reset_all(ctx, {}));
+    for (const table of [s.h.db.requestData, s.h.db.taskData, s.h.db.reviewData, s.h.db.messageData, s.h.db.planStepData, s.h.db.buildData]) {
       expect(table.count()).toBe(0n);
     }
   });

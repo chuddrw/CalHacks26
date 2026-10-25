@@ -25,7 +25,7 @@ function harness() {
   return h;
 }
 const backing = { agent: 'agentData', snapshot: 'snapshotData', intent: 'intentData', check_run: 'checkRunData', conflict: 'conflictData', inbox: 'inboxData', diagnosis_step: 'diagnosisStepData',
-  request: 'requestData', task: 'taskData', review: 'reviewData', message: 'messageData', plan_step: 'planStepData' } as const;
+  request: 'requestData', task: 'taskData', review: 'reviewData', message: 'messageData', plan_step: 'planStepData', build: 'buildData' } as const;
 const args = {
   kind: 'pair', agentA: 'a', agentB: 'b', locA: 'src/user.ts:1', locB: 'src/idle.ts:2',
   error: 'seconds versus milliseconds', fixer: 'b', runKey: 'a1+b1',
@@ -58,6 +58,7 @@ it('preserves all public column and reducer parameter orders', () => {
     publish_plan: ['requestId', 'summary', 'plan'], fail_request: ['requestId', 'reason'],
     decide_review: ['reviewId', 'approve', 'answer'], complete_task: ['taskId', 'agent', 'summary'],
     post_message: ['conflictId', 'agent', 'kind', 'body'], decide_conflict: ['conflictId', 'decision'],
+    publish_build: ['branch', 'sha', 'mainSha', 'agents', 'result', 'log', 'requestId'],
   };
   for (const [name, parameters] of Object.entries(expected)) {
     const reducer = db.moduleDef.reducers.find(r => r.sourceName === name);

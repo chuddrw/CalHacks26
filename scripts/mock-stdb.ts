@@ -101,6 +101,7 @@ const ARITY: Record<ReducerName, number> = {
   complete_task: 3,
   post_message: 4,
   decide_conflict: 2,
+  publish_build: 7,
 };
 
 /** Messages in one thread, since the last human decision, before it goes to both humans. */
@@ -109,7 +110,7 @@ const MAX_MESSAGES = 12;
 function emptyTables(): Tables {
   return {
     agent: [], snapshot: [], intent: [], check_run: [], conflict: [], inbox: [], diagnosis_step: [],
-    request: [], task: [], review: [], message: [], plan_step: [],
+    request: [], task: [], review: [], message: [], plan_step: [], build: [],
   };
 }
 
@@ -625,6 +626,19 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
       }
       const spoken = sinceDecision(row.id).filter((m) => participants(row).includes(m.author) && (m.kind === "message" || m.kind === "agree"));
       if (spoken.length >= MAX_MESSAGES) escalateToHumans(row, ORCHESTRATOR_NAME, `${MAX_MESSAGES} messages without agreement.`);
+    },
+    publish_build: ([branch, sha, mainSha, agents, result, log, requestId]) => {
+      oneOf(result, ["green", "red"]);
+      agents.forEach(name);
+      if (!/^[0-9a-f]{7,64}$/.test(sha)) throw new SenderError("A build needs the commit it is");
+      if (result === "green" && !branch) throw new SenderError("A green build names the branch it was pushed to");
+      db.build.push({ id: nextId++, branch, sha, mainSha, agents, result, log: cut(log, 4 * 1024), requestId, createdAt: now() });
+      if (result !== "green" || !requestId) return;
+      const request = db.request.find((r) => r.id === requestId);
+      const who = agents.length ? agents.join(", ") : "main only";
+      for (const agent of new Set([...db.agent.map((row) => row.name), ...agents])) {
+        note(agent, "info", 0, `[cowork] ${request ? `Request #${request.id} is done. ` : ""}The full stack (work from ${who}) is on ${branch} @ ${sha.slice(0, 8)} and its checks pass. Call get_full_stack to run the whole project on this laptop.`);
+      }
     },
     decide_conflict: ([conflictId, decision]) => {
       const row = getConflict(conflictId);

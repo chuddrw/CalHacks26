@@ -253,6 +253,10 @@ function addOrchestrator(t: Tables, scene: DemoScene, start: number, now: number
     { id: 8, requestId: 4, agent: "b", title: "Read lastLogin as milliseconds in sessions", details: "session.ts and the in-progress idle.ts.", files: ["src/sessions/session.ts", "src/sessions/idle.ts"], major: false, status: taskStatus, note: done ? "Sessions and idle read milliseconds." : "", createdAt: start - 15000, updatedAt: now - 2000 },
   ];
   if (reviewing) return;
+  t.build = [
+    { id: 1, branch: "cowork/full-stack", sha: "demo1f5ac0de", mainSha: "demo-main", agents: ["b"], result: "green", log: "main + b's work; tsc and vitest pass", requestId: 0, createdAt: start - 40000 },
+  ];
+  if (done) t.build.push({ id: 2, branch: "cowork/full-stack", sha: "demo2b7e91aa", mainSha: "demo-main", agents: ["a", "b"], result: "green", log: "main + a's work, b's work; tsc and vitest pass", requestId: 4, createdAt: now - 1500 });
   const thread: Array<[string, MessageRowKind, string]> = [
     ["orchestrator", "message", "lastLogin unit. b's in-progress idle.ts assumes seconds. Suggested: b adapts. Agree between you who changes what."],
     ["a", "message", "I switched User.lastLogin to milliseconds in the contract and users. Please read ms in session.ts and idle.ts; pull my change first."],
