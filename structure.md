@@ -108,6 +108,10 @@ Calhacks/                          repo 1: the tool (our Devpost submission)
 │   ├── local-db.ts                a throwaway local SpacetimeDB for rehearsals and manual tests
 │   ├── review.ts                  accept or send back a fix that changed tests
 │   └── demo-reset.ts              clean slate before every demo run
+├── bench/
+│   ├── benchmark.py               Agent Cowork vs the GitHub way: each laptop's numbers, then one table
+│   ├── db-counts.ts               the Cowork run's counts from the team database (read only)
+│   └── README.md                  how to run the benchmark with four people
 ├── pitch/
 │   ├── demo-script.md             the 2-minute script, word for word
 │   ├── qa.md                      judge questions and our answers
@@ -282,6 +286,14 @@ B's code from the watcher, moved here so every agent can run it on its own clone
 | `full-stack.ts` | `npm run full-stack -- --demo <clone>`: the team's full stack in `<clone>-full-stack`, to run the whole project. Same as the agents' `get_full_stack` | A | Oct 24 |
 | `doctor.ts` | `npm run doctor [-- --demo <clone>]`: is this laptop ready? Settings, CLI, sign-in, read and write access, hooks, MCP, push rights; says what to do for each failure | A (integration) | Oct 24 |
 | `demo-reset.ts` | Clears the tables, deletes the remote `wip/*` branches, resets each demo-app clone | C | Sat 19:00 |
+
+## bench/
+
+| File | What it's for | Owner | When |
+|---|---|---|---|
+| `benchmark.py` | `python bench/benchmark.py collect ...` on every laptop after a run, then `report bench-*.json`: time, human touches, hand-offs with no human, conflicts, CI failures and tokens, GitHub way vs Agent Cowork. Reads local Claude Code, Codex, Cursor and Droid records, git, GitHub (`--repo`) and the database (`--db`); saves numbers only | A | Oct 24 |
+| `db-counts.ts` | Called by `benchmark.py collect --db`: counts dashboard decisions, wake-ups, agent messages, conflicts and checks in the run's time window. Changes nothing | A | Oct 24 |
+| `README.md` | The checklist for the four-person benchmark: setup for both arms, what to write down, the commands | A | Oct 24 |
 
 ## pitch/
 
