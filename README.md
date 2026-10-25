@@ -1,6 +1,6 @@
 # Agent Cowork
 
-> **What this file is for:** the public README for GitHub, Devpost and judges. It explains what the project does, how to run it, and where each sponsor technology is used. C finishes it on Sunday between 3:00 and 5:00 AM; until then, the sections marked TODO are placeholders. The team's internal plan is in [plan.md](plan.md). This version describes branch `feat/orchestrator`, where an orchestrator (Droid) replaced the watcher.
+> What this file is for: the public README for GitHub, Devpost and judges. It explains what the project does, how to run it, and where each sponsor technology is used. C finishes it on Sunday between 3:00 and 5:00 AM; until then, the sections marked TODO are placeholders. The team's internal plan is in [plan.md](plan.md). This version describes branch `feat/orchestrator`, where an orchestrator (Droid) replaced the watcher.
 
 **A team of AI agents that coordinate like a team.** Each human tells their own agent what they want. An orchestrator built on Factory's Droid turns the request into tasks for the agents that own each feature, and the agents settle clashes with each other directly. People only step in for major changes to their own features, or when two agents can't agree.
 
@@ -39,7 +39,7 @@ human --> own agent (Claude Code + hooks + MCP) --ask_orchestrator--> SpacetimeD
 
 ### SpacetimeDB
 
-Implemented in [module/src/index.ts](module/src/index.ts) for SpacetimeDB **2.13.0**, using the frozen [shared interface](shared/src/schema.ts):
+Implemented in [module/src/index.ts](module/src/index.ts) for SpacetimeDB 2.13.0, using the frozen [shared interface](shared/src/schema.ts):
 - Twelve authenticated views over private backing tables hold team state: `agent`, `snapshot`, `intent`, `check_run`, `conflict`, `inbox`, `diagnosis_step`, plus the orchestrator's `request`, `task`, `review`, `message` and `plan_step`. Owner-only grant/revoke reducers manage Reader/Editor membership; signing in alone grants no access. See [access setup](module/ACCESS.md).
 - `publish_plan` writes a whole plan in one transaction: its reviews, its tasks (held while a review is pending) and its flagged conflicts, plus every inbox row that wakes an agent.
 - `post_message` is the agents' conversation. It resolves a conflict only when both agents' latest messages are agreements and a current green check covers both of them, so a stale or one-sided agreement can't close it.
@@ -53,6 +53,8 @@ The orchestrator is Droid: [orchestrator/src/planner.ts](orchestrator/src/planne
 - **Our tools:** Droid gets in-process SDK MCP tools (`team_status`, `assign_task`, `request_review`, `flag_conflict`, `finish_plan`). They only record into the plan; code applies the contract rule and publishes it.
 - **Permissions:** autonomy off, so every tool call goes through our permission handler. It allows Read, Grep, Glob and LS on a disposable worktree of `main` plus our own tools, and refuses everything else; Edit, Create, ApplyPatch, Execute, Task and Skill are disabled before the first turn. The session runs with direct tool calls (we set this on the CLI's initialize request) and a 150-second deadline, and is always closed.
 - **Visible work:** every step Droid takes is streamed into SpacetimeDB and shown live in the dashboard's Orchestrator drawer.
+- **SDK features used** (all in [planner.ts](orchestrator/src/planner.ts)): `createSession` (a full coding agent with its own read and search tools, started on the worktree), `AutonomyLevel.Off` with a `permissionHandler`, `createSdkMcpServer` for our in-process tools, `disabledToolIds` and `listTools`/`updateSettings` to switch off every built-in tool that isn't a read tool, `disableBuiltinSkills`, and `session.stream()` for the live steps. A request deadline (`AbortController`) and a `finally` block close the session and the tool server.
+- **Why Droid and not a bare model API:** the SDK gives us the agent harness (file reading, search, the tool-permission loop, streaming) so we only configure its limits. The read-only boundary, the worktree and the contract rule are our own design and would work with another model; Droid saves us from building the harness.
 - **Measured:** on the demo request it planned in 52 s: tasks for the users and sessions owners, reviews by the two affected humans, and the seconds-versus-milliseconds clash with uncommitted work.
 
 ### Claude
