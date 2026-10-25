@@ -188,7 +188,10 @@ export interface GraphNode {
   /** What it is doing now. */
   doing: string;
   online: boolean;
-  /** Animated: the node is busy (planning, or the agent holds a task). */
+  /**
+   * Animated (ripples outward): the team is waiting on this node now. The orchestrator while it
+   * plans, an online agent while it holds a task or runs a check, people while something needs them.
+   */
   busy: boolean;
   select: Selection;
 }
@@ -342,7 +345,7 @@ export function teamGraph(t: Tables, now: number): TeamGraph {
     tone: actions.length ? "amber" : "neutral",
     doing: "Reviews, decisions and test changes, on this dashboard",
     online: true,
-    busy: false,
+    busy: actions.length > 0,
     select: actions[0]?.select ?? { kind: "activity" },
   };
   const agents = sortAgents(t.agent);
@@ -362,7 +365,7 @@ export function teamGraph(t: Tables, now: number): TeamGraph {
         tone: selfConflict ? "red" : doing.stateTone,
         doing: doing.doing,
         online: agent.online,
-        busy: agent.online && doing.task?.status === "assigned",
+        busy: agent.online && (doing.task?.status === "assigned" || agent.status === "working"),
         select: { kind: "agent", name: agent.name },
       };
     }),
@@ -404,6 +407,11 @@ export function teamGraph(t: Tables, now: number): TeamGraph {
     edges.push(conflictEdge(t, c));
   }
   return { nodes, edges };
+}
+
+/** The nodes the team is waiting on now, for the graph's "Waiting on" line. */
+export function waitingOn(graph: TeamGraph): GraphNode[] {
+  return graph.nodes.filter((n) => n.busy);
 }
 
 // ---- What needs a human ----------------------------------------------------------------------

@@ -2,8 +2,8 @@
  * WHAT IT'S FOR: the dashboard's only stylesheet. Warm charcoal in the spirit of Claude's dark mode,
  * with Apple-like restraint: soft surfaces and shadows instead of outlines, generous spacing, one
  * accent (Claude's clay, never a status), and color only in small dots and text where it means
- * something (parchment working, green passing, red conflict, amber waiting on a person). No colored edges or side bars. Sizes are in
- * em, so `.big` (Big screen) scales everything for the projector.
+ * something (parchment working, red conflict, amber waiting on a person; passing is just a green
+ * dot). No colored edges or side bars.
  */
 :root {
   --bg: #1c1b1a;
@@ -180,9 +180,6 @@ p {
   display: flex;
   flex-direction: column;
 }
-.app.big {
-  font-size: 19px;
-}
 .topbar {
   display: flex;
   align-items: center;
@@ -340,6 +337,15 @@ p {
 .edge.tone-neutral {
   opacity: 0.4;
 }
+/* The mask that draws a new edge from its start to its end, once. */
+.edge-draw {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 14;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: flight-draw 1.1s var(--draw-ease) forwards;
+}
 .edge-conflict {
   stroke-width: 2.5;
 }
@@ -368,6 +374,14 @@ p {
   white-space: nowrap;
   cursor: pointer;
   z-index: 1;
+}
+.edge-label {
+  animation: edge-label-in 0.35s ease-out 0.8s backwards;
+}
+@keyframes edge-label-in {
+  from {
+    opacity: 0;
+  }
 }
 .edge-label-conflict {
   font-weight: 600;
@@ -449,6 +463,78 @@ p {
 .node.busy .dot {
   animation: pulse 1.6s ease-in-out infinite;
 }
+/* The team is waiting on this node: two rings keep spreading out from its edge. */
+.node.busy::before,
+.node.busy::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 2px solid color-mix(in srgb, var(--tone) 80%, var(--text));
+  pointer-events: none;
+  opacity: 0;
+  animation: ripple 2.4s ease-out infinite;
+}
+.node.busy::after {
+  animation-delay: 1.2s;
+}
+@keyframes ripple {
+  0% {
+    opacity: 0.75;
+    inset: -1px;
+  }
+  100% {
+    opacity: 0;
+    inset: -18px;
+    border-radius: 24px;
+  }
+}
+
+/* Top-left corner of the graph: who the team is waiting on right now. */
+.waiting-on {
+  position: absolute;
+  top: 0.9em;
+  left: 1.1em;
+  right: 1.1em;
+  z-index: 4;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em 0.6em;
+  font-size: 0.8em;
+  pointer-events: none;
+}
+.waiting-on-title {
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.85em;
+}
+.waiting-on-none {
+  color: var(--muted);
+}
+.waiting-on-who {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.25em 0.7em;
+  border: 0;
+  border-radius: 999px;
+  background: var(--panel-2);
+  box-shadow: var(--shadow);
+  color: color-mix(in srgb, var(--tone) 70%, var(--text));
+  font: inherit;
+  cursor: pointer;
+}
+.waiting-on-who strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.waiting-on-who .dot {
+  animation: pulse 1.6s ease-in-out infinite;
+}
 @keyframes pulse {
   50% {
     box-shadow: 0 0 0 0.35em color-mix(in srgb, var(--tone) 22%, transparent);
@@ -490,6 +576,14 @@ p {
 }
 .key-spoke {
   border-top: 1px dotted var(--muted);
+}
+.key-busy {
+  width: 0.9em;
+  height: 0.9em;
+  border: 2px solid var(--work);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--work) 30%, transparent);
+  margin: 0 0.35em 0 0.2em;
 }
 
 /* ---- The hive: SpacetimeDB in the middle, GitHub below it, spokes to every node ------------- */
@@ -596,7 +690,12 @@ p {
 .flight {
   animation: flight-fade 4s linear forwards;
 }
-/* The write into the hub, then (0.6 s later) the push out to each receiver. */
+/* The write into the hub, then (once it lands) the push out to each receiver. Each line draws from
+   its start to its end in --draw, and its arrowhead (.head) rides the tip with the same easing. */
+.graph {
+  --draw: 0.9s;
+  --draw-ease: cubic-bezier(0.45, 0, 0.35, 1);
+}
 .hop-write,
 .hop-push {
   fill: none;
@@ -607,12 +706,10 @@ p {
   stroke-dashoffset: 1;
 }
 .hop-write {
-  animation: flight-draw 0.6s ease-out forwards;
+  animation: flight-draw var(--draw) var(--draw-ease) forwards;
 }
 .hop-push {
-  animation:
-    push-show 4s linear forwards,
-    flight-draw 0.6s ease-out 0.6s forwards;
+  animation: flight-draw var(--draw) var(--draw-ease) var(--draw) forwards;
 }
 .hub-pulse {
   fill: none;
@@ -621,17 +718,7 @@ p {
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
-  animation: hub-pulse 0.9s ease-out 0.55s forwards;
-}
-@keyframes push-show {
-  0%,
-  14% {
-    opacity: 0;
-  }
-  15%,
-  100% {
-    opacity: 1;
-  }
+  animation: hub-pulse 0.9s ease-out calc(var(--draw) - 0.05s) forwards;
 }
 @keyframes hub-pulse {
   0% {
@@ -643,8 +730,43 @@ p {
     transform: scale(1.1);
   }
 }
+/* Arrowheads are small HTML triangles moving along the hop's path (CSS offset-path). */
+.flight-heads {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  animation: flight-fade 4s linear forwards;
+}
 .head {
-  fill: color-mix(in srgb, var(--tone) 75%, var(--text));
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  background: color-mix(in srgb, var(--tone) 75%, var(--text));
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  offset-rotate: auto;
+  offset-anchor: 100% 50%;
+  offset-distance: 0%;
+  opacity: 0;
+  animation: head-ride var(--draw) var(--draw-ease) forwards;
+}
+.head-push {
+  animation-delay: var(--draw);
+}
+@keyframes head-ride {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 1;
+  }
 }
 .flight-label {
   position: absolute;
@@ -1060,9 +1182,25 @@ p {
   .hop-write,
   .hop-push,
   .hub-pulse,
-  .hub-write {
+  .hub-write,
+  .edge-draw,
+  .edge-label,
+  .waiting-on-who .dot {
     animation: none;
     stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  .node.busy::after {
+    display: none;
+  }
+  .node.busy::before {
+    animation: none;
+    opacity: 0.6;
+    inset: -5px;
+  }
+  .head {
+    animation: none;
+    offset-distance: 100%;
     opacity: 1;
   }
   .hub-pulse {

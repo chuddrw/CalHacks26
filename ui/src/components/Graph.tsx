@@ -8,13 +8,16 @@
  * Lasting relationships curve inside the ring: tasks (orchestrator → agent, labeled with what the
  * agent is doing), reviews (dashed, reviewer → requester) and conflict threads between two agents.
  * Every data transfer (transfers.ts) flashes in two hops: sender → hub (the write), the hub pulses
- * and shows what was written, hub → each receiver (the subscription push).
+ * and shows what was written, hub → each receiver (the subscription push). Each hop draws from its
+ * start to its end, with the arrowhead riding the tip; lasting edges draw in the same way when
+ * they first appear. A node the team is waiting on ripples outward, and the corner says who it is.
  * Nodes, hubs and labels are HTML (readable, clickable); lines and arrows are SVG. Data: team.ts.
  */
 import { useLayoutEffect, useRef, useState } from "react";
 import type { Transfer } from "../transfers";
 import {
   upper,
+  waitingOn,
   type GraphEdge,
   type GraphNode,
   type HiveStats,
@@ -50,7 +53,7 @@ interface Layout {
 
 /** Rough half height of a node at the normal font size, until the browser has measured it. */
 const HALF_NODE = 40;
-/** The edge-label font at the normal size; sizes below scale with the real one (Big screen). */
+/** The edge-label font at the normal size; sizes below scale with the real one. */
 const BASE_FONT = 11.7;
 
 function layout(graph: TeamGraph, width: number, height: number, fontPx: number): Layout {
@@ -266,26 +269,12 @@ const FLIGHT_LABEL_AT = [0.45, 0.3, 0.6, 0.2, 0.75];
 const nameOf = (id: string) =>
   id === "orchestrator" ? "Orchestrator" : id === "people" ? "People" : upper(id);
 
-function Heads() {
-  return (
-    <defs>
-      {(["neutral", "accent", "green", "red", "amber"] as const).map((tone) => (
-        <marker
-          key={tone}
-          id={`head-${tone}`}
-          viewBox="0 0 10 10"
-          refX="9"
-          refY="5"
-          markerWidth="9"
-          markerHeight="9"
-          markerUnits="userSpaceOnUse"
-          orient="auto"
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" className={`head tone-${tone}`} />
-        </marker>
-      ))}
-    </defs>
-  );
+/**
+ * An arrowhead that rides along a hop while the line draws (same duration and easing as the
+ * stroke in app.css), so the arrow grows from its start to its end instead of appearing at once.
+ */
+function Head({ d, push }: { d: string; push: boolean }) {
+  return <span className={`head${push ? " head-push" : ""}`} style={{ offsetPath: `path("${d}")` }} />;
 }
 
 function Flights({
@@ -336,7 +325,6 @@ function Flights({
   return (
     <>
       <svg className="flights" aria-hidden="true">
-        <Heads />
         {drawn.map(({ flight, hub, write, pushes }) => {
           const tone = flight.transfer.tone;
           return (
@@ -346,14 +334,22 @@ function Flights({
               ) : (
                 <rect className="hub-pulse" x={hub.x} y={hub.y} width={hub.w} height={hub.h} rx={10} />
               )}
-              <path className="hop-write" d={write.d} pathLength={1} markerEnd={`url(#head-${tone})`} />
+              <path className="hop-write" d={write.d} pathLength={1} />
               {pushes.map((d, i) => (
-                <path key={i} className="hop-push" d={d} pathLength={1} markerEnd={`url(#head-${tone})`} />
+                <path key={i} className="hop-push" d={d} pathLength={1} />
               ))}
             </g>
           );
         })}
       </svg>
+      {drawn.map(({ flight, write, pushes }) => (
+        <div key={flight.id} className={`flight-heads tone-${flight.transfer.tone}`} aria-hidden="true">
+          <Head d={write.d} push={false} />
+          {pushes.map((d, i) => (
+            <Head key={i} d={d} push />
+          ))}
+        </div>
+      ))}
       {newest && labelAt && (
         <div
           key={newest.flight.id}
@@ -401,7 +397,10 @@ function Node({
       <span className="node-head">
         <span className="dot" />
         <strong>{node.label}</strong>
-        <span className="node-state">{node.state}</span>
+        {/* A passing agent needs no word: the green dot says it. */}
+        {!(node.kind === "agent" && node.tone === "green") && (
+          <span className="node-state">{node.state}</span>
+        )}
       </span>
       <span className="node-doing" title={node.doing}>
         {node.doing}
@@ -500,7 +499,7 @@ export function Graph({
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
-    // Edge labels are 0.78em; big-screen mode changes the font, which changes the graph's width too.
+    // Edge labels are 0.78em of the graph's font.
     const measure = () =>
       setSize({
         width: el.clientWidth,
@@ -532,8 +531,22 @@ export function Graph({
   const drawn = size.width ? drawEdges(graph, l, obstacles, size.fontPx) : [];
   const hubOf = (x: Transfer) => (x.via === "git" ? l.git : l.db);
   const dbCenter = centerOf(l.db);
+  const waiting = waitingOn(graph);
   return (
     <div className="graph" ref={box}>
+      <p className={`waiting-on${waiting.length ? " busy" : ""}`} role="status">
+        <span className="waiting-on-title">Waiting on</span>
+        {waiting.length ? (
+          waiting.map((n) => (
+            <button key={n.id} type="button" className={`waiting-on-who tone-${n.tone}`} onClick={() => select(n.select)}>
+              <i className="dot" />
+              <strong>{n.label}</strong> {n.state}
+            </button>
+          ))
+        ) : (
+          <span className="waiting-on-none">nobody, all quiet</span>
+        )}
+      </p>
       {size.width > 0 && (
         <>
           <svg
@@ -555,10 +568,26 @@ export function Graph({
                 />
               ) : null;
             })}
+            <defs>
+              {drawn.map(({ edge, path }) => (
+                <mask
+                  key={edge.id}
+                  id={`draw-${edge.id}`}
+                  maskUnits="userSpaceOnUse"
+                  x={0}
+                  y={0}
+                  width={size.width}
+                  height={size.height}
+                >
+                  <path className="edge-draw" d={path} pathLength={1} />
+                </mask>
+              ))}
+            </defs>
             {drawn.map(({ edge, path }) => (
               <path
                 key={edge.id}
                 d={path}
+                mask={`url(#draw-${edge.id})`}
                 className={`edge edge-${edge.kind} tone-${edge.tone}${edge.dashed ? " dashed" : ""}${edge.active ? " active" : ""}`}
               />
             ))}
@@ -633,6 +662,9 @@ export function Graph({
         </span>
         <span>
           <i className="key key-flight" /> data moving now (through a hub)
+        </span>
+        <span>
+          <i className="key key-busy" /> waiting on it now
         </span>
       </div>
     </div>

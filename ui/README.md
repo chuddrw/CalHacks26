@@ -1,6 +1,6 @@
 # Work D: dashboard handoff
 
-WHAT IT'S FOR: run, verify, and integrate D's dashboard without waiting on the rest of the team.
+Use this to run, verify, and integrate D's dashboard without waiting on the rest of the team.
 
 ## Run locally
 
@@ -16,12 +16,12 @@ The simulator runs entirely in the browser and performs no database writes.
 Use the scene selector or **Play story** to inspect working → conflict → fixing →
 resolved. Escalation and test-review scenes are available separately.
 
-One screen in warm charcoal, after Claude's dark mode with Apple-like restraint: soft surfaces and shadows instead of outlines, no colored edges, Claude's clay only for the brand, primary buttons, selection and the database hub. Color appears only in small dots and text: parchment for work in progress, green passing, red conflict, amber waiting on a person. On the left is the team graph, drawn as a hive. **SpacetimeDB** sits in
+One screen in warm charcoal, after Claude's dark mode with Apple-like restraint: soft surfaces and shadows instead of outlines, no colored edges, Claude's clay only for the brand, primary buttons, selection and the database hub. Color appears only in small dots and text: parchment for work in progress, green passing, red conflict, amber waiting on a person. On the left is the team graph, drawn as a hive. SpacetimeDB sits in
 the middle, because no agent talks to another directly: each writes to the shared database and the
 others get it through their subscription. The hub shows how many agents are connected, the rows per
-table and the latest verified fact. **GitHub** is the smaller hub below it, where the code itself
+table and the latest verified fact. GitHub is the smaller hub below it, where the code itself
 moves (`wip/<agent>` branches, the full stack). Around them in a ring: the orchestrator, the
-agents, and a **People** node for the people at the dashboard. Faint spokes connect each of them
+agents, and a People node for the people at the dashboard. Faint spokes connect each of them
 to the database.
 
 Lasting relationships curve inside the ring. Tasks run from the orchestrator to an agent, labeled
@@ -37,7 +37,7 @@ snapshot pushes, pulls of a teammate's code, clashes, facts and the full stack. 
 play 1.2 s apart, and only the newest keeps its label. Opening the page shows no arrows; only data
 that arrives afterwards does.
 
-On the right, **Now** gives one row per agent: check state, what it is doing, files, last activity.
+On the right, Now gives one row per agent: check state, what it is doing, files, last activity.
 A **Needs you** bar appears at the top only when a person has to approve a review, decide an
 escalated conflict, or accept a test change. Click any node, hub, label, row or event to open its
 details in the drawer on the right. The graph stays live beside it, and Esc closes it and puts
@@ -49,7 +49,6 @@ focus back. Sources: `src/team.ts` and `src/transfers.ts` (tests: `tests/team.te
 - `/?demo&scene=resolved`: passing check and verified fact.
 - `/?demo&scene=escalated`: human attention required.
 - `/?demo&scene=needs_human`: existing-test edit requires review.
-- Add `&big` for larger presentation text, or use **Big screen**.
 
 The repository requires Node 24+ for the complete tool. D's dashboard was also
 built and typechecked on the available Node 22.21 runtime; that does not verify
@@ -161,7 +160,7 @@ conflict excerpts, resolution events, subscription readiness, batched changes,
 reconnection, malformed data, and cleanup. `tests/team.test.ts` covers the graph's
 edges, each agent's "now" line and the human actions in every scene. Checked in a browser
 (Oct 24): every scene, Approve / Send back, the escalation decision, Accept test change,
-big screen, a 760 px window, Esc and focus return, and live mode against the team database.
+a 760 px window, Esc and focus return, and live mode against the team database.
 Screenshots in `artifacts/work-d/` use simulated data and are labeled accordingly.
 
 ## Presentation dependencies

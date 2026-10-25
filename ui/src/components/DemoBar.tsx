@@ -58,7 +58,7 @@ export function DemoBar() {
       >
         {playing ? "Pause" : "Play story"}
       </button>
-      <a className="link" href={location.search.includes("big") ? "/?big" : "/"}>
+      <a className="link" href="/">
         Live mode →
       </a>
     </div>

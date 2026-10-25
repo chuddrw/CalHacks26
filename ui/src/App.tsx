@@ -31,25 +31,14 @@ export function App() {
   const now = useNow();
   const [selection, setSelection] = useState<Selection | null>(null);
   const close = useCallback(() => setSelection(null), []);
-  const [big, setBig] = useState(() =>
-    new URLSearchParams(location.search).has("big"),
-  );
   const demo = connection.phase === "demo";
   const flights = useFlights(tables, connection.phase);
   const health = teamHealth(tables, connection);
   const facts = tables.intent.filter((i) => i.verified).length;
   const project =
     import.meta.env.VITE_PROJECT_LABEL || (demo ? "demo-app" : "team workspace");
-  function toggleBig() {
-    const next = !big;
-    setBig(next);
-    const url = new URL(location.href);
-    if (next) url.searchParams.set("big", "");
-    else url.searchParams.delete("big");
-    history.replaceState(null, "", url);
-  }
   return (
-    <div className={`app${big ? " big" : ""}`}>
+    <div className="app">
       <header className="topbar">
         <span className="brand">cowork</span>
         <span className="muted">{project}</span>
@@ -77,14 +66,6 @@ export function App() {
           onClick={() => setSelection({ kind: "memory" })}
         >
           Memory{facts ? ` (${facts})` : ""}
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={toggleBig}
-          aria-pressed={big}
-        >
-          {big ? "Normal size" : "Big screen"}
         </button>
       </header>
       {demo && <DemoBar />}

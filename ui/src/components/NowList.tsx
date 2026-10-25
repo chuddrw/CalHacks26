@@ -40,7 +40,12 @@ export function NowList({
                     <span className={`avatar tone-${n.stateTone}`}>
                       {upper(agent.name)}
                     </span>
-                    <span className={`chip tone-${n.stateTone}`}>{n.state}</span>
+                    {/* Passing needs no word: the green dot says it. */}
+                    {n.stateTone === "green" ? (
+                      <span className="dot tone-green" title="Green" />
+                    ) : (
+                      <span className={`chip tone-${n.stateTone}`}>{n.state}</span>
+                    )}
                     {n.task && <span className="chip">task #{n.task.id}</span>}
                     <time
                       title={absoluteTime(n.lastActive)}
