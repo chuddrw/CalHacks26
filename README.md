@@ -63,14 +63,20 @@ The orchestrator is Droid: [orchestrator/src/planner.ts](orchestrator/src/planne
 
 ## Run it
 
-Part C’s reproducible checks and database commands are in [module/README.md](module/README.md); the demo app and its scenario are in [demo-app/README.md](demo-app/README.md) and [demo-app/SCENARIO.md](demo-app/SCENARIO.md). `npm run test:live` plays the whole story on a temporary local SpacetimeDB. No API keys are included in this project.
+Part C’s reproducible checks and database commands are in [module/README.md](module/README.md); the app the agents edit is described in [demo-app/README.md](demo-app/README.md). `npm run test:live` plays the whole story on a temporary local SpacetimeDB. No API keys are included in this project.
 
-1. Node 24 or newer, git, and the `spacetime` CLI.
-2. `npm run setup` from this folder.
-3. Copy `.env.example` to `.env` and fill it in ([external/api-keys.txt](external/api-keys.txt)).
-4. `npm run module:generate` regenerates public bindings from the local module. Its verified generation wrapper preserves the frozen SQL names; see [module/generate.mjs](module/generate.mjs).
-5. On each laptop: `npm run install-hooks -- --demo <path to demo-app> --name <you>`.
-6. On one machine (with `FACTORY_API_KEY` and `DEMO_REPO_PATH` set): `npm run orchestrator`. On the big screen: `npm run ui`.
+You need Node 24 or newer, git, and the `spacetime` CLI, and the database owner must have approved your `spacetime login` identity once. Then, from this folder:
+
+| Command | What it does |
+|---|---|
+| `./run.sh` | Joins as an agent: installs packages, fills `.env` (asks your name once), signs in to SpacetimeDB, clones a fresh workspace to `../cowork-ws-<name>`, installs the hooks and MCP server there, runs `doctor`, and opens the workspace in VS Code. |
+| `./run.sh --orchestrator` | The same, plus the orchestrator's own clone (`../cowork-ws-orchestrator`), the orchestrator and the dashboard. Needs `FACTORY_API_KEY` in `.env`. |
+| `./run.sh --screen` | Only the dashboard, at http://localhost:5173. |
+| `./run.sh clean --yes` | Afterwards: deletes the workspace folders `run.sh` made and your `wip/<name>` branch. Without `--yes` it only lists them. Add `--db` on the database owner's laptop to also empty the database and every `wip/*` branch. |
+
+Running it again is safe: finished steps are skipped. On PowerShell without Git Bash, use `npm run join -- <same options>`. The team database is `agent-cowork-orch`. Details: [scripts/join.ts](scripts/join.ts).
+
+`npm run module:generate` regenerates public bindings from the local module. Its verified generation wrapper preserves the frozen SQL names; see [module/generate.mjs](module/generate.mjs).
 
 ## Limitations
 

@@ -1,7 +1,7 @@
 /**
  * WHAT IT'S FOR: everything the dashboard shows, derived from the shared tables with no React:
  * the team graph (who works with whom right now), what each agent is doing, what needs a human,
- * and the activity feed. Pure functions, so tests/team.test.ts can check every demo scene.
+ * and the activity feed. Pure functions, so tests/team.test.ts can check every test scene.
  */
 import type {
   AgentRow,

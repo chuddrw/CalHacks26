@@ -7,7 +7,7 @@
  *   behaving the way Part C's module (module/src/index.ts) does: the same validation, the same
  *   "current, covering check" rules, the same inbox wording, and the orchestrator's requests, plans,
  *   reviews, tasks and conflict threads (branch feat/orchestrator). A's end-to-end test runs against
- *   it, and B and D can point at it too (npm run seed works).
+ *   it, and B and D can point at it too.
  *
  * OWNER: A. Kept in step with module/src/index.ts by hand: when a reducer changes there, change it
  *        here too. Updated during the A+B+C integration (Oct 24) to Part C's guarded reducers.

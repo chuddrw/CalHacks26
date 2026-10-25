@@ -1,6 +1,6 @@
 /**
  * WHAT IT'S FOR: the only three things a person does on the dashboard, each a reducer in Part C's
- * module (stdb.ts; in ?demo they change only this page's simulated rows):
+ * module (stdb.ts):
  *   - approve or send back a review the orchestrator asked for (decide_review)
  *   - both humans' decision on an escalated conflict (decide_conflict)
  *   - accept or send back a fix that changed existing tests (review_test_change)
@@ -83,13 +83,20 @@ export function ReviewActions({ review }: { review: ReviewRow }) {
 export function DecisionBox({ conflict }: { conflict: ConflictRow }) {
   const [decision, setDecision] = useState("");
   const { busy, error, run } = useSubmit();
-  const pair = `${upper(conflict.agentA)} and ${upper(conflict.agentB)}`;
+  const solo = !conflict.agentB;
+  const pair = solo
+    ? upper(conflict.agentA)
+    : `${upper(conflict.agentA)} and ${upper(conflict.agentB)}`;
   return (
     <div className="actions">
       <textarea
         value={decision}
         onChange={(e) => setDecision(e.target.value)}
-        placeholder={`What ${pair}'s humans decided, e.g. "Use milliseconds; B converts at the session store."`}
+        placeholder={
+          solo
+            ? `What ${pair}'s human decided, e.g. "Keep the old field name; update the caller instead."`
+            : `What ${pair}'s humans decided, e.g. "Use milliseconds; B converts at the session store."`
+        }
         maxLength={1000}
         rows={3}
         aria-label={`Decision for conflict ${conflict.id}`}
@@ -106,13 +113,18 @@ export function DecisionBox({ conflict }: { conflict: ConflictRow }) {
             ).then((ok) => ok && setDecision(""))
           }
         >
-          {busy ? "Sending…" : "Send decision to both agents"}
+          {busy
+            ? "Sending…"
+            : solo
+              ? `Send decision to ${pair}`
+              : "Send decision to both agents"}
         </button>
       </div>
       <ErrorLine error={error} />
       <p className="muted small">
-        The decision reopens the conflict and wakes both agents. They implement
-        it, run their checks, and agree.
+        {solo
+          ? `The decision reopens the conflict and wakes ${pair}. It implements it and runs the check.`
+          : "The decision reopens the conflict and wakes both agents. They implement it, run their checks, and agree."}
       </p>
     </div>
   );

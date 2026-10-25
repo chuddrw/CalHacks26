@@ -2,13 +2,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { pulledNote, pullerOf } from "../../shared/src/schema.ts";
-import { buildDemo, type DemoScene } from "../src/demo.ts";
+import { buildScene, type Scene } from "./fixtures.ts";
 import { newTransfers, transfers } from "../src/transfers.ts";
 
 const NOW = 1_000_000;
-const keys = (scene: DemoScene) => new Set(transfers(buildDemo(scene, NOW)).map((x) => x.key));
-const step = (from: DemoScene, to: DemoScene) =>
-  newTransfers(keys(from), transfers(buildDemo(to, NOW)));
+const keys = (scene: Scene) => new Set(transfers(buildScene(scene, NOW)).map((x) => x.key));
+const step = (from: Scene, to: Scene) =>
+  newTransfers(keys(from), transfers(buildScene(to, NOW)));
 const arrow = (x: { from: string; to: string[] }) => `${x.from}->${x.to.join(",")}`;
 
 test("pull notes round-trip", () => {
@@ -17,7 +17,7 @@ test("pull notes round-trip", () => {
 });
 
 test("working: request, tasks and reviews flow through the orchestrator and people", () => {
-  const all = transfers(buildDemo("working", NOW));
+  const all = transfers(buildScene("working", NOW));
   const by = (key: string) => all.find((x) => x.key === key)!;
   assert.equal(arrow(by("request-4")), "a->orchestrator");
   assert.equal(arrow(by("task-8")), "orchestrator->b");
@@ -70,7 +70,7 @@ test("fixing -> resolved: A agrees, tasks report back, fact and full stack go to
 test("escalation goes to the people, their decision to both agents", () => {
   const esc = step("conflict", "escalated");
   assert.equal(arrow(esc.find((x) => x.key === "message-3")!), "b->people");
-  const t = buildDemo("escalated", NOW);
+  const t = buildScene("escalated", NOW);
   t.message.push({ id: 9, conflictId: 12, author: "human", kind: "decision", body: "Use ms.", createdAt: NOW });
   const decision = transfers(t).find((x) => x.key === "message-9")!;
   assert.equal(arrow(decision), "people->a,b");

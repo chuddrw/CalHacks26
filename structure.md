@@ -1,6 +1,6 @@
 # Agent Cowork: file structure
 
-> **What this file is for:** a map of every file in this folder, what it does, who owns it, and when it gets built. Read [plan.md](plan.md) first for the why. Every file also starts with its own note saying what it's for.
+> This file is a map of every file in this folder, what it does, who owns it, and when it gets built. Read [plan.md](plan.md) first for the why. Every file also starts with its own note saying what it's for.
 
 Times refer to the schedule in plan.md. Owners: A (hooks + MCP, and the orchestrator), B (checks, which were the watcher), C (module + demo app + diagnosis), D (UI + pitch). On branch `feat/orchestrator` an orchestrator (Droid) replaced the watcher; [checklists/orchestrator.md](checklists/orchestrator.md) has the design.
 
@@ -12,6 +12,7 @@ Calhacks/                          repo 1: the tool (our Devpost submission)
 ├── structure.md                   this file
 ├── README.md                      public README for GitHub and judges
 ├── package.json                   npm workspaces root and team scripts
+├── run.sh                         one command to join the team (calls scripts/join.ts)
 ├── tsconfig.base.json             TypeScript settings shared by every package
 ├── .gitignore                     keeps keys, node_modules and demo-app/ out of repo 1
 ├── .env.example                   every setting and key, with no values
@@ -101,15 +102,14 @@ Calhacks/                          repo 1: the tool (our Devpost submission)
 │           ├── MemoryPanel.tsx    intents and verified facts
 │           └── Timeline.tsx       every event in order
 ├── scripts/
-│   ├── seed-fake.ts               fake rows for UI work and checkpoint 1
 │   ├── mock-stdb.ts               in-memory stand-in for SpacetimeDB, following Part C's rules
 │   ├── doctor.ts                  checks a laptop: settings, sign-in, approval, hooks, push rights
+│   ├── join.ts                    run.sh: tools, .env, sign-in, throwaway workspace, hooks, doctor; clean
 │   ├── live-e2e.ts                the whole system on a temporary real SpacetimeDB server
 │   ├── local-db.ts                a throwaway local SpacetimeDB for rehearsals and manual tests
 │   ├── review.ts                  accept or send back a fix that changed tests
 │   └── demo-reset.ts              clean slate before every demo run
 ├── pitch/
-│   ├── demo-script.md             the 2-minute script, word for word
 │   ├── qa.md                      judge questions and our answers
 │   ├── interviews.md              notes and quotes from other teams
 │   └── devpost.md                 Devpost text, ready to paste
@@ -265,7 +265,6 @@ B's code from the watcher, moved here so every agent can run it on its own clone
 | `src/components/Activity.tsx` | Recent events strip, and the full list for the drawer | A | Oct 24 |
 | `src/components/Details.tsx` | Drawer for an agent, a request (plan, reviews, tasks, Droid's steps), a conflict (thread, code, failing output), checks, memory, connection | A | Oct 24 |
 | `src/components/Actions.tsx` | Approve / Send back a review, the escalation decision, Accept / Send back a test change | A | Oct 24 |
-| `src/components/DemoBar.tsx` | `?demo` scene picker and Play story | A | Oct 24 |
 | `src/transfers.ts` | Every data transfer (request, task, review, message, plan, snapshot, pull, clash, fact, full stack) as one sender → receivers, for the arrows | A | Oct 24 |
 | `src/components/useFlights.ts` | Turns new transfers into arrows that show for 4 s, one after another | A | Oct 24 |
 | `src/components/select.ts` | Compares two drawer selections, so the graph and lists highlight what's open | A | Oct 24 |
@@ -274,7 +273,6 @@ B's code from the watcher, moved here so every agent can run it on its own clone
 
 | File | What it's for | Owner | When |
 |---|---|---|---|
-| `seed-fake.ts` | Inserts fake agents, snapshots and a conflict, so the UI and checkpoint 1 don't wait on real hooks | D | Sat 9:20 (runs against the mock already) |
 | `mock-stdb.ts` | `npm run mock-db`: in-memory SpacetimeDB stand-in with the same HTTP endpoints and reducer rules as Part C's module (guarded reducers included) | A | Done Oct 24 |
 | `live-e2e.ts` | `npm run test:live`: a temporary in-memory SpacetimeDB 2.13 server with C's module, the orchestrator (scripted plan), B's fixture with real tsc and vitest, A's hooks and MCP servers for a and b, playing the demo story end to end (29 checks) | A | Oct 24 |
 | `local-db.ts` | `npm run local-db [-- --scene review]`: a throwaway local SpacetimeDB with C's module and editor accounts for a, b, c, d, the orchestrator and the dashboard. For rehearsals and manual tests; Ctrl+C deletes it | A | Done Oct 24 |
@@ -287,7 +285,6 @@ B's code from the watcher, moved here so every agent can run it on its own clone
 
 | File | What it's for | Owner | When |
 |---|---|---|---|
-| `demo-script.md` | The 2-minute script: who says what, who touches which laptop | D | Sat 14:00 |
 | `qa.md` | Questions judges will ask and our answers, plus the "not built" slide | D | Sat 20:00 |
 | `interviews.md` | Notes and quotes from other teams | D | Tonight |
 | `devpost.md` | Devpost text, ready to paste | D | Sat 14:00 |

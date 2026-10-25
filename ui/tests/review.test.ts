@@ -1,10 +1,9 @@
-/** WHAT IT'S FOR: the dashboard's sign-in endpoint guard and the review buttons' two paths (live, demo). */
+/** WHAT IT'S FOR: the dashboard's sign-in endpoint guard and the review buttons on a live connection. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { setImmediate } from "node:timers/promises";
 import { allowSessionRequest } from "../dev-session.ts";
 import { startLive, tableNames, type Bindings } from "../src/live.ts";
-import { buildDemo, showDemoScene } from "../src/demo.ts";
 import { reviewTestChange } from "../src/stdb.ts";
 import { getSnapshot, setConnection } from "../src/store.ts";
 
@@ -20,19 +19,6 @@ test("the session token goes only to a page on this laptop", () => {
   assert.equal(allowSessionRequest({ ...local, headers: { host: "localhost:5173" } }), false, "no custom header");
   assert.equal(allowSessionRequest({ ...local, headers: { ...local.headers, origin: "https://evil.example" } }), false, "another site's page");
   assert.equal(allowSessionRequest({ ...local, headers: { ...local.headers, origin: "not a url" } }), false);
-});
-
-test("demo mode: accept resolves and send back reopens, on this page only", async () => {
-  showDemoScene("needs_human");
-  const id = getSnapshot().tables.conflict.find((c) => c.status === "needs_human")!.id;
-  await reviewTestChange(id, false, "");
-  assert.equal(getSnapshot().tables.conflict.find((c) => c.id === id)?.status, "open");
-  showDemoScene("needs_human");
-  await reviewTestChange(id, true, "");
-  const row = getSnapshot().tables.conflict.find((c) => c.id === id)!;
-  assert.equal(row.status, "resolved");
-  assert.ok(row.resolvedAt > 0);
-  assert.equal(buildDemo("needs_human").conflict.find((c) => c.id === id)?.status, "needs_human");
 });
 
 test("live mode: signs in with the session token and calls review_test_change on the live connection", async () => {

@@ -13,8 +13,7 @@ export type ConnectionPhase =
   | "syncing"
   | "live"
   | "reconnecting"
-  | "error"
-  | "demo";
+  | "error";
 export interface ConnectionState {
   phase: ConnectionPhase;
   detail: string;
@@ -70,7 +69,7 @@ export function teamHealth(
   tables: Tables,
   connection: ConnectionState,
 ): Health {
-  if (connection.phase !== "live" && connection.phase !== "demo") {
+  if (connection.phase !== "live") {
     return {
       tone: "neutral",
       title:

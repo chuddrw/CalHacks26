@@ -70,7 +70,7 @@ if (!existsSync(envFile)) fail("repo 1 has no .env", "Copy .env.example to .env 
 if (/^[a-z0-9][a-z0-9_-]*$/.test(config.agent)) pass("COWORK_NAME", config.agent);
 else fail("COWORK_NAME is missing or invalid", "Set COWORK_NAME=<lowercase name> in .env (npm run install-hooks does it for you).");
 if (config.stdbDb) pass("SpacetimeDB", `${config.stdbHost} / ${config.stdbDb}`);
-else fail("STDB_DB is missing", "Set STDB_DB in .env (the team database is agent-cowork; see external/spacetimedb-maincloud.txt).");
+else fail("STDB_DB is missing", "Set STDB_DB in .env (the team database is agent-cowork-orch; see external/spacetimedb-maincloud.txt).");
 if (existsSync(envFile) && /^STDB_TOKEN=.+$/m.test(readFileSync(envFile, "utf8"))) {
   warn("STDB_TOKEN is set in .env", "Remove it: Part C's rules keep tokens out of .env. The tools use your `spacetime login` session.");
 }

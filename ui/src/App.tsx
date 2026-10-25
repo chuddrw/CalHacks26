@@ -9,7 +9,6 @@ import { useDashboard } from "./stdb";
 import { activity, hiveStats, needsYou, teamGraph, type Selection } from "./team";
 import { useNow } from "./useNow";
 import { ActivityStrip } from "./components/Activity";
-import { DemoBar } from "./components/DemoBar";
 import { Details } from "./components/Details";
 import { Graph } from "./components/Graph";
 import { NeedsYou } from "./components/NeedsYou";
@@ -37,7 +36,6 @@ function BrandMark() {
 }
 
 const phaseLabel = {
-  demo: "Simulated",
   live: "Live",
   unconfigured: "Not connected",
   error: "Connection error",
@@ -51,12 +49,11 @@ export function App() {
   const now = useNow();
   const [selection, setSelection] = useState<Selection | null>(null);
   const close = useCallback(() => setSelection(null), []);
-  const demo = connection.phase === "demo";
   const flights = useFlights(tables, connection.phase);
   const health = teamHealth(tables, connection);
   const facts = tables.intent.filter((i) => i.verified).length;
   const project =
-    import.meta.env.VITE_PROJECT_LABEL || (demo ? "demo-app" : "team workspace");
+    import.meta.env.VITE_PROJECT_LABEL || "team workspace";
   return (
     <div className="app">
       <header className="topbar">
@@ -67,7 +64,7 @@ export function App() {
         <span className="muted">{project}</span>
         <button
           type="button"
-          className={`chip chip-button tone-${demo ? "amber" : connection.phase === "live" ? "green" : "neutral"}`}
+          className={`chip chip-button tone-${connection.phase === "live" ? "green" : "neutral"}`}
           onClick={() => setSelection({ kind: "connection" })}
           title={connection.detail}
         >
@@ -91,7 +88,6 @@ export function App() {
           Memory{facts ? ` (${facts})` : ""}
         </button>
       </header>
-      {demo && <DemoBar />}
       <NeedsYou actions={needsYou(tables)} select={setSelection} />
       <main className="layout">
         <section className="panel graph-panel" aria-label="Team graph">

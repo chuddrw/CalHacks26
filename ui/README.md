@@ -11,10 +11,8 @@ npm ci
 npm run ui -- --host 127.0.0.1
 ```
 
-Open `http://127.0.0.1:5173/?demo`. The preview hot-reloads when UI files change.
-The simulator runs entirely in the browser and performs no database writes.
-Use the scene selector or **Play story** to inspect working → conflict → fixing →
-resolved. Escalation and test-review scenes are available separately.
+Open `http://127.0.0.1:5173/`. The page hot-reloads when UI files change. It shows the
+team database named by `VITE_STDB_DB` in the root `.env` (`./run.sh --screen` sets it up).
 
 One screen in warm charcoal, after Claude's dark mode with Apple-like restraint: soft surfaces and shadows instead of outlines, no colored edges, Claude's clay only for the brand, primary buttons, selection and the database hub. Color appears only in small dots and text: parchment for work in progress, green passing, red conflict, amber waiting on a person. On the left is the team graph, drawn as a hive. SpacetimeDB sits in
 the middle, because no agent talks to another directly: each writes to the shared database and the
@@ -44,12 +42,6 @@ details in the drawer on the right. The graph stays live beside it, and Esc clos
 focus back. Sources: `src/team.ts` and `src/transfers.ts` (tests: `tests/team.test.ts`,
 `tests/transfers.test.ts`), `src/components/Graph.tsx` and `src/components/useFlights.ts`.
 
-- `/?demo&scene=conflict`: failure indicator; inspect it to reveal the fixer, diffs, and diagnosis.
-- `/?demo&scene=fixing`: explanation and completed diagnosis, fix still pending.
-- `/?demo&scene=resolved`: passing check and verified fact.
-- `/?demo&scene=escalated`: human attention required.
-- `/?demo&scene=needs_human`: existing-test edit requires review.
-
 The repository requires Node 24+ for the complete tool. D's dashboard was also
 built and typechecked on the available Node 22.21 runtime; that does not verify
 the hooks or the orchestrator on Node 22.
@@ -76,13 +68,13 @@ On **each** laptop that runs the dashboard:
 
    ```dotenv
    VITE_STDB_HOST=https://maincloud.spacetimedb.com
-   VITE_STDB_DB=agent-cowork
+   VITE_STDB_DB=agent-cowork-orch
    ```
 
    `VITE_PROJECT_LABEL` optionally names the monitored project. Never add tokens
    to `.env`, a `VITE_*` variable, source, URLs or shared setup documents.
 4. Run `npm run ui -- --host 127.0.0.1 --port 5173 --strictPort` and open
-   `http://127.0.0.1:5173/` without `?demo`. If the CLI is not on PATH, set
+   `http://127.0.0.1:5173/`. If the CLI is not on PATH, set
    `SPACETIME_CLI` in the server process to its executable path.
 5. The status becomes Live only after all seven views synchronize. If sign-in
    is missing, open Connection, follow its setup instructions, and Retry after
@@ -94,13 +86,12 @@ Sign-in: the Vite dev server (`ui/dev-session.ts`) answers
 to a page on the same laptop (loopback address, localhost Host and Origin, and a
 custom header other sites' pages can't send). It reads the session once per dev
 server, so restart `npm run ui` after switching CLI accounts. The token stays in
-memory: not in `.env`, a `VITE_` variable, the bundle, or dashboard state. Demo
-mode never requests a session. A production build has no such endpoint. Do not
+memory: not in `.env`, a `VITE_` variable, the bundle, or dashboard state. A production build has no such endpoint. Do not
 expose this server to a LAN or use it to share one person's login.
 
 The dashboard calls one reducer: `review_test_change`, from the Accept / Send back
 buttons on a conflict that needs a person (the fix changed existing tests). That
-needs editor access. In `?demo` the buttons change only the simulated rows.
+needs editor access.
 `npm run review` does the same from a terminal.
 
 The adapter validates all expected fields and safe integer conversions from SDK
@@ -152,10 +143,9 @@ machine do **not** prove three physical screens on the venue network.
 npm run typecheck -w ui
 npm test -w ui
 npm run build -w ui
-npm run seed -- --dry-run
 ```
 
-Unit tests cover status truthfulness, timestamp conversion, every simulated row,
+Unit tests cover status truthfulness, timestamp conversion, every fixture scene (`tests/fixtures.ts`),
 conflict excerpts, resolution events, subscription readiness, batched changes,
 reconnection, malformed data, and cleanup. `tests/team.test.ts` covers the graph's
 edges, each agent's "now" line and the human actions in every scene. Checked in a browser
@@ -165,6 +155,5 @@ Screenshots in `artifacts/work-d/` use simulated data and are labeled accordingl
 
 ## Presentation dependencies
 
-Use `pitch/demo-runbook.md` for rehearsal/recording and `pitch/submission-checklist.md`
-for final assets. Real interviews, measured runs, final team details, and an actual
+Use `pitch/submission-checklist.md` for final assets. Real interviews, measured runs, final team details, and an actual
 backup video remain team inputs. The copy must match the verified capabilities at submission.

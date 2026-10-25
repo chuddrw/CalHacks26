@@ -1,7 +1,7 @@
 /** WHAT IT'S FOR: the graph, "now" lines and human actions the dashboard shows, for every demo scene. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDemo } from "../src/demo.ts";
+import { buildScene } from "./fixtures.ts";
 import {
   activity,
   agentNow,
@@ -12,11 +12,11 @@ import {
 } from "../src/team.ts";
 
 const NOW = 1_000_000;
-const edge = (scene: Parameters<typeof buildDemo>[0], id: string) =>
-  teamGraph(buildDemo(scene, NOW), NOW).edges.find((e) => e.id === id);
+const edge = (scene: Parameters<typeof buildScene>[0], id: string) =>
+  teamGraph(buildScene(scene, NOW), NOW).edges.find((e) => e.id === id);
 
 test("the graph has the orchestrator and every agent", () => {
-  const { nodes } = teamGraph(buildDemo("conflict", NOW), NOW);
+  const { nodes } = teamGraph(buildScene("conflict", NOW), NOW);
   assert.deepEqual(
     nodes.map((n) => n.id),
     ["orchestrator", "people", "a", "b", "c", "d"],
@@ -25,7 +25,7 @@ test("the graph has the orchestrator and every agent", () => {
 });
 
 test("working: tasks wait for review, B's review is pending, D's is done", () => {
-  const t = buildDemo("working", NOW);
+  const t = buildScene("working", NOW);
   const { nodes, edges } = teamGraph(t, NOW);
   assert.equal(nodes[0]!.state, "Waiting for review");
   const tasks = edges.filter((e) => e.kind === "task");
@@ -52,7 +52,7 @@ test("working: tasks wait for review, B's review is pending, D's is done", () =>
 });
 
 test("conflict: both tasks are live, A and B are talking, nobody needs a human", () => {
-  const t = buildDemo("conflict", NOW);
+  const t = buildScene("conflict", NOW);
   const { edges } = teamGraph(t, NOW);
   const tasks = edges.filter((e) => e.kind === "task");
   assert.ok(tasks.every((e) => e.active && e.tone === "accent"));
@@ -73,7 +73,7 @@ test("fixing: one side agreed", () => {
 });
 
 test("resolved: green conflict for a while, done tasks, healthy agents", () => {
-  const t = buildDemo("resolved", NOW);
+  const t = buildScene("resolved", NOW);
   assert.equal(edge("resolved", "conflict-12")?.tone, "green");
   assert.equal(edge("resolved", "conflict-12")?.label, "#12 agreed");
   assert.ok(
@@ -90,18 +90,18 @@ test("resolved: green conflict for a while, done tasks, healthy agents", () => {
 });
 
 test("escalated and test-edit scenes ask the right humans", () => {
-  const escalated = needsYou(buildDemo("escalated", NOW));
+  const escalated = needsYou(buildScene("escalated", NOW));
   assert.equal(escalated.length, 1);
   assert.equal(escalated[0]!.who, "A's and B's humans");
   assert.equal(edge("escalated", "conflict-12")?.label, "#12 humans decide");
-  const tests = needsYou(buildDemo("needs_human", NOW));
+  const tests = needsYou(buildScene("needs_human", NOW));
   assert.equal(tests.length, 1);
   assert.match(tests[0]!.text, /changed existing tests/);
   assert.equal(edge("needs_human", "conflict-12")?.tone, "amber");
 });
 
 test("an offline agent says so and has no busy task", () => {
-  const t = buildDemo("conflict", NOW);
+  const t = buildScene("conflict", NOW);
   t.agent[2] = { ...t.agent[2]!, online: false };
   const c = teamGraph(t, NOW).nodes.find((n) => n.id === "c")!;
   assert.equal(c.state, "Offline");
@@ -109,7 +109,7 @@ test("an offline agent says so and has no busy task", () => {
 });
 
 test("a task assigned to an offline agent waits instead of claiming work", () => {
-  const t = buildDemo("conflict", NOW);
+  const t = buildScene("conflict", NOW);
   t.agent[1] = { ...t.agent[1]!, online: false };
   const b = teamGraph(t, NOW).edges.find((e) => e.id === "task-8")!;
   assert.equal(b.active, false);
@@ -118,7 +118,7 @@ test("a task assigned to an offline agent waits instead of claiming work", () =>
 });
 
 test("a self conflict marks the agent instead of drawing an edge", () => {
-  const t = buildDemo("working", NOW);
+  const t = buildScene("working", NOW);
   t.conflict = [
     {
       id: 30, pair: "c", kind: "self", agentA: "c", agentB: "", locA: "", locB: "",
@@ -132,7 +132,7 @@ test("a self conflict marks the agent instead of drawing an edge", () => {
 });
 
 test("activity mixes the orchestrator's events with checks, newest first", () => {
-  const events = activity(buildDemo("resolved", NOW));
+  const events = activity(buildScene("resolved", NOW));
   assert.ok(events.some((e) => e.id === "request-4"));
   assert.ok(events.some((e) => e.id === "task-done-7"));
   assert.ok(events.some((e) => e.id === "message-1"));
@@ -142,7 +142,7 @@ test("activity mixes the orchestrator's events with checks, newest first", () =>
 });
 
 test("the hive counts what the team shares", () => {
-  const hive = hiveStats(buildDemo("resolved", NOW));
+  const hive = hiveStats(buildScene("resolved", NOW));
   assert.equal(hive.online, 4);
   assert.equal(hive.facts, 1);
   assert.equal(hive.latestFact, "User.lastLogin is milliseconds since the Unix epoch.");

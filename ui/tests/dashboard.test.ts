@@ -1,7 +1,7 @@
 /** WHAT IT'S FOR: verify user-visible truthfulness, scene transitions, excerpts, and SDK normalization. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDemo, demoScenes } from "../src/demo.ts";
+import { buildScene, scenes } from "./fixtures.ts";
 import { emptyTables, teamHealth, timelineEvents } from "../src/dashboard.ts";
 import { excerptFromDiff, parseLocation } from "../src/diff.ts";
 import { normalizeRow } from "../src/live.ts";
@@ -10,7 +10,7 @@ import { relativeTime } from "../src/time.ts";
 const connected = { phase: "live" as const, detail: "", updatedAt: 1 };
 test("empty tables and offline cached greens never claim a healthy team", () => {
   assert.equal(teamHealth(emptyTables(), connected).tone, "neutral");
-  const t = buildDemo("resolved", 100000);
+  const t = buildScene("resolved", 100000);
   for (const phase of [
     "unconfigured",
     "connecting",
@@ -23,7 +23,7 @@ test("empty tables and offline cached greens never claim a healthy team", () => 
 });
 test("demo's actual working → red → fixing → green narrative is reflected in health", () => {
   assert.equal(
-    teamHealth(buildDemo("working", 100000), connected).tone,
+    teamHealth(buildScene("working", 100000), connected).tone,
     "amber",
   );
   for (const scene of [
@@ -32,15 +32,15 @@ test("demo's actual working → red → fixing → green narrative is reflected 
     "escalated",
     "needs_human",
   ] as const) {
-    assert.equal(teamHealth(buildDemo(scene, 100000), connected).tone, "red");
+    assert.equal(teamHealth(buildScene(scene, 100000), connected).tone, "red");
   }
   assert.equal(
-    teamHealth(buildDemo("resolved", 100000), connected).tone,
+    teamHealth(buildScene("resolved", 100000), connected).tone,
     "green",
   );
 });
 test("new snapshots invalidate a passing check; unlocalized failures stay red", () => {
-  const t = buildDemo("resolved", 100000);
+  const t = buildScene("resolved", 100000);
   t.snapshot[0].createdAt = 100001;
   assert.equal(teamHealth(t, connected).tone, "amber");
   t.snapshot = [];
@@ -53,12 +53,12 @@ test("new snapshots invalidate a passing check; unlocalized failures stay red", 
   assert.equal(teamHealth(t, connected).tone, "red");
 });
 test("human-review conflicts override passing checks", () => {
-  const t = buildDemo("resolved", 100000);
+  const t = buildScene("resolved", 100000);
   t.conflict[0].status = "needs_human";
   assert.match(teamHealth(t, connected).title, /needs a hand/);
 });
 test("passing single/pair localization checks cannot replace the full combined failure", () => {
-  const t = buildDemo("conflict", 100000);
+  const t = buildScene("conflict", 100000);
   t.conflict = [];
   t.agent.forEach((agent) => {
     agent.status = "green";
@@ -82,7 +82,7 @@ test("passing single/pair localization checks cannot replace the full combined f
   assert.equal(teamHealth(t, connected).tone, "amber");
 });
 test("timeline includes both detection and resolution without mutating input", () => {
-  const t = buildDemo("resolved", 100000);
+  const t = buildScene("resolved", 100000);
   const before = structuredClone(t);
   const events = timelineEvents(t);
   assert(events.some((e) => e.kind === "resolved"));
@@ -92,8 +92,8 @@ test("timeline includes both detection and resolution without mutating input", (
   assert.deepEqual(t, before);
 });
 test("all simulated rows satisfy the actual shared schema validator", () => {
-  for (const scene of demoScenes) {
-    const t = buildDemo(scene, 100000);
+  for (const scene of scenes) {
+    const t = buildScene(scene, 100000);
     assert(
       t.agent.every((agent) =>
         t.snapshot.some(
@@ -108,7 +108,7 @@ test("all simulated rows satisfy the actual shared schema validator", () => {
   }
 });
 test("SDK bigint IDs normalize safely and schema drift surfaces as an error", () => {
-  const row = buildDemo("resolved", 100000).intent[0];
+  const row = buildScene("resolved", 100000).intent[0];
   assert.equal(
     normalizeRow("intent", { ...row, id: 4n, createdAt: 500n }).id,
     4,
@@ -125,14 +125,14 @@ test("SDK bigint IDs normalize safely and schema drift surfaces as an error", ()
   assert.throws(
     () =>
       normalizeRow("conflict", {
-        ...buildDemo("conflict", 100000).conflict[0],
+        ...buildScene("conflict", 100000).conflict[0],
         status: "unknown",
       }),
     /Unknown/,
   );
 });
 test("excerpts locate the correct file and added lines from real-format demo diffs", () => {
-  const t = buildDemo("conflict", 100000);
+  const t = buildScene("conflict", 100000);
   assert(
     excerptFromDiff(t.snapshot[0].diff, "src/users/user.ts:14").some(
       (l) =>

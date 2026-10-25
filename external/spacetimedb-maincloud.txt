@@ -5,11 +5,11 @@ WHAT THIS IS FOR
 
 PUBLISHED
   SpacetimeDB version: 2.13.0 (latest stable verified Oct 24, 2026)
-  Database name (STDB_DB): agent-cowork
+  Database name (STDB_DB): agent-cowork-orch  (the old agent-cowork has no orchestrator tables; don't use it)
   Display name: Agent Cowork
   Host (STDB_HOST): https://maincloud.spacetimedb.com
-  Identity: c200265232fd2ba44e83549a9d038d6ac7ca0b3e889f5b00bcf84cdbac0132a1
-  Dashboard: https://spacetimedb.com/agent-cowork
+  Identity: c200144658e7947f3c400c75fa5240fdfed6937c820b50733088888568bc2db3
+  Dashboard: https://spacetimedb.com/agent-cowork-orch
 
 ACCESS
   Owner-only by default. Only the configured Owner can approve Reader/Editor membership.

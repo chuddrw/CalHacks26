@@ -112,7 +112,7 @@ If a checkpoint slips by more than an hour, cut the lowest item in that block. P
 
 ## Demo (2 minutes)
 
-The full script is in [pitch/demo-script.md](pitch/demo-script.md), and the exact steps are in [demo-app/SCENARIO.md](demo-app/SCENARIO.md).
+To set up a laptop and join, run `./run.sh` (see the README).
 
 1. Open with the other team's quote.
 2. Two laptops and the big screen. B's agent has built an idle-time feature that assumes seconds and gone idle.

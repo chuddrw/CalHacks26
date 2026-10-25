@@ -1,0 +1,2 @@
+# run.sh must keep LF line endings, or bash fails on Windows checkouts.
+*.sh text eol=lf

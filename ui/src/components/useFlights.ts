@@ -32,7 +32,7 @@ export function useFlights(tables: Tables, phase: ConnectionPhase): Flight[] {
     };
   }, []);
   useEffect(() => {
-    if ((phase !== "live" && phase !== "demo") || tables.agent.length === 0) {
+    if (phase !== "live" || tables.agent.length === 0) {
       seen.current = null; // Reconnecting: the next full picture is a new baseline, not a burst.
       return;
     }

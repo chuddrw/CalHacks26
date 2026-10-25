@@ -80,7 +80,6 @@ export function Details({
     <aside className="details" aria-labelledby="details-title">
       <header>
         <h2 id="details-title">{title}</h2>
-        {connection.phase === "demo" && <span className="chip">simulated</span>}
         <button
           type="button"
           className="btn btn-ghost"
@@ -531,14 +530,21 @@ function ConflictView({
         </span>{" "}
         <span className="muted small">{kindText[c.kind]} Suggested to adapt: {upper(c.fixer)}.</span>
       </div>
-      {c.status === "escalated" && c.agentB && (
+      {c.status === "escalated" && (
         <div className="card attention">
-          <p>
-            <strong>
-              {upper(c.agentA)}'s and {upper(c.agentB)}'s humans decide.
-            </strong>{" "}
-            The agents couldn't settle it. Read the thread, decide together, send the decision.
-          </p>
+          {c.agentB ? (
+            <p>
+              <strong>
+                {upper(c.agentA)}'s and {upper(c.agentB)}'s humans decide.
+              </strong>{" "}
+              The agents couldn't settle it. Read the thread, decide together, send the decision.
+            </p>
+          ) : (
+            <p>
+              <strong>{upper(c.agentA)}'s human decides.</strong> The agent couldn't fix it in time.
+              Read the error, decide how it should be fixed, send the decision.
+            </p>
+          )}
           <DecisionBox key={c.id} conflict={c} />
         </div>
       )}
@@ -740,11 +746,6 @@ function ConnectionView({ connection }: { connection: ConnectionState }) {
         <button type="button" className="btn" onClick={() => connect()}>
           Retry connection
         </button>
-        {connection.phase !== "demo" && (
-          <a className="btn" href="/?demo">
-            Open the simulated demo
-          </a>
-        )}
       </div>
     </>
   );
