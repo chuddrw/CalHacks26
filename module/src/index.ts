@@ -51,8 +51,39 @@ const testReview = table({ name: 'test_review' }, {
 const accessMember = table({ name: 'access_member' }, {
   identity: t.identity().primaryKey(), role: t.string(),
 });
+// Orchestrator (branch feat/orchestrator): what humans asked, the plan's tasks and reviews, the
+// conversation inside each conflict thread, and the orchestrator's live steps.
+const requestData = table({ name: 'request_data' }, {
+  id: t.u32().primaryKey().autoInc(), agent: t.string(), body: t.string(), status: t.string(),
+  summary: t.string(), plan: t.string(), createdAt: t.f64().name("createdAt"), updatedAt: t.f64().name("updatedAt"),
+});
+const taskData = table({ name: 'task_data' }, {
+  id: t.u32().primaryKey().autoInc(), requestId: t.u32().name("requestId").index('btree'), agent: t.string(),
+  title: t.string(), details: t.string(), files: t.array(t.string()), major: t.bool(), status: t.string(),
+  note: t.string(), createdAt: t.f64().name("createdAt"), updatedAt: t.f64().name("updatedAt"),
+});
+const reviewData = table({ name: 'review_data' }, {
+  id: t.u32().primaryKey().autoInc(), requestId: t.u32().name("requestId").index('btree'), reviewer: t.string(),
+  summary: t.string(), status: t.string(), answer: t.string(), createdAt: t.f64().name("createdAt"),
+  decidedAt: t.f64().name("decidedAt"),
+});
+const messageData = table({ name: 'message_data' }, {
+  id: t.u32().primaryKey().autoInc(), conflictId: t.u32().name("conflictId").index('btree'), author: t.string(),
+  kind: t.string(), body: t.string(), createdAt: t.f64().name("createdAt"),
+});
+const planStepData = table({ name: 'plan_step_data' }, {
+  id: t.u32().primaryKey().autoInc(), requestId: t.u32().name("requestId").index('btree'), kind: t.string(),
+  detail: t.string(), createdAt: t.f64().name("createdAt"),
+});
+/** The orchestrator's full-stack builds: main plus every agent's latest work, merged and checked. */
+const buildData = table({ name: 'build_data' }, {
+  id: t.u32().primaryKey().autoInc(), branch: t.string(), sha: t.string(), mainSha: t.string().name("mainSha"),
+  agents: t.array(t.string()), result: t.string(), log: t.string(), requestId: t.u32().name("requestId"),
+  createdAt: t.f64().name("createdAt"),
+});
 const spacetimedb = schema({ agentData, snapshotData, intentData, checkRunData, conflictData, inboxData,
-  diagnosisStepData, accessMember, agent_connection, escalation_timer, testReview }, {
+  diagnosisStepData, accessMember, agent_connection, escalation_timer, testReview,
+  requestData, taskData, reviewData, messageData, planStepData, buildData }, {
   // SQL callers already use the frozen camelCase column names; don't normalize them.
   CASE_CONVERSION_POLICY: CaseConversionPolicy.None,
   env: { ACCESS_OWNER_IDENTITY: t.string() },
@@ -60,6 +91,13 @@ const spacetimedb = schema({ agentData, snapshotData, intentData, checkRunData, 
 export default spacetimedb;
 type Ctx = ReducerCtx<typeof spacetimedb.schemaType>;
 type AccessCtx = Pick<ViewCtx<typeof spacetimedb.schemaType>, 'db' | 'env' | 'sender'>;
+
+/** Author of the orchestrator's thread messages and of verified facts (shared ORCHESTRATOR_NAME). */
+const ORCHESTRATOR = 'orchestrator';
+/** Author of a decision both humans send from the dashboard (shared HUMAN_AUTHOR). */
+const HUMAN = 'human';
+/** Messages in one thread, since the last human decision, before it goes to both humans. */
+const MAX_MESSAGES = 12;
 
 function parseIdentity(value: string, label = 'Identity'): Identity {
   if (!/^(?:0x)?[0-9a-fA-F]{64}$/.test(value)) throw new SenderError(`${label} must be a valid public identity`);
@@ -111,6 +149,18 @@ export const inbox = spacetimedb.view({ name: 'inbox', public: true }, t.array(i
   ctx => ctx.from.inboxData.where(() => role(ctx) !== null).build());
 export const diagnosis_step = spacetimedb.view({ name: 'diagnosis_step', public: true }, t.array(diagnosisStepData.rowType),
   ctx => ctx.from.diagnosisStepData.where(() => role(ctx) !== null).build());
+export const request = spacetimedb.view({ name: 'request', public: true }, t.array(requestData.rowType),
+  ctx => ctx.from.requestData.where(() => role(ctx) !== null).build());
+export const task = spacetimedb.view({ name: 'task', public: true }, t.array(taskData.rowType),
+  ctx => ctx.from.taskData.where(() => role(ctx) !== null).build());
+export const review = spacetimedb.view({ name: 'review', public: true }, t.array(reviewData.rowType),
+  ctx => ctx.from.reviewData.where(() => role(ctx) !== null).build());
+export const message = spacetimedb.view({ name: 'message', public: true }, t.array(messageData.rowType),
+  ctx => ctx.from.messageData.where(() => role(ctx) !== null).build());
+export const build = spacetimedb.view({ name: 'build', public: true }, t.array(buildData.rowType),
+  ctx => ctx.from.buildData.where(() => role(ctx) !== null).build());
+export const plan_step = spacetimedb.view({ name: 'plan_step', public: true }, t.array(planStepData.rowType),
+  ctx => ctx.from.planStepData.where(() => role(ctx) !== null).build());
 
 export const grant_access = spacetimedb.reducer({ identity: t.string(), role: t.string() }, (ctx, args) => {
   requireOwner(ctx);
@@ -169,10 +219,11 @@ function ensureAgent(ctx: Ctx, value: string) {
     status: 'green', intent: '', files: [], lastSnapshotAt: 0 });
 }
 function active(status: string): boolean { return status !== 'resolved'; }
+/** A potential conflict is a prediction, not a failed check, so it never turns an agent red. */
 function refresh(ctx: Ctx, value: string): void {
   if (!value) return;
   const row = ensureAgent(ctx, value);
-  const blocked = [...ctx.db.conflictData.iter()].some(c => active(c.status) &&
+  const blocked = [...ctx.db.conflictData.iter()].some(c => active(c.status) && c.kind !== 'potential' &&
     (c.agentA === value || c.agentB === value));
   ctx.db.agentData.name.update({ ...row, status: blocked ? 'red' : 'green' });
 }
@@ -307,7 +358,9 @@ export const report_conflict = spacetimedb.reducer({ kind: t.string(), agentA: t
       explanation: existing.error === error && existing.fixer === args.fixer ? existing.explanation : '' });
     if (changed && existing.status !== 'needs_human') {
       retireWakeups(ctx, existing.id);
-      note(ctx, args.fixer, 'conflict', existing.id, `[cowork] Still red after your last change. Conflict #${existing.id}: you are the fixer`);
+      // A potential conflict (flagged by the orchestrator) that a check now confirms isn't a retry.
+      const why = existing.kind === 'potential' ? `The combined check now fails for conflict #${existing.id}.` : 'Still red after your last change.';
+      note(ctx, args.fixer, 'conflict', existing.id, `[cowork] ${why} Conflict #${existing.id}: you are the fixer`);
       const other = args.fixer === args.agentA ? args.agentB : args.agentA;
       if (other) note(ctx, other, 'info', existing.id, `[cowork] Conflict #${existing.id}: ${args.fixer} is the fixer`);
     }
@@ -362,7 +415,7 @@ function finishResolution(ctx: Ctx, row: ConflictRecord, verifiedFact: string): 
   if (verifiedFact.trim()) {
     const files = [...new Set([...(ctx.db.agentData.name.find(row.agentA)?.files ?? []),
       ...(ctx.db.agentData.name.find(row.agentB)?.files ?? [])])];
-    ctx.db.intentData.insert({ id: 0, agent: 'watcher', summary: verifiedFact, files,
+    ctx.db.intentData.insert({ id: 0, agent: ORCHESTRATOR, summary: verifiedFact, files,
       symbols: [], verified: true, createdAt: now(ctx) });
     for (const recipient of ctx.db.agentData.iter()) note(ctx, recipient.name, 'fact', row.id, `[cowork] Verified fact: ${verifiedFact}`);
   }
@@ -440,6 +493,12 @@ export const mark_delivered = spacetimedb.reducer({ inboxIds: t.array(t.u32()) }
 });
 export const reset_all = spacetimedb.reducer({}, ctx => {
   requireOwner(ctx);
+  for (const row of ctx.db.buildData.iter()) ctx.db.buildData.id.delete(row.id);
+  for (const row of ctx.db.planStepData.iter()) ctx.db.planStepData.id.delete(row.id);
+  for (const row of ctx.db.messageData.iter()) ctx.db.messageData.id.delete(row.id);
+  for (const row of ctx.db.reviewData.iter()) ctx.db.reviewData.id.delete(row.id);
+  for (const row of ctx.db.taskData.iter()) ctx.db.taskData.id.delete(row.id);
+  for (const row of ctx.db.requestData.iter()) ctx.db.requestData.id.delete(row.id);
   for (const row of ctx.db.escalation_timer.iter()) ctx.db.escalation_timer.scheduledId.delete(row.scheduledId);
   for (const row of ctx.db.testReview.iter()) ctx.db.testReview.conflictId.delete(row.conflictId);
   for (const row of ctx.db.agent_connection.iter()) ctx.db.agent_connection.connectionId.delete(row.connectionId);
@@ -455,5 +514,327 @@ export const escalate = spacetimedb.reducer({ onSchedule: escalation_timer },
   { arg: escalation_timer.rowType }, (ctx, { arg }) => {
     if (!ctx.senderAuth.isInternal || !ctx.sender.isEqual(ctx.databaseIdentity)) throw new SenderError('Scheduled calls only');
     const row = ctx.db.conflictData.id.find(arg.conflictId);
-    if (row?.status === 'open') ctx.db.conflictData.id.update({ ...row, status: 'escalated' });
+    if (row?.status === 'open') escalateToHumans(ctx, row, ORCHESTRATOR, 'Still open after 5 minutes.');
   });
+
+// ---- Orchestrator (branch feat/orchestrator; design in checklists/orchestrator.md) ------------
+// A human asks through their own agent (submit_request). The orchestrator's Droid plans it and
+// publishes the plan in one transaction (publish_plan): tasks for the agents that own each feature,
+// reviews for the humans whose features a major change affects, and potential conflicts it expects.
+// The two agents of a conflict talk it out themselves (post_message). Both agreeing plus a current
+// green check resolves it; otherwise it goes to both humans, who decide on the dashboard.
+
+function findRequest(ctx: Ctx, id: number) { return ctx.db.requestData.id.find(id); }
+type RequestRecord = NonNullable<ReturnType<typeof findRequest>>;
+function getRequest(ctx: Ctx, id: number): RequestRecord {
+  const row = findRequest(ctx, id);
+  if (!row) throw new SenderError(`Unknown request #${id}`);
+  return row;
+}
+function updateRequest(ctx: Ctx, row: RequestRecord, changes: Partial<RequestRecord>): void {
+  ctx.db.requestData.id.update({ ...row, ...changes, updatedAt: now(ctx) });
+}
+function otherSide(row: ConflictRecord, agent: string): string { return row.agentA === agent ? row.agentB : row.agentA; }
+function participants(row: ConflictRecord): string[] { return [row.agentA, row.agentB].filter(Boolean); }
+function post(ctx: Ctx, conflictId: number, author: string, kind: string, body: string): void {
+  ctx.db.messageData.insert({ id: 0, conflictId, author, kind, body: cut(body, 4 * 1024), createdAt: now(ctx) });
+}
+function clearTimers(ctx: Ctx, conflictId: number): void {
+  for (const timer of [...ctx.db.escalation_timer.iter()]) if (timer.conflictId === conflictId) {
+    ctx.db.escalation_timer.scheduledId.delete(timer.scheduledId);
+  }
+}
+/** Undelivered wakeups about this conflict (opening and messages) would only confuse a waiting agent. */
+function retireThreadWakeups(ctx: Ctx, conflictId: number): void {
+  for (const row of [...ctx.db.inboxData.iter()]) if (row.conflictId === conflictId && !row.delivered &&
+    (row.kind === 'conflict' || row.kind === 'message')) ctx.db.inboxData.id.update({ ...row, delivered: true });
+}
+/** The thread since the last human decision, oldest first. */
+function sinceDecision(ctx: Ctx, conflictId: number) {
+  const all = [...ctx.db.messageData.conflictId.filter(conflictId)].sort((a, b) => a.id - b.id);
+  return all.slice(all.map(m => m.kind).lastIndexOf('decision') + 1);
+}
+function bothAgreed(ctx: Ctx, row: ConflictRecord): boolean {
+  const recent = sinceDecision(ctx, row.id);
+  return participants(row).every(agent => {
+    const mine = recent.filter(m => m.author === agent);
+    return mine[mine.length - 1]?.kind === 'agree';
+  });
+}
+/** A current green check that includes every participant with a snapshot. No snapshots: nothing can be broken. */
+function pairGreen(ctx: Ctx, row: ConflictRecord): boolean {
+  const changed = participants(row).filter(agent => latestSnapshotId(ctx, agent) > 0);
+  if (changed.length === 0) return true;
+  return [...ctx.db.checkRunData.iter()].some(run => run.result === 'green' &&
+    changed.every(agent => run.agents.includes(agent)) && currentRun(ctx, run));
+}
+function escalateToHumans(ctx: Ctx, row: ConflictRecord, by: string, reason: string): void {
+  ctx.db.conflictData.id.update({ ...row, status: 'escalated' });
+  clearTimers(ctx, row.id);
+  retireThreadWakeups(ctx, row.id);
+  post(ctx, row.id, by, 'escalate', reason);
+  for (const agent of participants(row)) {
+    note(ctx, agent, 'info', row.id, `[cowork] Conflict #${row.id} went to both humans: ${reason} Stop working on it; their decision will wake you.`);
+  }
+}
+
+interface PlanTask { agent: string; title: string; details: string; files: string[]; major: boolean }
+interface PlanReview { reviewer: string; summary: string }
+interface PlanConflict { agentA: string; agentB: string; topic: string; details: string; suggested: string }
+interface Plan { tasks: PlanTask[]; reviews: PlanReview[]; conflicts: PlanConflict[] }
+
+/** Validates the orchestrator's plan (shared PlanInput) before any row is written. */
+function parsePlan(json: string): Plan {
+  let value: unknown;
+  try { value = JSON.parse(json); } catch { throw new SenderError('The plan must be JSON'); }
+  const record = (item: unknown, label: string): Record<string, unknown> => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw new SenderError(`${label} must be an object`);
+    return item as Record<string, unknown>;
+  };
+  const text = (item: unknown, label: string, limit: number, required = true): string => {
+    if (typeof item !== 'string') throw new SenderError(`${label} must be text`);
+    const result = cut(item.trim(), limit);
+    if (required && !result) throw new SenderError(`${label} is empty`);
+    return result;
+  };
+  const agentName = (item: unknown, label: string): string => { const result = text(item, label, 64); name(result); return result; };
+  const plan = record(value, 'plan');
+  const list = (key: string, max: number): unknown[] => {
+    const items = plan[key] ?? [];
+    if (!Array.isArray(items)) throw new SenderError(`plan.${key} must be a list`);
+    if (items.length > max) throw new SenderError(`plan.${key} has more than ${max} entries`);
+    return items;
+  };
+  const tasks = list('tasks', 20).map((item, index) => {
+    const task = record(item, `plan.tasks[${index}]`);
+    const files = task.files ?? [];
+    if (!Array.isArray(files) || files.some(file => typeof file !== 'string')) throw new SenderError(`plan.tasks[${index}].files must be a list of paths`);
+    return { agent: agentName(task.agent, `plan.tasks[${index}].agent`), title: text(task.title, `plan.tasks[${index}].title`, 200),
+      details: text(task.details ?? '', `plan.tasks[${index}].details`, 4 * 1024, false),
+      files: (files as string[]).slice(0, 50).map(file => cut(file, 300)), major: task.major === true };
+  });
+  const reviews: PlanReview[] = [];
+  for (const [index, item] of list('reviews', 10).entries()) {
+    const review = record(item, `plan.reviews[${index}]`);
+    const reviewer = agentName(review.reviewer, `plan.reviews[${index}].reviewer`);
+    const summary = text(review.summary, `plan.reviews[${index}].summary`, 2 * 1024);
+    if (!reviews.some(existing => existing.reviewer === reviewer)) reviews.push({ reviewer, summary });
+  }
+  const conflicts = list('conflicts', 10).map((item, index) => {
+    const conflict = record(item, `plan.conflicts[${index}]`);
+    const agentA = agentName(conflict.agentA, `plan.conflicts[${index}].agentA`);
+    const agentB = agentName(conflict.agentB, `plan.conflicts[${index}].agentB`);
+    if (agentA === agentB) throw new SenderError(`plan.conflicts[${index}] needs two different agents`);
+    const suggested = typeof conflict.suggested === 'string' && [agentA, agentB].includes(conflict.suggested) ? conflict.suggested : agentB;
+    return { agentA, agentB, topic: text(conflict.topic, `plan.conflicts[${index}].topic`, 200),
+      details: text(conflict.details ?? '', `plan.conflicts[${index}].details`, 2 * 1024, false), suggested };
+  });
+  return { tasks, reviews, conflicts };
+}
+
+/** Opens a potential conflict between two agents and wakes both. An active one for the pair gets a message instead. */
+function openPotential(ctx: Ctx, requestId: number, c: PlanConflict): void {
+  const pair = [c.agentA, c.agentB].sort().join('+');
+  const said = `${c.topic}${c.details ? `. ${c.details}` : ''}`;
+  const existing = [...ctx.db.conflictData.pair.filter(pair)].find(row => active(row.status));
+  if (existing) {
+    post(ctx, existing.id, ORCHESTRATOR, 'message', `Request #${requestId} touches this too: ${said}`);
+    if (existing.status === 'open') for (const agent of participants(existing)) {
+      note(ctx, agent, 'message', existing.id, `[cowork] The orchestrator added to conflict #${existing.id}: ${c.topic}`);
+    }
+    return;
+  }
+  const row = ctx.db.conflictData.insert({ id: 0, pair, kind: 'potential', agentA: c.agentA, agentB: c.agentB,
+    locA: '', locB: '', error: cut(`${c.topic}\n${c.details}`.trim(), 4 * 1024), explanation: '', fixer: c.suggested,
+    status: 'open', runKey: '', createdAt: now(ctx), resolvedAt: 0 });
+  post(ctx, row.id, ORCHESTRATOR, 'message', `${said} Suggested: ${c.suggested} adapts. Agree between you who changes what.`);
+  for (const agent of [c.agentA, c.agentB]) {
+    note(ctx, agent, 'conflict', row.id, `[cowork] Conflict #${row.id} with ${agent === c.agentA ? c.agentB : c.agentA}: ${c.topic}`);
+  }
+  scheduleEscalation(ctx, row.id);
+}
+
+/** Every review approved: the held tasks go out (each wakes its agent) and the plan's conflicts open. */
+function releasePlan(ctx: Ctx, request: RequestRecord): void {
+  let count = 0;
+  for (const row of [...ctx.db.taskData.requestId.filter(request.id)]) if (row.status === 'waiting_review') {
+    ctx.db.taskData.id.update({ ...row, status: 'assigned', updatedAt: now(ctx) });
+    // Task wakeups carry the task id in the inbox row's conflictId column.
+    note(ctx, row.agent, 'task', row.id, `[cowork] Task #${row.id} from the orchestrator: ${row.title}`);
+    count++;
+  }
+  updateRequest(ctx, request, { status: count ? 'assigned' : 'done' });
+  for (const conflict of parsePlan(request.plan || '{}').conflicts) openPotential(ctx, request.id, conflict);
+}
+
+export const submit_request = spacetimedb.reducer({ agent: t.string(), body: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  ensureAgent(ctx, args.agent);
+  const body = cut(args.body.trim(), 4 * 1024);
+  if (!body) throw new SenderError('Say what you want the orchestrator to do');
+  ctx.db.requestData.insert({ id: 0, agent: args.agent, body, status: 'new', summary: '', plan: '',
+    createdAt: now(ctx), updatedAt: now(ctx) });
+});
+/** new -> planning. Also accepts "planning", so a restarted orchestrator can pick its request up again. */
+export const start_request = spacetimedb.reducer({ requestId: t.u32().name("requestId") }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getRequest(ctx, args.requestId);
+  if (row.status !== 'new' && row.status !== 'planning') throw new SenderError(`Request #${row.id} is already ${row.status}`);
+  updateRequest(ctx, row, { status: 'planning' });
+});
+export const add_plan_step = spacetimedb.reducer({ requestId: t.u32().name("requestId"), kind: t.string(), detail: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  getRequest(ctx, args.requestId);
+  oneOf(args.kind, ['status', 'tool_call', 'tool_result', 'thought', 'final', 'error']);
+  ctx.db.planStepData.insert({ id: 0, ...args, detail: cut(args.detail, 2 * 1024), createdAt: now(ctx) });
+});
+export const publish_plan = spacetimedb.reducer({ requestId: t.u32().name("requestId"), summary: t.string(), plan: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const request = getRequest(ctx, args.requestId);
+  if (request.status !== 'new' && request.status !== 'planning') throw new SenderError(`Request #${request.id} is already ${request.status}`);
+  const plan = parsePlan(args.plan);
+  const summary = cut(args.summary.trim(), 4 * 1024);
+  const held = plan.reviews.length > 0;
+  for (const review of plan.reviews) {
+    ctx.db.reviewData.insert({ id: 0, requestId: request.id, reviewer: review.reviewer, summary: review.summary,
+      status: 'pending', answer: '', createdAt: now(ctx), decidedAt: 0 });
+    note(ctx, review.reviewer, 'info', 0, `[cowork] ${request.agent}'s request #${request.id} affects your feature, so your human reviews it on the dashboard first: ${review.summary}`);
+  }
+  for (const task of plan.tasks) {
+    ensureAgent(ctx, task.agent);
+    const row = ctx.db.taskData.insert({ id: 0, requestId: request.id, ...task, status: held ? 'waiting_review' : 'assigned',
+      note: '', createdAt: now(ctx), updatedAt: now(ctx) });
+    if (!held) note(ctx, task.agent, 'task', row.id, `[cowork] Task #${row.id} from the orchestrator: ${task.title}`);
+  }
+  updateRequest(ctx, request, { summary, plan: JSON.stringify(plan),
+    status: held ? 'waiting_review' : plan.tasks.length ? 'assigned' : 'done' });
+  if (!held) for (const conflict of plan.conflicts) openPotential(ctx, request.id, conflict);
+  const waiting = held ? ` Waiting for review by ${plan.reviews.map(review => review.reviewer).join(', ')}.` : '';
+  note(ctx, request.agent, 'info', 0, `[cowork] The orchestrator planned your request #${request.id}: ${cut(summary, 1000)}${waiting}`);
+});
+export const fail_request = spacetimedb.reducer({ requestId: t.u32().name("requestId"), reason: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getRequest(ctx, args.requestId);
+  if (row.status !== 'new' && row.status !== 'planning') return;
+  const reason = cut(args.reason.trim() || 'No plan came out.', 1024);
+  updateRequest(ctx, row, { status: 'failed', summary: reason });
+  note(ctx, row.agent, 'info', 0, `[cowork] The orchestrator couldn't plan your request #${row.id}: ${reason}`);
+});
+export const decide_review = spacetimedb.reducer({ reviewId: t.u32().name("reviewId"), approve: t.bool(), answer: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const review = ctx.db.reviewData.id.find(args.reviewId);
+  if (!review) throw new SenderError(`Unknown review #${args.reviewId}`);
+  if (review.status !== 'pending') throw new SenderError(`Review #${review.id} is already ${review.status}`);
+  const request = getRequest(ctx, review.requestId);
+  const answer = cut(args.answer.trim(), 500);
+  const said = answer ? ` (${answer})` : '';
+  ctx.db.reviewData.id.update({ ...review, status: args.approve ? 'approved' : 'rejected', answer, decidedAt: now(ctx) });
+  if (args.approve) {
+    note(ctx, request.agent, 'info', 0, `[cowork] ${review.reviewer}'s human approved your request #${request.id}${said}.`);
+    const pending = [...ctx.db.reviewData.requestId.filter(request.id)].some(row => row.status === 'pending');
+    if (!pending && request.status === 'waiting_review') releasePlan(ctx, request);
+    return;
+  }
+  for (const row of [...ctx.db.reviewData.requestId.filter(request.id)]) if (row.status === 'pending') {
+    ctx.db.reviewData.id.update({ ...row, status: 'cancelled', decidedAt: now(ctx) });
+  }
+  for (const row of [...ctx.db.taskData.requestId.filter(request.id)]) if (row.status === 'waiting_review') {
+    ctx.db.taskData.id.update({ ...row, status: 'cancelled', note: `Sent back by ${review.reviewer}'s human${said}`, updatedAt: now(ctx) });
+  }
+  updateRequest(ctx, request, { status: 'rejected' });
+  note(ctx, request.agent, 'info', 0, `[cowork] ${review.reviewer}'s human sent your request #${request.id} back${said}. Nothing was assigned. Tell your human; they can ask again with a changed request.`);
+});
+export const complete_task = spacetimedb.reducer({ taskId: t.u32().name("taskId"), agent: t.string(), summary: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  name(args.agent);
+  const row = ctx.db.taskData.id.find(args.taskId);
+  if (!row) throw new SenderError(`Unknown task #${args.taskId}`);
+  if (row.agent !== args.agent) throw new SenderError(`Task #${row.id} belongs to ${row.agent}`);
+  if (row.status !== 'assigned') throw new SenderError(`Task #${row.id} is ${row.status}, not assigned`);
+  // Tests decide: an agent that changed anything needs a current green check that includes it.
+  if (latestSnapshotId(ctx, args.agent) > 0 && ![...ctx.db.checkRunData.iter()].some(run =>
+    run.result === 'green' && run.agents.includes(args.agent) && currentRun(ctx, run))) {
+    throw new SenderError('No current green check includes your latest snapshot. Run check_with_team, then try again.');
+  }
+  const summary = cut(args.summary.trim(), 2 * 1024);
+  ctx.db.taskData.id.update({ ...row, status: 'done', note: summary, updatedAt: now(ctx) });
+  const request = findRequest(ctx, row.requestId);
+  if (!request) return;
+  if (request.agent !== args.agent) note(ctx, request.agent, 'info', 0, `[cowork] ${args.agent} finished task #${row.id} of your request #${request.id}: ${cut(summary, 300)}`);
+  const left = [...ctx.db.taskData.requestId.filter(request.id)].some(task => task.status === 'assigned' || task.status === 'waiting_review');
+  if (!left && request.status === 'assigned') {
+    updateRequest(ctx, request, { status: 'done' });
+    note(ctx, request.agent, 'info', 0, `[cowork] Every task of your request #${request.id} is done.`);
+  }
+});
+export const post_message = spacetimedb.reducer({ conflictId: t.u32().name("conflictId"), agent: t.string(), kind: t.string(),
+  body: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  name(args.agent);
+  oneOf(args.kind, ['message', 'agree', 'escalate']);
+  const row = getConflict(ctx, args.conflictId);
+  if (row.agentA !== args.agent && row.agentB !== args.agent) throw new SenderError(`${args.agent} isn't part of conflict #${row.id}`);
+  if (!row.agentB) throw new SenderError(`Conflict #${row.id} involves only you; fix it and run check_with_team`);
+  if (row.status !== 'open') {
+    throw new SenderError(row.status === 'escalated' ? `Conflict #${row.id} is with both humans now; wait for their decision`
+      : `Conflict #${row.id} is ${row.status === 'needs_human' ? 'waiting for a person (a fix changed tests)' : 'already resolved'}`);
+  }
+  const body = args.body.trim();
+  if (!body) throw new SenderError('The message is empty');
+  post(ctx, row.id, args.agent, args.kind, body);
+  if (args.kind === 'escalate') {
+    escalateToHumans(ctx, row, args.agent, `${args.agent} asked for a decision: ${cut(body, 300)}`);
+    return;
+  }
+  const agreed = args.kind === 'agree' && bothAgreed(ctx, row);
+  if (agreed && pairGreen(ctx, row)) {
+    finishResolution(ctx, row, body);
+    return;
+  }
+  const verb = args.kind === 'agree' ? 'agrees' : 'says';
+  note(ctx, otherSide(row, args.agent), 'message', row.id, `[cowork] ${args.agent} ${verb} in conflict #${row.id}: ${cut(body, 1000)}`);
+  if (agreed) for (const agent of participants(row)) {
+    note(ctx, agent, 'info', row.id, `[cowork] You both agree on conflict #${row.id}, but no current green check covers both of you. Run check_with_team after your last edit, then agree again.`);
+  }
+  const spoken = sinceDecision(ctx, row.id).filter(m => participants(row).includes(m.author) && (m.kind === 'message' || m.kind === 'agree'));
+  if (spoken.length >= MAX_MESSAGES) {
+    escalateToHumans(ctx, ctx.db.conflictData.id.find(row.id)!, ORCHESTRATOR, `${MAX_MESSAGES} messages without agreement.`);
+  }
+});
+export const decide_conflict = spacetimedb.reducer({ conflictId: t.u32().name("conflictId"), decision: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getConflict(ctx, args.conflictId);
+  if (row.status !== 'escalated' && row.status !== 'open') throw new SenderError(`Conflict #${row.id} is ${row.status}; only an open or escalated conflict takes a decision`);
+  const decision = args.decision.trim();
+  if (!decision) throw new SenderError('Write the decision first');
+  ctx.db.conflictData.id.update({ ...row, status: 'open' });
+  clearTimers(ctx, row.id);
+  retireThreadWakeups(ctx, row.id);
+  post(ctx, row.id, HUMAN, 'decision', decision);
+  for (const agent of participants(row)) {
+    note(ctx, agent, 'message', row.id, `[cowork] Your humans decided conflict #${row.id}: ${cut(decision, 1000)}`);
+  }
+});
+
+/**
+ * Orchestrator: one full-stack build. Green ones were pushed to `branch` (the team's full stack,
+ * like a main only the orchestrator writes). A green build for a finished request tells every agent
+ * that the whole project is ready to run on their laptop.
+ */
+export const publish_build = spacetimedb.reducer({ branch: t.string(), sha: t.string(), mainSha: t.string().name("mainSha"),
+  agents: t.array(t.string()), result: t.string(), log: t.string(), requestId: t.u32().name("requestId") }, (ctx, args) => {
+  requireEditor(ctx);
+  oneOf(args.result, ['green', 'red']);
+  args.agents.forEach(name);
+  if (!/^[0-9a-f]{7,64}$/.test(args.sha)) throw new SenderError('A build needs the commit it is');
+  if (args.result === 'green' && !args.branch) throw new SenderError('A green build names the branch it was pushed to');
+  ctx.db.buildData.insert({ id: 0, ...args, log: cut(args.log, 4 * 1024), createdAt: now(ctx) });
+  if (args.result !== 'green' || !args.requestId) return;
+  const request = findRequest(ctx, args.requestId);
+  const who = args.agents.length ? args.agents.join(', ') : 'main only';
+  // Every known agent, plus everyone whose work is in it.
+  const recipients = new Set([...[...ctx.db.agentData.iter()].map(row => row.name), ...args.agents]);
+  for (const agent of recipients) {
+    note(ctx, agent, 'info', 0, `[cowork] ${request ? `Request #${request.id} is done. ` : ''}The full stack (work from ${who}) is on ${args.branch} @ ${args.sha.slice(0, 8)} and its checks pass. Call get_full_stack to run the whole project on this laptop.`);
+  }
+});

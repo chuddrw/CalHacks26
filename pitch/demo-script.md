@@ -11,23 +11,25 @@ The preview's Play story button drives local fixtures, not real agents.
 
 ## Live-loop version (after verified integration)
 
-D narrates; A triggers the timestamp change; B's agent is already idle after adding
-its seconds-based feature; C is ready for the memory beat. Keep B's terminal visible.
+D narrates; B's agent is already idle after adding its seconds-based idle feature; A
+sends the request; B (or D on the big screen) approves; C is ready for the memory beat.
+Keep A's and B's terminals visible. Steps: demo-app/SCENARIO.md (branch `orchestrator`).
 
-| Time | Say                                                                                                                                                                                            | Stage cue                                                           |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| 0:00 | “Four teammates. Four coding agents. Each agent knows its own laptop, but the changes have to work together.”                                                                                  | A sends the timestamp-change prompt.                                |
-| 0:12 | “Agent Cowork gives the team a shared picture before anyone commits. Here are the agents, their plans, and the files they're changing.”                                                        | Open an agent symbol to reveal intent/files, then close.                          |
-| 0:25 | “B added an idle-time feature that assumes seconds, then went idle. A is changing login timestamps to milliseconds and updating the callers it can see.”                                       | Inspect A and B in turn, then return to the map.                                        |
-| 0:40 | “The edits are in different files. Git can merge them, and the types still match. But the combined test fails.”                                                                                | Open the red hub, then Changes & diagnosis to show both excerpts.              |
-| 0:52 | “The watcher found the conflicting pair and assigned B to fix it. Droid investigates the failed combination; these are its actual steps.”                                                      | Show the real diagnosis feed and result.                            |
-| 1:05 | “B's agent has woken up. It pulls A's in-progress change so it can test both together, then adjusts its own code.”                                                                             | Show B's terminal. Never infer waking from the dashboard alone.     |
-| 1:22 | “The combined check passes. The verified contract now lives in shared memory: lastLogin is milliseconds.”                                                                                      | Return to the green hub, then open Memory to show the fact.                       |
-| 1:35 | “A commits the change. C pulls it and starts a fresh task. That new agent receives the fact before writing code.”                                                                              | Perform the actual commit/pull/session step in the agreed scenario. |
-| 1:49 | “Git stores the code. SpacetimeDB holds the team's live state. Tests decide whether the changes work; AI explains the failure. If a proposed fix changes existing tests, a person reviews it.” | Show the actual guard result if time permits; finish by 2:00.       |
+| Time | Say | Stage cue |
+| ---- | --- | --------- |
+| 0:00 | “Four teammates. Four coding agents. Each agent knows its own laptop, but the changes have to work together.” | Show the hive: SpacetimeDB in the middle, the orchestrator and four agents around it, each with what it is doing. Agents never talk directly; everything goes through the shared database. |
+| 0:12 | “A's human wants lastLogin in milliseconds. That's a shared contract, so A's agent hands it to the orchestrator.” | A pastes the request; click the Orchestrator node. |
+| 0:25 | “The orchestrator is Factory's Droid. It reads the code and the team's live state, including B's work that was never committed. These are its actual steps.” | Point at the steps streaming in. |
+| 0:50 | “Its plan: A changes the contract, B adapts sessions, B's human reviews first, and it flags a clash between A's change and B's uncommitted idle feature. Code enforces the review rule; the model can't skip it.” | Show the tasks, the review and the flagged conflict. |
+| 1:05 | “B's human approves. Both agents wake up on their own with their tasks.” | Click Approve as B; show both terminals. |
+| 1:15 | “Nobody assigns a fixer. A changes the unit and tells B. B pulls A's in-progress change, adapts its own code, and the combined tests pass. Both agree.” | Click the red #12 arc: show the thread as messages arrive. Point at the arrows: A's code goes through GitHub to B, then B's agreement goes through SpacetimeDB to A. |
+| 1:35 | “The conflict closes only because both agreed and the combined check is green. The agreed fact is now shared memory.” | Show the green #12 arc, then Memory. |
+| 1:45 | “If they couldn't agree, it would go to both humans, right here.” | Point at where the decision box appears (or run the optional beat). |
+| 1:52 | “Droid plans. The agents that own the code settle clashes between them. Tests decide green, and people decide what changes their features.” | Finish by 2:00. |
 
 If a beat has not happened, describe what the screen actually shows. The proposed
-timestamps are stage targets, not performance measurements.
+timestamps are stage targets, not performance measurements. Droid's planning took
+52 s in the one real run; rehearse the narration over it.
 
 An interview quote can replace the first sentence once recorded with permission in
 interviews.md. Attribute it exactly and keep the opening under fifteen seconds.
@@ -37,11 +39,11 @@ interviews.md. Attribute it exactly and keep the opening under fifteen seconds.
 Say at the start: “This is a simulated walkthrough of the interface. The live agent
 integration is still being built.” Keep the SIMULATED DEMO banner visible.
 
-1. Select **Agents working**. Show the agent symbols; open an agent for its intent and files.
-2. Select **Conflict detected**. Open the red hub, then **Changes & diagnosis**. Show A's milliseconds edit, B's seconds assumption,
-   the failed assertion, and the assigned fixer.
+1. Select **Agents working**. Show the graph and the Now list; B's review waits in the **Needs you** bar.
+2. Select **Conflict detected**. Click the red #12 arc, then **Code and failing output**. Show A's milliseconds edit, B's seconds assumption,
+   the failed assertion, and who was suggested to adapt.
 3. Select **B is fixing**. Explain how the diagnosis suggests a unit-consistent fix.
-4. Select **Verified & green**. Open the hub for the fixed line and **Memory** for the fact. Show the fixed line, passing check, resolution event,
+4. Select **Verified & green**. Click the green #12 arc for the fixed line and **Memory** for the fact. Show the fixed line, passing check, resolution event,
    and fact in shared memory. Explain that these are example rows.
 5. Select **Test-edit guard**. Show the required human review. Do not imply the
    backend guard ran during this walkthrough.
@@ -49,18 +51,19 @@ integration is still being built.” Keep the SIMULATED DEMO banner visible.
 
 ## Optional one-minute technical extension
 
-“Every agent's working tree becomes a disposable Git snapshot. The watcher checks
-all snapshots together. If the combination fails, singles and pairs help identify
-where the failure comes from. Fixer assignment is deterministic; the model's role
-is to explain the error and suggest a change.
+“A request becomes a plan in one SpacetimeDB transaction: tasks, reviews and expected
+clashes land together, and every agent's hook is woken from that. Droid plans with
+read-only access and our own tools; code then applies the contract rule, so a change
+to a shared contract always waits for the humans whose code imports it.
 
-The shared state belongs in SpacetimeDB so the watcher, agent hooks, and screens
-observe the same conflict and assignment. An explicit recipient owns the fix;
-other agents receive context rather than competing to fix the same thing.
+There's no central checker. Each agent merges its uncommitted work with each
+teammate's snapshot and runs the type checker and the tests itself. Two agents
+resolve a clash by agreeing in a thread, and the database only accepts that when a
+current green check covers both of them. Twelve messages without agreement, or five
+minutes, and it goes to both humans.
 
 A passing typecheck can't prove that seconds and milliseconds mean the same thing.
-That needs a behavioral test. The interface makes failures and human-review states
-visible, while shared facts help a later agent avoid repeating the assumption.”
+That needs a behavioral test, and the agreed fact helps the next agent get it right.”
 
 Describe each architecture claim as planned if its evidence gate remains open.
 

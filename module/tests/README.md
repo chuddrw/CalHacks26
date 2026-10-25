@@ -15,17 +15,17 @@ npm run typecheck:tests --prefix module
 
 `shared/src/schema.test.ts` checks shared key invariants and caller-input preservation. `shared/src/config.test.ts` executes copies of the real configuration source inside isolated fixture projects, proving root-relative loading, missing settings and environment precedence without reading the developer's `.env`.
 
-`watcher/src/diagnose/units.test.ts` covers UTF-8 boundaries, evidence/prompt limits, selected-fixer wording, malformed model output and command-injection boundaries. `module/tests/admin-cli.unit.test.mjs` exercises approval command validation and argument quoting with a local recording executable. Generation-policy tests reject contradictory descriptors and exposure of backing tables or anonymous views.
+`orchestrator/src/diagnose/units.test.ts` covers UTF-8 boundaries, evidence/prompt limits, selected-fixer wording, malformed model output and command-injection boundaries. `module/tests/admin-cli.unit.test.mjs` exercises approval command validation and argument quoting with a local recording executable. Generation-policy tests reject contradictory descriptors and exposure of backing tables or anonymous views.
 
 ## Subcomponent tests
 
-`watcher/src/diagnose/droid-adapter.test.ts` injects SDK sessions to test tool discovery, restrictive permission decisions, streamed events, failed startup/discovery/transport and cleanup. `module/tests/claude.subcomponent.test.ts` mocks the Claude SDK and settings to test structured responses, refusals, token-limit truncation, API/malformed-output errors, unexpected errors and bounded request configuration.
+`orchestrator/src/diagnose/droid-adapter.test.ts` injects SDK sessions to test tool discovery, restrictive permission decisions, streamed events, failed startup/discovery/transport and cleanup. `module/tests/claude.subcomponent.test.ts` mocks the Claude SDK and settings to test structured responses, refusals, token-limit truncation, API/malformed-output errors, unexpected errors and bounded request configuration.
 
 ## Component tests
 
 `module/tests/coordination.component.test.ts` exercises state transitions through real SpacetimeDB datastore transactions: intent fanout, inbox delivery, explanation updates, retry/fixer changes, UTF-8 storage limits, check upserts, escalation/reset interactions and revocation across multiple connections. The newest-wakeup regression prevents retired notifications from producing duplicate diagnosis notes.
 
-`watcher/src/diagnose/runner-component.test.ts` exercises complete runner instances with injected providers and leases, including stale results, independent concurrent conflicts, copied inputs, acquisition/publication/cleanup failures and bounded event queues. Existing `diagnose.test.ts`, `module.test.ts`, and `access.test.ts` remain part of the suite.
+`orchestrator/src/diagnose/runner-component.test.ts` exercises complete runner instances with injected providers and leases, including stale results, independent concurrent conflicts, copied inputs, acquisition/publication/cleanup failures and bounded event queues. Existing `diagnose.test.ts`, `module.test.ts`, and `access.test.ts` remain part of the suite.
 
 `scripts/demo-reset.safety.test.ts` and the existing reset tests create local throwaway git repositories and inject every mutation. They cover dirty/staged/deleted work, repository/remote validation, dry-run preservation and partial failure ordering. No remote push or actual database reset occurs.
 

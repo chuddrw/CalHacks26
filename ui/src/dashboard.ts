@@ -28,6 +28,12 @@ export const emptyTables = (): Tables => ({
   conflict: [],
   inbox: [],
   diagnosis_step: [],
+  request: [],
+  task: [],
+  review: [],
+  message: [],
+  plan_step: [],
+  build: [],
 });
 export const isActiveConflict = (c: ConflictRow): boolean =>
   c.status !== "resolved";
@@ -106,7 +112,7 @@ export function teamHealth(
       tone: "red",
       title: "Combined check failed",
       detail:
-        "The watcher has reported a failure. Waiting for conflict details.",
+        "A combined check failed. Waiting for conflict details.",
     };
   if (
     tables.snapshot.some((s) => s.createdAt > check.createdAt) ||
@@ -122,7 +128,7 @@ export function teamHealth(
     return {
       tone: "red",
       title: "An agent is still red",
-      detail: "Waiting for the watcher to confirm the team is healthy.",
+      detail: "Waiting for a combined check to confirm the team is healthy.",
     };
   return {
     tone: "green",

@@ -3,7 +3,7 @@
  *
  * WHAT IT'S FOR
  *   A tiny SpacetimeDB client over plain HTTP, for code that runs for a moment and exits:
- *   the Claude Code hooks and the scripts. Long-running code (watcher, MCP server, UI) uses
+ *   the Claude Code hooks, the scripts and the orchestrator's polling loop. The MCP server's presence and the UI use
  *   the WebSocket SDK with the generated bindings instead, so it gets live updates.
  *
  * OWNER: A (the hooks depend on it). USED BY: hooks/, scripts/.

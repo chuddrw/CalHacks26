@@ -10,7 +10,7 @@ THE TABLE NEEDS
   - An external monitor and its cable (HDMI or USB-C) for the big screen, with the dashboard in
     ?big mode. A big screen also makes the table easy to spot.
   - A power strip or extension cord: 3-4 laptops stay plugged in for two hours of judging.
-  - Laptops A, B and C for the agents, plus the watcher machine (it can be D's laptop driving the monitor).
+  - Laptops A, B and C for the agents, plus the orchestrator's machine (it can be D's laptop driving the monitor).
   - Chargers, and a mouse for D.
 
 NETWORK

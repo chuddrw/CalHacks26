@@ -3,7 +3,7 @@
  *
  * WHAT IT'S FOR
  *   A throwaway SpacetimeDB on this laptop, with Part C's module published and editor accounts for
- *   a, b, c, d, the watcher and the dashboard. For rehearsals, the dashboard and manual tests,
+ *   a, b, c, d, the orchestrator and the dashboard. For rehearsals, the dashboard and manual tests,
  *   without touching the team database or anyone's `spacetime login`.
  *
  * USAGE
@@ -28,7 +28,7 @@ import { runKey } from "../shared/src/schema.ts";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const DATABASE = "cowork-local";
-const ACCOUNTS = ["a", "b", "c", "d", "watcher", "dashboard"] as const;
+const ACCOUNTS = ["a", "b", "c", "d", "orchestrator", "dashboard"] as const;
 const args = process.argv.slice(2);
 const scene = args.includes("--scene") ? args[args.indexOf("--scene") + 1] : "";
 const fixedPort = args.includes("--port") ? Number(args[args.indexOf("--port") + 1]) : 0;
@@ -123,7 +123,7 @@ try {
   writeFileSync(path.join(tmp, "tokens.json"), JSON.stringify(Object.fromEntries(ACCOUNTS.map((n) => [n, accounts[n].token])), null, 2));
 
   if (scene === "review") {
-    const w = accounts.watcher.token;
+    const w = accounts.orchestrator.token;
     await call(w, "post_snapshot", ["a", "a-ms", "base", ["src/users/user.ts"], "-  u.lastLogin = Math.floor(at.getTime() / 1000);\n+  u.lastLogin = at.getTime();"]);
     await call(w, "post_snapshot", ["b", "b-idle", "base", ["src/sessions/idle.ts"], "+  return (now.getTime() / 1000 - user.lastLogin) / 60;"]);
     await call(w, "post_intent", ["a", "Switching User.lastLogin to milliseconds because the frontend needs ms.", ["src/users/user.ts"], ["User.lastLogin"]]);
@@ -138,7 +138,7 @@ try {
 
   console.log(`
 Local SpacetimeDB is running: ${host}, database "${DATABASE}"${scene ? `, scene "${scene}"` : ""}.
-Accounts a, b, c, d, watcher and dashboard are editors. Their tokens: ${path.join(tmp, "tokens.json")}
+Accounts a, b, c, d, orchestrator and dashboard are editors. Their tokens: ${path.join(tmp, "tokens.json")}
 
 Use it from a terminal by setting (process environment, not .env):
   STDB_HOST=${host}  STDB_DB=${DATABASE}  STDB_TOKEN=<that account's token>

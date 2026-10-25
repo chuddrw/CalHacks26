@@ -3,13 +3,13 @@
  *
  * WHAT IT'S FOR
  *   Finds the SpacetimeDB session token for whoever is signed in on this laptop, so the hooks, the
- *   MCP server, the watcher and the scripts all authenticate as that person. Part C's access rules
+ *   MCP server, the orchestrator and the scripts all authenticate as that person. Part C's access rules
  *   (module/ACCESS.md) say every client uses its own user's signed-in session, and that no token
  *   belongs in source, setup docs or the project .env. This file follows that rule: the token comes
  *   from the spacetime CLI's own sign-in store and only ever lives in this process's memory.
  *
  * OWNER: A (written during the A+B+C integration). USED BY: shared/src/stdb-http.ts,
- *   watcher/src/stdb.ts, mcp/src/server.ts.
+ *   orchestrator/ (through stdb-http.ts), mcp/src/server.ts.
  *
  * WHERE THE TOKEN COMES FROM, IN ORDER
  *   1. STDB_TOKEN in the process environment. Only for tests, CI or a throwaway local server;

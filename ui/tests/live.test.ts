@@ -66,7 +66,7 @@ function fakeTransport() {
           return builder;
         },
         subscribe: (queries: string[]) => {
-          assert.equal(queries.length, 7);
+          assert.equal(queries.length, tableNames.length);
           return {
             unsubscribe: () => {
               unsubscribes++;

@@ -18,7 +18,7 @@ The diagnosis runner uses injected providers, database operations, freshness che
 
 The shared schema remains authoritative. Generation verifies private tables, authenticated views, keys, nested row types and reducer argument order against that source through the official CLI. Existing reducer signatures remain; guarded reducers are additive, and the note-kind narrowing was explicitly approved.
 
-B must inject `setExplanationIfCurrent` and use `resolve_conflict_if_current` after storing a current green check. See the [diagnosis contract](../watcher/src/diagnose/README.md). Legacy explanation calls remain available for compatibility and do not protect against concurrent revision changes. B's implementation was not edited.
+B must inject `setExplanationIfCurrent` and use `resolve_conflict_if_current` after storing a current green check. See the [diagnosis contract](../orchestrator/src/diagnose/README.md). Legacy explanation calls remain available for compatibility and do not protect against concurrent revision changes. B's implementation was not edited.
 
 ## Validation and limits
 

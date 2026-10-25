@@ -11,10 +11,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { connect } from "./stdb";
-import "./styles.css";
-import "./overview.css";
-import "./office.css";
-import "./office-inspectors.css";
+import "./app.css";
 
 const disconnect = connect();
 import.meta.hot?.dispose(disconnect);

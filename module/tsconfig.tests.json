@@ -15,7 +15,7 @@
   "include": [
     "src/**/*.ts",
     "tests/**/*.ts",
-    "../watcher/src/diagnose/*.ts",
+    "../orchestrator/src/diagnose/*.ts",
     "../scripts/demo-reset*.ts",
     "../shared/src/config.ts",
     "../shared/src/schema.ts",

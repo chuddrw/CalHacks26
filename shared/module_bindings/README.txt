@@ -15,7 +15,7 @@ WHY THE WRAPPER
   helper in module/generate.mjs restores only that omitted descriptor setting, then invokes
   official CLI --module-def generation. It verifies every public column's order, original SQL
   name, and numeric type before copying the untouched generated files here. The published
-  module preserves camelCase SQL names directly. No hooks, watcher or UI adaptations are needed.
+  module preserves camelCase SQL names directly. No hooks, orchestrator or UI adaptations are needed.
 
 RULES
   - Do not edit generated .ts files by hand. Change the module, then regenerate.

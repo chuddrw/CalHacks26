@@ -16,6 +16,10 @@ Done Oct 24, about 5:30 AM, by A (with Claude Code).
 
 6. `codex/ui-redesign` (D, Oct 24 afternoon): the warm-office redesign, plus D's own dashboard sign-in. The redesign, office CSS and images, async `getToken` in `live.ts`, screenshots and checklists all came in. For sign-in we kept the version already on `integration` (`ui/dev-session.ts`), which was tested end to end with the review buttons, and left out D's parallel `ui/session-server.ts` and its two test files. Checked: all type checks, dashboard tests 20/20, and in a browser against a local server the new design goes Live and Send back works.
 
+7. `feat/orchestrator` and `feat/simple-ui` (A, Oct 24 evening): fast-forward, no conflicts. **The watcher is replaced by the orchestrator**: a human asks their own agent, the orchestrator (Droid) plans the request and assigns tasks, and the agents check their combined work themselves and settle conflicts in threads (design: `checklists/orchestrator.md`). The dashboard is rewritten as one screen: the team drawn as a hive around SpacetimeDB and GitHub, every data transfer flashing as an arrow, a "Now" list and a "Needs you" bar (`checklists/simple-ui.md`). This replaces D's office redesign. `pull_teammate` now also leaves a note for the teammate (`send_note`). Checked on this branch: all type checks; C's vitest 120/120; C's Node suite 103/115, where the 12 failures are all in `manage-cli.unit.test.mjs`, unchanged since `integration` (the Mac/Linux-only tests below); orchestrator 7/7; A's e2e passes; dashboard 38/38; `npm run test:live` 35/35 on a real local SpacetimeDB.
+
+   **After you pull this, on each laptop:** stop `npm run watcher` (it no longer exists), run `npm install` (the workspaces changed from `watcher` to `orchestrator`), and run `npm run orchestrator` on the one laptop that plans. The orchestrator flow uses the demo app's `orchestrator` branch (repo 2).
+
 ## Conflict decisions (B's merge)
 
 | Files | Kept | Why |

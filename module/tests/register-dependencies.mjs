@@ -13,9 +13,10 @@ registerHooks({
       try { candidate = fileURLToPath(new URL(specifier, context.parentURL)); } catch { /* Not a local module. */ }
     }
     if (candidate === configuration) return nextResolve(fixture, context);
-    if (context.parentURL?.includes('/watcher/src/diagnose/')
+    if (context.parentURL?.includes('/orchestrator/src/diagnose/')
       && /^(?:@factory\/droid-sdk|@anthropic-ai\/sdk|zod)(?:\/|$)/.test(specifier)) {
-      return nextResolve(require.resolve(specifier), context);
+      // A file:// URL, not a plain path: Windows paths (c:\...) are rejected by the ESM loader.
+      return nextResolve(pathToFileURL(require.resolve(specifier)).href, context);
     }
     return nextResolve(specifier, context);
   },

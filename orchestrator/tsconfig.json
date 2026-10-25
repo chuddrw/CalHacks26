@@ -1,0 +1,17 @@
+// orchestrator/tsconfig.json
+//
+// WHAT IT'S FOR
+//   Type-checks the orchestrator. Like the MCP server it runs with tsx, so it relaxes two options from
+//   tsconfig.base.json (bundler-style module resolution, erasableSyntaxOnly off) to accept the Droid
+//   and Anthropic SDK types. It also checks the shared checks/ code it borrows its worktrees from.
+//
+// OWNER: A (was B's watcher/tsconfig.json).
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "erasableSyntaxOnly": false
+  },
+  "include": ["src/**/*.ts", "../shared/src/**/*.ts", "../checks/src/**/*.ts"]
+}

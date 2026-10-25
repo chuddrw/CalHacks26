@@ -18,22 +18,32 @@ const numbers = new Set([
   "createdAt",
   "resolvedAt",
   "conflictId",
+  "requestId",
+  "updatedAt",
+  "decidedAt",
 ]);
 const arrays = new Set(["files", "symbols", "agents"]);
-const booleans = new Set(["online", "verified", "delivered"]);
-const timestamps = new Set(["lastSnapshotAt", "createdAt", "resolvedAt"]);
+const booleans = new Set(["online", "verified", "delivered", "major"]);
+const timestamps = new Set(["lastSnapshotAt", "createdAt", "resolvedAt", "updatedAt", "decidedAt"]);
 const enums: Partial<Record<TableName, Record<string, string[]>>> = {
   agent: { status: ["working", "green", "red"] },
   check_run: { result: ["green", "red"] },
   conflict: {
-    kind: ["self", "merge", "pair"],
+    kind: ["self", "merge", "pair", "potential"],
     status: ["open", "resolved", "escalated", "needs_human"],
   },
-  inbox: { kind: ["conflict", "info", "heads_up", "fact"] },
+  inbox: { kind: ["conflict", "task", "message", "info", "heads_up", "fact"] },
   diagnosis_step: {
     source: ["droid", "claude"],
     kind: ["status", "tool_call", "tool_result", "thought", "final", "error"],
   },
+  // The orchestrator's tables (branch feat/orchestrator).
+  request: { status: ["new", "planning", "waiting_review", "assigned", "done", "rejected", "failed"] },
+  task: { status: ["waiting_review", "assigned", "done", "cancelled"] },
+  review: { status: ["pending", "approved", "rejected", "cancelled"] },
+  message: { kind: ["message", "agree", "escalate", "decision"] },
+  plan_step: { kind: ["status", "tool_call", "tool_result", "thought", "final", "error"] },
+  build: { result: ["green", "red"] },
 };
 const camelCase = (value: string) =>
   value.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
@@ -100,7 +110,7 @@ interface SubscriptionBuilder {
 }
 interface Connection {
   db: Record<string, ClientTable>;
-  /** Generated reducer calls. The dashboard uses only reviewTestChange (the review buttons). */
+  /** Generated reducer calls. The dashboard uses reviewTestChange, decideReview and decideConflict (a person's buttons). */
   reducers?: Record<string, ((args: Record<string, unknown>) => Promise<void>) | undefined>;
   disconnect(): void;
   subscriptionBuilder(): SubscriptionBuilder;

@@ -20,7 +20,7 @@
  *   5. Write access: mark_delivered([]), which changes nothing but needs the Editor role.
  *   6. The deployed module has every reducer this code calls (names from the generated bindings).
  *      A missing one means the owner hasn't published module/ from this branch yet.
- *   7. Droid (warning only; only the watcher laptop needs it): the droid CLI and FACTORY_API_KEY.
+ *   7. Droid (warning only; only the orchestrator's laptop needs it): the droid CLI and FACTORY_API_KEY.
  *   8. With --demo: our hooks in .claude/settings.local.json, "cowork" in .mcp.json, and
  *      `git push --dry-run` to wip/<name>, which checks push rights without pushing anything.
  *
@@ -135,14 +135,14 @@ if (config.stdbDb) {
   }
 }
 
-// 7. Droid, for the diagnosis. Only the laptop that runs the watcher needs it.
+// 7. Droid, the orchestrator's planner. Only the laptop that runs the orchestrator needs it.
 if (config.diagnoseWith === "droid") {
   const droid = await run(process.platform === "win32" ? "where" : "which", ["droid"]);
-  if (droid.ok && config.factoryApiKey) pass("Droid", "droid CLI found and FACTORY_API_KEY set (needed on the watcher laptop only)");
+  if (droid.ok && config.factoryApiKey) pass("Droid", "droid CLI found and FACTORY_API_KEY set (needed on the orchestrator's laptop only)");
   else {
     warn(
       `Droid isn't ready here (${[droid.ok ? "" : "no droid CLI", config.factoryApiKey ? "" : "no FACTORY_API_KEY"].filter(Boolean).join(", ")})`,
-      "Only the watcher laptop needs it. Install the CLI (PowerShell: irm https://app.factory.ai/cli/windows | iex; Mac: curl -fsSL https://app.factory.ai/cli | sh), then put FACTORY_API_KEY=<key> in repo 1's .env.",
+      "Only the orchestrator's laptop needs it. Install the CLI (PowerShell: irm https://app.factory.ai/cli/windows | iex; Mac: curl -fsSL https://app.factory.ai/cli | sh), then put FACTORY_API_KEY=<key> in repo 1's .env.",
     );
   }
 }

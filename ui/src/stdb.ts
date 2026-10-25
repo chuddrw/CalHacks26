@@ -4,7 +4,7 @@ import type { TableName, TableRows } from "../../shared/src/schema.ts";
 import { emptyTables } from "./dashboard";
 import { getSnapshot, replaceTables, setConnection, subscribe } from "./store";
 import { liveConnection, startLive, type Bindings } from "./live";
-import { reviewDemoConflict, startDemo } from "./demo";
+import { decideDemoConflict, decideDemoReview, reviewDemoConflict, startDemo } from "./demo";
 import { fetchSessionToken } from "./session";
 export { setRows } from "./store";
 
@@ -102,4 +102,33 @@ export async function reviewTestChange(
       "The dashboard isn't connected. Run `npm run review` on a signed-in laptop instead.",
     );
   await call({ conflictId, approve, comment });
+}
+
+/**
+ * A person's answer to a review the orchestrator asked for (a major change to their feature).
+ * Live: Part C's decide_review; approving the last pending review releases the request's tasks.
+ * Demo (?demo): changes only the simulated rows on this page.
+ */
+export async function decideReview(reviewId: number, approve: boolean, answer: string): Promise<void> {
+  if (getSnapshot().connection.phase === "demo") {
+    decideDemoReview(reviewId, approve, answer);
+    return;
+  }
+  const call = liveConnection()?.reducers?.decideReview;
+  if (!call) throw new Error("The dashboard isn't connected to the team database.");
+  await call({ reviewId, approve, answer });
+}
+
+/**
+ * Both humans' decision on a conflict their agents couldn't settle (status escalated).
+ * Live: Part C's decide_conflict, which reopens it and wakes both agents with the decision.
+ */
+export async function decideConflict(conflictId: number, decision: string): Promise<void> {
+  if (getSnapshot().connection.phase === "demo") {
+    decideDemoConflict(conflictId, decision);
+    return;
+  }
+  const call = liveConnection()?.reducers?.decideConflict;
+  if (!call) throw new Error("The dashboard isn't connected to the team database.");
+  await call({ conflictId, decision });
 }

@@ -1,7 +1,7 @@
 // tsconfig.base.json
 //
 // WHAT IT'S FOR
-//   TypeScript settings shared by every Node package in repo 1 (hooks, mcp, watcher, scripts).
+//   TypeScript settings shared by every Node package in repo 1 (hooks, mcp, orchestrator, scripts).
 //   Each package's tsconfig.json extends this file. The UI overrides a few options for the browser.
 //
 // WHY THESE OPTIONS

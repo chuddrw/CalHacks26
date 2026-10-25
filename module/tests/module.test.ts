@@ -24,7 +24,8 @@ function harness() {
   }));
   return h;
 }
-const backing = { agent: 'agentData', snapshot: 'snapshotData', intent: 'intentData', check_run: 'checkRunData', conflict: 'conflictData', inbox: 'inboxData', diagnosis_step: 'diagnosisStepData' } as const;
+const backing = { agent: 'agentData', snapshot: 'snapshotData', intent: 'intentData', check_run: 'checkRunData', conflict: 'conflictData', inbox: 'inboxData', diagnosis_step: 'diagnosisStepData',
+  request: 'requestData', task: 'taskData', review: 'reviewData', message: 'messageData', plan_step: 'planStepData', build: 'buildData' } as const;
 const args = {
   kind: 'pair', agentA: 'a', agentB: 'b', locA: 'src/user.ts:1', locB: 'src/idle.ts:2',
   error: 'seconds versus milliseconds', fixer: 'b', runKey: 'a1+b1',
@@ -53,6 +54,11 @@ it('preserves all public column and reducer parameter orders', () => {
     set_explanation_if_current: ['conflictId', 'expectedRunKey', 'expectedError', 'expectedFixer', 'explanation'],
     resolve_conflict_if_current: ['conflictId', 'expectedRunKey', 'expectedError', 'expectedFixer', 'verifiedRunKey', 'verifiedFact'],
     review_test_change: ['conflictId', 'approve', 'comment'],
+    submit_request: ['agent', 'body'], start_request: ['requestId'], add_plan_step: ['requestId', 'kind', 'detail'],
+    publish_plan: ['requestId', 'summary', 'plan'], fail_request: ['requestId', 'reason'],
+    decide_review: ['reviewId', 'approve', 'answer'], complete_task: ['taskId', 'agent', 'summary'],
+    post_message: ['conflictId', 'agent', 'kind', 'body'], decide_conflict: ['conflictId', 'decision'],
+    publish_build: ['branch', 'sha', 'mainSha', 'agents', 'result', 'log', 'requestId'],
   };
   for (const [name, parameters] of Object.entries(expected)) {
     const reducer = db.moduleDef.reducers.find(r => r.sourceName === name);
@@ -126,7 +132,7 @@ it('publishes a verified fact once, only on resolution, and clears pending wakeu
   expect(h.db.intentData.count()).toBe(0n);
   h.withReducerTx(auth(), ctx => resolveAfterGreen(ctx, { conflictId: id, verifiedFact: 'lastLogin uses milliseconds' }));
   h.withReducerTx(auth(), ctx => resolveAfterGreen(ctx, { conflictId: id, verifiedFact: 'duplicate' }));
-  expect([...h.db.intentData.iter()]).toMatchObject([{ agent: 'watcher', verified: true, summary: 'lastLogin uses milliseconds' }]);
+  expect([...h.db.intentData.iter()]).toMatchObject([{ agent: 'orchestrator', verified: true, summary: 'lastLogin uses milliseconds' }]);
   expect([...h.db.inboxData.iter()].filter(m => m.kind === 'fact').map(m => m.agent).sort()).toEqual(['a', 'b', 'c']);
   expect([...h.db.inboxData.iter()].filter(m => m.kind === 'conflict' && !m.delivered)).toHaveLength(0);
   expect(h.db.escalation_timer.count()).toBe(0n);
