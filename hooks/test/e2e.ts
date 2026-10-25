@@ -388,6 +388,8 @@ try {
   });
   clientC = new Client({ name: "cowork-e2e-c", version: "0.0.0" });
   await clientC.connect(cTransport);
+  // a is online too (its session would be), so the online rule leaves the plan as Droid made it.
+  await callReducer(mock, "register_agent", ["a"]);
   const asked = textOf(await clientC.callTool({ name: "ask_orchestrator", arguments: { request: "The frontend needs User.lastLogin in milliseconds." } }));
   const request = db.request.at(-1);
   check("ask_orchestrator stores c's request", request?.agent === "c" && request.status === "new" && asked.includes(`request #${request.id}`), asked.slice(0, 60));

@@ -36,6 +36,42 @@ export interface RuleResult {
   notes: string[];
 }
 
+/**
+ * The online rule, applied before the contract rule: a task whose agent is offline goes to an
+ * online agent instead (the requester when it's online, otherwise the online owner with the fewest
+ * tasks). It then touches another owner's files, so the contract rule makes it major and that
+ * owner's human reviews it. Conflicts follow the move; one that ends up with a single agent is
+ * dropped. Nobody online: nothing changes.
+ */
+export function applyOnlineRule(input: { plan: DraftPlan; owners: Owners; requester: AgentName; online: Set<AgentName> }): RuleResult {
+  const { owners, requester, online } = input;
+  const notes: string[] = [];
+  const listed = owners.owners.map((owner) => owner.agent).filter((agent) => online.has(agent));
+  const candidates = listed.length ? listed : [...online];
+  if (candidates.length === 0) return { plan: input.plan, notes };
+  const load = new Map<AgentName, number>(candidates.map((agent) => [agent, 0]));
+  for (const task of input.plan.tasks) if (load.has(task.agent)) load.set(task.agent, load.get(task.agent)! + 1);
+  const moved = new Map<AgentName, AgentName>();
+  const pick = (from: AgentName): AgentName => {
+    const already = moved.get(from);
+    if (already) return already;
+    const to = online.has(requester) ? requester : [...load].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))[0]![0];
+    moved.set(from, to);
+    return to;
+  };
+  const tasks = input.plan.tasks.map((task) => {
+    if (online.has(task.agent)) return task;
+    const to = pick(task.agent);
+    load.set(to, (load.get(to) ?? 0) + 1);
+    notes.push(`Online rule: ${task.agent} is offline, so "${task.title}" goes to ${to}; ${humanOf(owners, task.agent)} reviews it.`);
+    return { ...task, agent: to, major: true, details: `(Reassigned from ${task.agent}, who is offline.) ${task.details}`.trim() };
+  });
+  const conflicts = input.plan.conflicts
+    .map((c) => ({ ...c, agentA: moved.get(c.agentA) ?? c.agentA, agentB: moved.get(c.agentB) ?? c.agentB, suggested: moved.get(c.suggested) ?? c.suggested }))
+    .filter((c) => c.agentA !== c.agentB);
+  return { plan: { ...input.plan, tasks, conflicts }, notes };
+}
+
 export function applyContractRule(input: RuleInput): RuleResult {
   const { owners, requester } = input;
   const known = new Set(owners.owners.map((owner) => owner.agent));

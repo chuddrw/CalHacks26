@@ -9,7 +9,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { parseOwners } from "../../shared/src/owners.ts";
 import { importIndex, scanDiff } from "./imports.ts";
-import { applyContractRule, type DraftPlan } from "./rules.ts";
+import { applyContractRule, applyOnlineRule, type DraftPlan } from "./rules.ts";
 
 const owners = parseOwners(JSON.stringify({
   shared: ["src/contracts/"],
@@ -80,4 +80,23 @@ test("the import scan finds importers on main and in a snapshot's added lines", 
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("an offline owner's task goes to an online agent, becomes major, and the owner reviews it", () => {
+  const api = { agent: "c", title: "counter API", details: "routes", files: ["src/analytics/counter.ts"], major: false };
+  const ui = { agent: "a", title: "counter UI", details: "", files: ["src/users/counter.ts"], major: false };
+  const draft: DraftPlan = { summary: "s", tasks: [api, ui], reviews: [], conflicts: [{ agentA: "a", agentB: "c", topic: "counter contract", details: "", suggested: "c" }] };
+  const moved = applyOnlineRule({ plan: draft, owners, requester: "b", online: new Set(["a", "b"]) });
+  assert.equal(moved.plan.tasks[0]!.agent, "b");
+  assert.match(moved.plan.tasks[0]!.details, /Reassigned from c/);
+  assert.deepEqual(moved.plan.conflicts.map((c) => [c.agentA, c.agentB, c.suggested]), [["a", "b", "b"]]);
+  const { plan } = applyContractRule({ plan: moved.plan, owners, requester: "b", importers: () => [] });
+  assert.equal(plan.tasks[0]!.major, true);
+  assert.deepEqual(plan.reviews.map((r) => r.reviewer), ["c"]);
+  // Requester offline: the online owner with the fewest tasks; a conflict collapsing onto one agent is dropped.
+  const solo = applyOnlineRule({ plan: draft, owners, requester: "c", online: new Set(["a"]) });
+  assert.deepEqual(solo.plan.tasks.map((t) => t.agent), ["a", "a"]);
+  assert.equal(solo.plan.conflicts.length, 0);
+  // Nobody online: unchanged.
+  assert.equal(applyOnlineRule({ plan: draft, owners, requester: "a", online: new Set() }).plan, draft);
 });

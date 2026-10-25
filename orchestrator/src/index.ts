@@ -41,7 +41,7 @@ import * as git from "../../checks/src/git.ts";
 import { announce, buildFullStack, currentInputs, fullStackHead, type BuildResult } from "./full-stack.ts";
 import { importIndex } from "./imports.ts";
 import { createDroidPlanner, type Planner } from "./planner.ts";
-import { applyContractRule, type DraftPlan } from "./rules.ts";
+import { applyContractRule, applyOnlineRule, type DraftPlan } from "./rules.ts";
 import { describeTeam, latestSnapshots, readTeam } from "./team.ts";
 
 const POLL_MS = 1500;
@@ -107,7 +107,12 @@ export async function planRequest(request: RequestRow, planner: Planner): Promis
     );
     const team = await readTeam();
     const diffs = [...latestSnapshots(team.snapshots).values()].map((row) => row.diff);
-    const { plan, notes } = applyContractRule({ plan: draft, owners, requester: request.agent, importers: importIndex(worktree, diffs) });
+    // Work for an offline owner goes to an online agent; the contract rule then asks that owner to review.
+    const online = new Set(team.agents.filter((agent) => agent.online).map((agent) => agent.name));
+    const moved = applyOnlineRule({ plan: draft, owners, requester: request.agent, online });
+    const ruled = applyContractRule({ plan: moved.plan, owners, requester: request.agent, importers: importIndex(worktree, diffs) });
+    const plan = ruled.plan;
+    const notes = [...moved.notes, ...ruled.notes];
     for (const note of notes) steps.write("status", note);
     const summary = plan.tasks.length ? plan.summary : plan.summary || "Nothing to do.";
     steps.write("final", `${plan.tasks.length} task(s), ${plan.reviews.length} review(s), ${plan.conflicts.length} flagged conflict(s). ${summary}`);
