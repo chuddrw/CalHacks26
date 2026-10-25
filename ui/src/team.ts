@@ -30,6 +30,8 @@ export type Selection =
   | { kind: "connection" };
 
 export const ORCHESTRATOR_ID = "orchestrator";
+/** The people at the dashboard: they answer reviews, escalations and test changes. */
+export const PEOPLE_ID = "people";
 /** Resolved conflicts stay on the graph this long, so the team sees them close. */
 export const RESOLVED_VISIBLE_MS = 5 * 60_000;
 
@@ -178,7 +180,7 @@ export function agentNow(t: Tables, agent: AgentRow): AgentNow {
 
 export interface GraphNode {
   id: string;
-  kind: "orchestrator" | "agent";
+  kind: "orchestrator" | "agent" | "people";
   label: string;
   /** Short state ("Green", "Droid is planning"). */
   state: string;
@@ -226,13 +228,16 @@ function taskEdge(task: TaskRow, online: boolean): GraphEdge {
     tone,
     dashed: task.status === "waiting_review" || (task.status === "assigned" && !online),
     active: working,
-    label: `#${task.id} ${
+    // Say what the agent is doing, not just that it works.
+    label: `${
       working
-        ? "working"
+        ? "doing"
         : task.status === "assigned"
-          ? `waiting · ${upper(task.agent)} offline`
-          : taskStatusLabel[task.status].toLowerCase()
-    }`,
+          ? `waiting, ${upper(task.agent)} offline`
+          : task.status === "done"
+            ? "done"
+            : "waits for review"
+    }: ${task.title}`,
     select: { kind: "request", id: task.requestId },
   };
 }
@@ -328,11 +333,24 @@ export function teamGraph(t: Tables, now: number): TeamGraph {
     busy: latest?.status === "planning" || latest?.status === "new",
     select: { kind: "request", id: latest?.id },
   };
+  const actions = needsYou(t);
+  const people: GraphNode = {
+    id: PEOPLE_ID,
+    kind: "people",
+    label: "People",
+    state: actions.length ? `${actions.length} need${actions.length === 1 ? "s" : ""} you` : "Nothing to do",
+    tone: actions.length ? "amber" : "neutral",
+    doing: "Reviews, decisions and test changes, on this dashboard",
+    online: true,
+    busy: false,
+    select: actions[0]?.select ?? { kind: "activity" },
+  };
   const agents = sortAgents(t.agent);
   const names = new Set(agents.map((a) => a.name));
   const online = new Set(agents.filter((a) => a.online).map((a) => a.name));
   const nodes: GraphNode[] = [
     orchestrator,
+    people,
     ...agents.map((agent): GraphNode => {
       const doing = agentNow(t, agent);
       const selfConflict = doing.conflicts.find((c) => !c.agentB);

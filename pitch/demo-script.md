@@ -22,7 +22,7 @@ Keep A's and B's terminals visible. Steps: demo-app/SCENARIO.md (branch `orchest
 | 0:25 | “The orchestrator is Factory's Droid. It reads the code and the team's live state, including B's work that was never committed. These are its actual steps.” | Point at the steps streaming in. |
 | 0:50 | “Its plan: A changes the contract, B adapts sessions, B's human reviews first, and it flags a clash between A's change and B's uncommitted idle feature. Code enforces the review rule; the model can't skip it.” | Show the tasks, the review and the flagged conflict. |
 | 1:05 | “B's human approves. Both agents wake up on their own with their tasks.” | Click Approve as B; show both terminals. |
-| 1:15 | “Nobody assigns a fixer. A changes the unit and tells B. B pulls A's in-progress change, adapts its own code, and the combined tests pass. Both agree.” | Click the red #12 arc: show the thread as messages arrive. |
+| 1:15 | “Nobody assigns a fixer. A changes the unit and tells B. B pulls A's in-progress change, adapts its own code, and the combined tests pass. Both agree.” | Click the red #12 arc: show the thread as messages arrive. Point at the arrows: B pulls A's code (via git), then agrees. |
 | 1:35 | “The conflict closes only because both agreed and the combined check is green. The agreed fact is now shared memory.” | Show the green #12 arc, then Memory. |
 | 1:45 | “If they couldn't agree, it would go to both humans, right here.” | Point at where the decision box appears (or run the optional beat). |
 | 1:52 | “Droid plans. The agents that own the code settle clashes between them. Tests decide green, and people decide what changes their features.” | Finish by 2:00. |

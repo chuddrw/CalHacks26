@@ -26,6 +26,15 @@ an escalated conflict, or accept a test change. Click any node, arc label, row o
 to open its details in the drawer on the right. The graph stays live beside it, and Esc
 closes it and puts focus back. The data comes from `src/team.ts` (tests: `tests/team.test.ts`).
 
+Task lines say what the agent is doing ("doing: Store User.lastLogin in milliseconds"). A small
+**People** node stands for the people at the dashboard. Every piece of data that moves flashes
+as an arrow from sender to receiver for 4 seconds, with what it carried and whether it went via
+the database or git: a request, a task, a review and its answer, a thread message, a plan, a
+snapshot push, a pull of a teammate's code, a clash, a fact, a full stack. Several at once play
+1.2 s apart, and only the newest keeps its label. Opening the page shows no arrows; only data
+that arrives afterwards does. Source: `src/transfers.ts` (tests: `tests/transfers.test.ts`) and
+`src/components/useFlights.ts`.
+
 - `/?demo&scene=conflict`: failure indicator; inspect it to reveal the fixer, diffs, and diagnosis.
 - `/?demo&scene=fixing`: explanation and completed diagnosis, fix still pending.
 - `/?demo&scene=resolved`: passing check and verified fact.

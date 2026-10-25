@@ -1,8 +1,9 @@
 /** WHAT IT'S FOR: explicitly simulated, local-only scenes from plan.md. Never writes to a database. */
-import type {
-  AgentRow,
-  ConflictRow,
-  DiagnosisStepRow,
+import {
+  pulledNote,
+  type AgentRow,
+  type ConflictRow,
+  type DiagnosisStepRow,
 } from "../../shared/src/schema.ts";
 import { emptyTables, type Tables } from "./dashboard";
 import { getSnapshot, replaceTables, setConnection } from "./store";
@@ -265,6 +266,9 @@ function addOrchestrator(t: Tables, scene: DemoScene, start: number, now: number
   if (done) thread.push(["a", "agree", "User.lastLogin is milliseconds since the Unix epoch."]);
   if (scene === "escalated") thread.push(["b", "escalate", "b asked for a decision: sessions are stored in seconds by the session store; switching changes how my feature persists them."]);
   t.message = thread.map(([author, kind, body], i) => ({ id: i + 1, conflictId: 12, author, kind, body, createdAt: start + 21000 + i * 6000 }));
+  // B pulled A's in-progress change before agreeing (pull_teammate's note to A).
+  if (scene === "fixing" || done || scene === "needs_human")
+    t.inbox.push({ id: 1, agent: "a", kind: "info", conflictId: 0, message: pulledNote("b", ["src/users/user.ts", "src/sessions/session.ts"]), delivered: false, createdAt: start + 31000 });
 }
 type TaskRowKind = Tables["plan_step"][number]["kind"];
 type MessageRowKind = Tables["message"][number]["kind"];

@@ -2,7 +2,7 @@
 
 WHAT IT'S FOR: track the dashboard simplification on branch `feat/simple-ui` (from `feat/orchestrator`).
 
-Goal (from A, 2026-10-24): the dashboard is an agent tool, not a showcase. Drop the office picture and the fancy layout. Show two things: the graph (who is connected to whom / what) and what each agent is working on right now.
+Goal (from A, 2026-10-24): the dashboard is a tool for working with agents. Drop the office picture and the fancy layout, and show two things: the graph (who is connected to whom / what) and what each agent is working on right now.
 
 ## Phase 1: understand
 - [x] Branch `feat/simple-ui` created from `feat/orchestrator`
@@ -11,7 +11,7 @@ Goal (from A, 2026-10-24): the dashboard is an agent tool, not a showcase. Drop 
 - [x] Write down my opinion of the current UI
 
 What I found:
-- The landing view is a 2 MB photo of an office table (`ui/public/office/shared-desk.png`) with frosted-glass laptops for the agents. It's pretty, but it reads as marketing, not a tool. The text on the glass is low contrast, and C and D show nothing but "Check passed".
+- The landing view is a 2 MB photo of an office table (`ui/public/office/shared-desk.png`) with frosted-glass laptops for the agents. It's pretty, but it looks like a marketing page. The text on the glass is low contrast, and C and D show nothing but "Check passed".
 - What each agent is doing (`agent.intent`, `task.title`) is hidden behind a click.
 - The orchestrator flow is the new part of the product (request → plan → reviews → tasks → threads → full stack), and it's buried in a side drawer.
 - There's no real graph. The seating hints at the team, but nothing shows who is assigned what, who reviews whom, or which pair is in a conflict thread.
@@ -57,3 +57,18 @@ Found with live data and fixed: a task assigned to an offline agent was drawn as
 ## Left for the team
 - D: the old screenshots in `artifacts/work-d/` and the list in `pitch/submission-checklist.md` show the office UI. Retake them from `?demo` before submitting.
 - `?demo` "Accept test change" resolves the conflict, but the health chip stays "Combined check failed" because the simulator adds no green check. That was already the case before this change.
+
+## Round 2: data moving between them (A, 2026-10-24)
+
+A asked to see every data transfer as an arrow from one to another that appears for a few seconds, and for task lines to say what the agent is doing instead of "working".
+
+A's answers: arrows go straight from sender to receiver, tagged "via DB" / "via git"; draw all four kinds (orchestrator ↔ agents, agent conversations, code and plans, results); record pull_teammate with send_note; arrows only for live data (no replay).
+
+- [x] Task lines: "doing: <task>", "waits for review: <task>", "waiting, D offline: <task>", "done: <task>"
+- [x] `src/transfers.ts`: one Transfer per row that means "X sent Y something", with a stable key
+- [x] People node (the people at the dashboard), so reviews, escalations and decisions have a sender / receiver
+- [x] `useFlights.ts`: the first full picture is the baseline; afterwards a key that wasn't in the previous update gets an arrow for 4 s, 1.2 s apart, only the newest labeled
+- [x] pull_teammate leaves a record: `pulledNote()` / `pullerOf()` in `shared/src/schema.ts`; the MCP server sends it with the existing `send_note` reducer (no module change or redeploy); a failed note doesn't fail the pull
+- [x] Demo: B's pull appears in "B is fixing"
+- [x] Tests: `tests/transfers.test.ts` (7, every story step), UI 37 / 37; `npm run test:a` passes with a new check "a hears that b pulled its change"
+- [x] Browser: the whole story plays as arrows in order; arrows between two agents dip below the row, away from the task labels; live mode loads without a burst. A real live transfer wasn't triggered (that would write to the team database); it uses the same path as the demo's scene changes.

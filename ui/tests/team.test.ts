@@ -18,7 +18,7 @@ test("the graph has the orchestrator and every agent", () => {
   const { nodes } = teamGraph(buildDemo("conflict", NOW), NOW);
   assert.deepEqual(
     nodes.map((n) => n.id),
-    ["orchestrator", "a", "b", "c", "d"],
+    ["orchestrator", "people", "a", "b", "c", "d"],
   );
   assert.match(nodes[0]!.doing, /^#4 from A: /);
 });
@@ -39,6 +39,7 @@ test("working: tasks wait for review, B's review is pending, D's is done", () =>
     ],
   );
   assert.equal(edges.filter((e) => e.kind === "conflict").length, 0);
+  assert.equal(nodes.find((n) => n.id === "people")?.state, "1 needs you");
   const actions = needsYou(t);
   assert.equal(actions.length, 1);
   assert.equal(actions[0]!.who, "B's human");
@@ -54,6 +55,7 @@ test("conflict: both tasks are live, A and B are talking, nobody needs a human",
   const { edges } = teamGraph(t, NOW);
   const tasks = edges.filter((e) => e.kind === "task");
   assert.ok(tasks.every((e) => e.active && e.tone === "accent"));
+  assert.equal(edge("conflict", "task-7")?.label, "doing: Store User.lastLogin in milliseconds");
   assert.equal(edges.filter((e) => e.kind === "review").length, 0);
   const c = edge("conflict", "conflict-12");
   assert.equal(c?.tone, "red");
@@ -111,7 +113,7 @@ test("a task assigned to an offline agent waits instead of claiming work", () =>
   const b = teamGraph(t, NOW).edges.find((e) => e.id === "task-8")!;
   assert.equal(b.active, false);
   assert.equal(b.dashed, true);
-  assert.equal(b.label, "#8 waiting · B offline");
+  assert.equal(b.label, "waiting, B offline: Read lastLogin as milliseconds in sessions");
 });
 
 test("a self conflict marks the agent instead of drawing an edge", () => {

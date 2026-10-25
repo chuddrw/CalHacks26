@@ -23,7 +23,7 @@ import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { git } from "../../shared/src/git.ts";
-import { runKey } from "../../shared/src/schema.ts";
+import { pullerOf, runKey } from "../../shared/src/schema.ts";
 import { MOCK_DB_NAME, startMockStdb, type MockStdb } from "../../scripts/mock-stdb.ts";
 
 const repoRoot = path.resolve(import.meta.dirname, "..", "..");
@@ -368,6 +368,7 @@ try {
   const pulled = textOf(await client.callTool({ name: "pull_teammate", arguments: { agent: "a" } }));
   const bUserFile = readFileSync(path.join(cloneB, "src", "users", "user.ts"), "utf8");
   check("pull_teammate applies a's in-progress change", pulled.startsWith("Pulled a's") && bUserFile.includes("user.lastLogin = at.getTime();"), pulled.slice(0, 80));
+  check("a hears that b pulled its change", db.inbox.some((r) => r.agent === "a" && r.kind === "info" && pullerOf(r.message) === "b"));
   check("pull_teammate leaves b's own new file alone", existsSync(path.join(cloneB, "src", "sessions", "idle.ts")));
   const again = textOf(await client.callTool({ name: "pull_teammate", arguments: { agent: "a" } }));
   check("pulling twice is safe", again.includes("already in your working tree"), again.slice(0, 80));

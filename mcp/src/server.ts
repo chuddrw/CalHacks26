@@ -56,7 +56,7 @@ import { z } from "zod";
 import { config, missingSettings } from "../../shared/src/config.ts";
 import { getFullStack } from "../../shared/src/full-stack.ts";
 import { git } from "../../shared/src/git.ts";
-import { pairKey, wipBranch, type ConflictRow, type SnapshotRow } from "../../shared/src/schema.ts";
+import { pairKey, pulledNote, wipBranch, type ConflictRow, type SnapshotRow } from "../../shared/src/schema.ts";
 import { callReducer, selectRows, sqlString } from "../../shared/src/stdb-http.ts";
 import { sessionToken } from "../../shared/src/session-token.ts";
 import { DbConnection } from "../../shared/module_bindings/index.ts";
@@ -105,6 +105,8 @@ async function pullTeammate(cwd: string, agent: string): Promise<string> {
     }
   }
   await git(cwd, ["apply"], { input: patch });
+  // Tell the teammate (and the dashboard). A failed note must not undo or fail the pull.
+  await callReducer("send_note", [agent, "info", pulledNote(me, files)]).catch(() => undefined);
   return `Pulled ${agent}'s in-progress change into your working tree (${files.length} file${files.length > 1 ? "s" : ""}: ${files.join(", ")}). Keep their changes exactly as pulled, adapt your own files, and run check_with_team.`;
 }
 

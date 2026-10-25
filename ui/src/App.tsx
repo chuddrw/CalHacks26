@@ -14,6 +14,7 @@ import { Details } from "./components/Details";
 import { Graph } from "./components/Graph";
 import { NeedsYou } from "./components/NeedsYou";
 import { NowList } from "./components/NowList";
+import { useFlights } from "./components/useFlights";
 
 const phaseLabel = {
   demo: "Simulated",
@@ -34,6 +35,7 @@ export function App() {
     new URLSearchParams(location.search).has("big"),
   );
   const demo = connection.phase === "demo";
+  const flights = useFlights(tables, connection.phase);
   const health = teamHealth(tables, connection);
   const facts = tables.intent.filter((i) => i.verified).length;
   const project =
@@ -91,6 +93,7 @@ export function App() {
         <section className="panel graph-panel" aria-label="Team graph">
           <Graph
             graph={teamGraph(tables, now)}
+            flights={flights}
             selection={selection}
             select={setSelection}
           />

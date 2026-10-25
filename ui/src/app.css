@@ -419,6 +419,101 @@ p {
 .key-conflict {
   border-top: 3px solid var(--red);
 }
+.key-flight {
+  border-top: 2px solid var(--text);
+}
+.edge-label-task {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+  border-radius: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.node-people {
+  border-left-width: 1px;
+  border-style: dashed;
+  border-left-style: dashed;
+}
+
+/* Transfer arrows: drawn from sender to receiver, gone after a few seconds (useFlights ARROW_MS). */
+.flights {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+  overflow: visible;
+}
+.flight {
+  animation: flight-fade 4s linear forwards;
+}
+.flight path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--tone) 70%, white);
+  stroke-width: 2.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: flight-draw 0.5s ease-out forwards;
+}
+.head {
+  fill: color-mix(in srgb, var(--tone) 70%, white);
+}
+.flight-label {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  max-width: 19em;
+  display: grid;
+  gap: 0.15em;
+  padding: 0.35em 0.6em;
+  background: var(--panel-2);
+  border: 1px solid var(--tone);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.5);
+  font-size: 0.8em;
+  pointer-events: none;
+  animation: label-fade 4s linear forwards;
+}
+.flight-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.flight-meta {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+@keyframes label-fade {
+  0%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes flight-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes flight-fade {
+  0% {
+    opacity: 0;
+  }
+  8%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 
 /* ---- Now list ------------------------------------------------------------------------------- */
 .now ul {
@@ -766,5 +861,9 @@ p {
   .edge.active,
   .node.busy .dot {
     animation: none;
+  }
+  .flight path {
+    animation: none;
+    stroke-dashoffset: 0;
   }
 }

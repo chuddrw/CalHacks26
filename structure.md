@@ -266,6 +266,8 @@ B's code from the watcher, moved here so every agent can run it on its own clone
 | `src/components/Details.tsx` | Drawer for an agent, a request (plan, reviews, tasks, Droid's steps), a conflict (thread, code, failing output), checks, memory, connection | A | Oct 24 |
 | `src/components/Actions.tsx` | Approve / Send back a review, the escalation decision, Accept / Send back a test change | A | Oct 24 |
 | `src/components/DemoBar.tsx` | `?demo` scene picker and Play story | A | Oct 24 |
+| `src/transfers.ts` | Every data transfer (request, task, review, message, plan, snapshot, pull, clash, fact, full stack) as one sender → receivers, for the arrows | A | Oct 24 |
+| `src/components/useFlights.ts` | Turns new transfers into arrows that show for 4 s, one after another | A | Oct 24 |
 | `src/components/select.ts` | Compares two drawer selections, so the graph and lists highlight what's open | A | Oct 24 |
 
 ## scripts/

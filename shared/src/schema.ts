@@ -56,6 +56,19 @@ export const HUMAN_AUTHOR = "human";
 /** Every message our hooks show an agent starts with this, so the agent (and we) can spot it. */
 export const MESSAGE_PREFIX = "[cowork]";
 
+/**
+ * The info note a teammate gets when someone pulls its in-progress change with pull_teammate. Code moves
+ * through git, so this note is the only record of it: the dashboard draws it as an arrow between the two.
+ */
+export function pulledNote(puller: AgentName, files: string[]): string {
+  return `${MESSAGE_PREFIX} ${puller} pulled your in-progress change into its working tree (${files.join(", ")}).`;
+}
+
+/** Who pulled, if `message` is a pulledNote; otherwise null. */
+export function pullerOf(message: string): AgentName | null {
+  return /^\[cowork\] ([a-z0-9][a-z0-9-]*) pulled your in-progress change/.exec(message)?.[1] ?? null;
+}
+
 /** Remote branch that holds an agent's latest snapshot. */
 export function wipBranch(agent: AgentName): string {
   return `wip/${agent}`;
