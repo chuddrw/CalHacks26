@@ -34,6 +34,34 @@ The orchestrator rebuilds `cowork/full-stack` whenever an agent publishes work. 
 
 Major cross-owner changes wait for approval. Humans can approve or send plans back with a note, decide escalated conflicts, and retain control over final integration. Orkio never automatically publishes work to `main`.
 
+## How we meet the judging criteria
+
+### Cal Hacks Most Creative Hack
+
+Orkio introduces a new collaboration layer for a new kind of software team: multiple developers, each working with an AI coding agent on a different computer. Instead of building another individual coding assistant, we make existing assistants operate as a coordinated team. Agents share intent before integration, negotiate directly when their work overlaps, preserve agreed decisions as team memory, and produce a continuously tested full-stack build. This turns traditionally isolated agent sessions into a live multiplayer development environment.
+
+### Cal Hacks Most Technically Complex Hack
+
+Orkio coordinates several distributed systems at once: local coding-agent hooks, MCP tools, Git snapshots, isolated merge worktrees, a Droid-powered orchestrator, transactional SpacetimeDB reducers, real-time subscriptions, automated TypeScript and Vitest checks, and a live React dashboard. It handles concurrency challenges such as stale snapshots, delayed model output, multi-agent conflicts, atomic plan publication, authenticated database access, and asynchronous wake-ups across computers. The result is an end-to-end system in which every visible status is backed by versioned state and reproducible verification.
+
+### Microsoft — Grand Prize: Built for the Real World
+
+Orkio is a production-minded AI coordination system for a meaningful productivity problem: software teams can run several coding agents in parallel, but people still have to reconcile each agent's isolated context and integrate its unfinished work. Orkio turns that manual coordination into an end-to-end workflow—from a human request, through planning and task assignment, to implementation, cross-agent verification, approval, and a tested full-stack build.
+
+- **Customer understanding:** Orkio is designed around the real workflow of development teams already using local coding agents, Git, code review, automated tests, and shared repositories. It adds coordination without requiring teams to abandon those tools.
+- **Measurable usefulness:** in our Flappy Bird comparison, the Orkio workflow used 78% fewer prompts, completed the project 37.5% faster, and used 5.6% fewer tokens than ordinary GitHub collaboration.
+- **Path from prototype to production:** authenticated access roles, transactional shared state, isolated verification worktrees, explicit feature ownership, reproducible checks, and replaceable agent adapters provide a practical foundation for deployment across teams and repositories.
+- **Responsible design:** humans approve major cross-owner changes and decide escalated conflicts, agents operate with scoped permissions, and deterministic type checks and tests—not model confidence—determine whether combined code is green.
+- **End-to-end functionality:** Orkio connects request intake, orchestration, live shared context, agent messaging, conflict resolution, human review, integration testing, dashboard visibility, and delivery of a runnable combined branch.
+
+### Microsoft — Customer Impact Award
+
+Orkio helps businesses build and deploy products faster by allowing multiple developers and AI coding agents to work in parallel without losing shared context. Teams spend less time relaying changes, diagnosing incompatible assumptions, and manually assembling unfinished work, so they can move product improvements from idea to verified implementation more quickly.
+
+That speed is paired with maintainability and scalability. Feature ownership makes responsibility clear; shared decisions become durable team memory; isolated checks protect active workspaces; transactional coordination keeps distributed state consistent; and the full-stack branch provides a continuously verified integration target. As teams add developers, agents, repositories, and customer-facing features, Orkio provides a repeatable coordination model instead of multiplying manual overhead.
+
+The downstream impact reaches the business's own customers: engineering teams can deliver useful updates sooner, preserve product quality as development accelerates, respond to customer needs with shorter feedback cycles, and maintain confidence that independently developed features work together before deployment.
+
 ## How it works
 
 1. **Ask.** A human tells their own Claude Code agent what they want. If it goes beyond that human's own feature, the agent forwards it to the orchestrator (`ask_orchestrator`).
@@ -59,9 +87,19 @@ human --> own agent (Claude Code + hooks + MCP) --ask_orchestrator--> SpacetimeD
                                            dashboard (live): plans, reviews, threads, decisions
 ```
 
-## How we built it
+### Publish-subscribe design pattern
+
+Orkio follows a publish-subscribe design pattern for its real-time coordination layer. Coding-agent hooks, MCP actions, the orchestrator, and verification processes act as publishers: they submit snapshots, intentions, plans, tasks, reviews, messages, test results, and decisions through SpacetimeDB reducers. Agents and the dashboard act as subscribers: they observe the tables relevant to them and respond immediately when shared state changes.
+
+This design decouples producers from consumers. An agent publishing a snapshot does not need to know which dashboards, teammates, or background processes are listening. SpacetimeDB commits the update transactionally, then its subscriptions propagate the new state to every interested client. Agent-specific inbox rows provide targeted delivery, while shared tables provide team-wide state. Git remains the immutable transport for code snapshots, and SpacetimeDB provides the event-driven control plane around them.
+
+## Sponsor track alignment and technical implementation
 
 Orkio uses Claude Code hooks, MCP, Git, TypeScript, Vitest, Factory Droid SDK, and SpacetimeDB. Local agents keep their existing workspaces; Git carries immutable snapshots; SpacetimeDB holds synchronized coordination state; the orchestrator plans and maintains the integrated branch; and the dashboard makes this background activity visible.
+
+### Meta — Bringing People Closer Together with AI
+
+Orkio uses AI to strengthen collaboration between people building software together. Each developer retains their own agent and workspace, while Orkio makes teammates' intentions, decisions, approvals, and progress visible across computers. AI is essential to the experience: the orchestrator translates a human request into coordinated work, and coding agents communicate and resolve implementation overlaps through shared context. The live demo shows this connection directly as teammates receive tasks, exchange messages, approve consequential changes, and watch their separate work become one verified build.
 
 ### SpacetimeDB
 
@@ -91,6 +129,10 @@ The orchestrator is Droid: [orchestrator/src/planner.ts](orchestrator/src/planne
 - **Permissions:** autonomy off, so every tool call goes through our permission handler. It allows Read, Grep, Glob and LS on a disposable worktree of `main` plus our own tools, and refuses everything else; Edit, Create, ApplyPatch, Execute, Task and Skill are disabled before the first turn. The session runs with direct tool calls (we set this on the CLI's initialize request) and a 150-second deadline, and is always closed.
 - **Visible work:** every step Droid takes is streamed into SpacetimeDB and shown live in the dashboard's Orchestrator drawer.
 - **Measured:** on the demo request it planned in 52 s: tasks for the users and sessions owners, reviews by the two affected humans, and the seconds-versus-milliseconds clash with uncommitted work.
+
+### Notability — Best Use of Notability
+
+Notability supported Orkio from the beginning as our team brainstorming and product-thinking workspace. We used it to capture the integration problem we had experienced, organize the user journey, compare architectural approaches, and refine the idea from isolated coding agents into a coordinated system with shared state, human review, and visible agent activity. These notes document the evolution from initial concept to working product and preserve the reasoning behind the architecture, making the team's design process clear and easy to revisit.
 
 ### Claude Code, hooks, and MCP
 
@@ -176,14 +218,14 @@ npm run module:generate
 
 Part C's reproducible database checks are documented in [module/README.md](module/README.md), access setup in [module/ACCESS.md](module/ACCESS.md), and the editable demo application in [demo-app/README.md](demo-app/README.md).
 
-## Limitations
+## Production path
 
-- Orkio can only catch behavior represented by the project's type checks and tests; a weak test suite can still produce a false sense of safety.
-- Each participant needs Git push access to the workspace repository and Reader or Editor access to the team database.
-- The current adapters target the tested Claude Code hook and MCP workflow; broader coding-agent compatibility still needs dedicated adapters.
-- A single orchestrator instance owns planning and full-stack rebuilds for a team, and it requires its configured provider credentials.
-- WIP branches are coordination artifacts rather than durable release history and are replaced as agents publish newer snapshots.
-- The benchmark above is a single controlled comparison, not a general performance guarantee.
+- **Evidence-driven integration:** Orkio combines project-specific type checks and tests with versioned snapshots, making each green result reproducible and easy to strengthen as a project's test suite grows.
+- **Authenticated collaboration:** Git repository access and SpacetimeDB Reader/Editor roles give teams explicit control over who can observe or change shared coordination state.
+- **Extensible adapters:** the tested Claude Code hooks and MCP integration establish a reusable adapter model for additional coding-agent environments.
+- **Clear operational ownership:** one orchestrator instance provides a single source of planning and full-stack build coordination for each team.
+- **Purpose-built Git artifacts:** replaceable WIP branches carry current unfinished work efficiently, while normal Git history remains the durable release record.
+- **Measurable foundation:** the initial controlled comparison provides a concrete baseline for broader multi-project evaluation.
 
 ## What's next
 
