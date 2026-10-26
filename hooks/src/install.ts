@@ -79,11 +79,11 @@ export function hookSettings(repoRoot: string): { hooks: Record<string, HookGrou
     hooks: {
       PostToolUse: [
         { matcher: "Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__cowork__.*", hooks: [listen()] },
-        { matcher: "*", hooks: [run("inject-context.ts", { timeout: 5 })] },
+        { matcher: "*", hooks: [run("inject-context.ts", { timeout: 15 })] },
       ],
-      UserPromptSubmit: [{ hooks: [run("inject-context.ts", { timeout: 5 }), listen()] }],
-      Stop: [{ hooks: [run("stop.ts", { timeout: 5 })] }],
-      SessionStart: [{ hooks: [run("session-start.ts", { timeout: 10 })] }],
+      UserPromptSubmit: [{ hooks: [run("inject-context.ts", { timeout: 15 }), listen()] }],
+      Stop: [{ hooks: [run("stop.ts", { timeout: 15 })] }],
+      SessionStart: [{ hooks: [run("session-start.ts", { timeout: 30 })] }],
     },
   };
 }

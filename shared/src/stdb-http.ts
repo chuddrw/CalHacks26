@@ -30,7 +30,10 @@ import { config } from "./config.ts";
 import { Columns, type ReducerArgs, type ReducerName, type TableName, type TableRows } from "./schema.ts";
 import { sessionToken } from "./session-token.ts";
 
-const TIMEOUT_MS = 3000;
+/** How long one database call may take. Maincloud is sometimes slow (2 to 20 s on Oct 25), so the
+ * default is generous; STDB_TIMEOUT_MS in .env changes it. Short hooks are still cut off by their own
+ * Claude Code timeout, and they fail open. */
+const TIMEOUT_MS = Number(process.env.STDB_TIMEOUT_MS) || 30_000;
 
 function endpoint(suffix: string): string {
   const host = config.stdbHost.replace(/\/+$/, "");

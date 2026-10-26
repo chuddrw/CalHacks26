@@ -432,13 +432,22 @@ async function startPresence(): Promise<void> {
       console.error(`[cowork] register_agent failed: ${error instanceof Error ? error.message : String(error)}`);
     });
   };
+  // A database reset (reset_all) forgets this connection without closing it, so the agent would stay
+  // offline until someone reconnects /mcp. Registering again every 30 s brings it back by itself;
+  // register_agent on a known connection only marks the agent online again.
+  let current: DbConnection | undefined;
+  setInterval(() => current && register(current), 30_000).unref();
+  const connected = (connection: DbConnection) => {
+    current = connection;
+    register(connection);
+  };
   DbConnection.builder()
     .withUri(config.stdbHost)
     .withDatabaseName(config.stdbDb)
     .withToken(token || undefined)
     .withAutomaticReconnect()
-    .onConnect((connection) => register(connection))
-    .onAutomaticReconnect((connection) => register(connection))
+    .onConnect((connection) => connected(connection))
+    .onAutomaticReconnect((connection) => connected(connection))
     .onConnectError((_ctx, error) => {
       console.error(`[cowork] presence WebSocket failed (${error.message}); trying register_agent over HTTP instead.`);
       callReducer("register_agent", [me]).catch(() => undefined);
