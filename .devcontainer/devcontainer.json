@@ -1,0 +1,21 @@
+{
+  "name": "AI Agent Sandbox",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "configureZshAsDefaultShell": true
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "openai.chatgpt",
+        "google.gemini-cli-vscode-ide-companion",
+        "ms-python.python"
+      ]
+    }
+  },
+  "postCreateCommand": "npm install && npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli",
+  "forwardPorts": []
+}
