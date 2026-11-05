@@ -196,7 +196,7 @@ Calhacks/                          repo 1: the tool (our Devpost submission)
 | `src/inject-context.ts` | Delivers unread inbox notes (heads-ups, facts, info) on the next tool call or prompt, and wake rows when no listener is alive | A | Oct 24 |
 | `src/stop.ts` | One nudge before an agent ends its turn while it owes a teammate a reply, or has an open task | A | Oct 24 |
 | `src/session-start.ts` | Gives a new session the team status, intents and verified facts | A | Done Oct 24 |
-| `src/install.ts` | One-time per laptop: sets `COWORK_NAME`, writes the hooks into `.claude/settings.local.json`, writes `.mcp.json`, and git-excludes both | A | Done Oct 24 |
+| `src/install.ts` | One-time per laptop: sets `COWORK_NAME` (the person's handle, with `COWORK_DISPLAY_NAME` for the dashboard), writes the hooks into `.claude/settings.local.json`, writes `.mcp.json`, and git-excludes both | A | Done Oct 24 |
 | `src/rewake-spike.ts` | The test that proved an idle Claude wakes up on exit 2 (passed Oct 24, 3:42 AM) | A | Done |
 | `src/lib/hook-io.ts` | Reads stdin JSON, prints hook output JSON, never blocks the agent on our own errors | A | Done |
 | `src/lib/snapshot.ts` | Temp index → `write-tree` → `commit-tree` → force-push to `wip/<name>`, one snapshot at a time per clone | A | Done Oct 24 |

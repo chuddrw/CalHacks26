@@ -33,6 +33,9 @@ export const emptyTables = (): Tables => ({
   message: [],
   plan_step: [],
   build: [],
+  usage: [],
+  member_profile: [],
+  kickoff: [],
 });
 export const isActiveConflict = (c: ConflictRow): boolean =>
   c.status !== "resolved";

@@ -3,6 +3,7 @@
  * the team graph (who works with whom right now), what each agent is doing, what needs a human,
  * and the activity feed. Pure functions, so tests/team.test.ts can check every test scene.
  */
+import { agentChip, personLabel } from "./members";
 import type {
   AgentRow,
   ConflictRow,
@@ -27,6 +28,9 @@ export type Selection =
   | { kind: "checks" }
   | { kind: "memory" }
   | { kind: "activity" }
+  | { kind: "metrics" }
+  | { kind: "ask" }
+  | { kind: "team" }
   | { kind: "connection" };
 
 export const ORCHESTRATOR_ID = "orchestrator";
@@ -35,7 +39,8 @@ export const PEOPLE_ID = "people";
 /** Resolved conflicts stay on the graph this long, so the team sees them close. */
 export const RESOLVED_VISIBLE_MS = 5 * 60_000;
 
-export const upper = (name: string): string => name.toUpperCase();
+/** A person's name when the module knows it (member_profile), otherwise the handle in capitals. */
+export const upper = (name: string): string => personLabel(name);
 
 export const requestStatusLabel: Record<RequestRow["status"], string> = {
   new: "Request received",
@@ -360,7 +365,7 @@ export function teamGraph(t: Tables, now: number): TeamGraph {
       return {
         id: agent.name,
         kind: "agent",
-        label: `Agent ${upper(agent.name)}`,
+        label: agentChip(agent.name),
         state: selfConflict ? `Own check fails #${selfConflict.id}` : doing.state,
         tone: selfConflict ? "red" : doing.stateTone,
         doing: doing.doing,

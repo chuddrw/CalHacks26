@@ -1,0 +1,31 @@
+{
+  "task": "units-change",
+  "trial": 1,
+  "condition": "plain-git",
+  "wallMs": 37731,
+  "humanPrompts": 2,
+  "tokens": 357572,
+  "costUsd": 0.3335662,
+  "hiddenTestPass": false,
+  "details": {
+    "mergeClean": true,
+    "visibleGreen": false,
+    "agentA": {
+      "wallMs": 37731,
+      "tokens": 198447,
+      "costUsd": 0.17881139999999998,
+      "turns": 13,
+      "ok": true,
+      "note": ""
+    },
+    "agentB": {
+      "wallMs": 17186,
+      "tokens": 159125,
+      "costUsd": 0.1547548,
+      "turns": 8,
+      "ok": true,
+      "note": ""
+    },
+    "dryRun": false
+  }
+}

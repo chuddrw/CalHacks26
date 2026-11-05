@@ -24,7 +24,7 @@ A developer can send a request to the orchestrator from their own agent. The orc
 
 ### Lets the responsible agents settle conflicts
 
-Agents run `check_with_team` before finishing. It combines their work with teammates' current snapshots in an isolated worktree and runs TypeScript and Vitest. If work conflicts, the affected agents receive a shared thread, agree on who changes what, and validate the result. Stale checks and one-sided agreements cannot resolve a conflict. Unresolved threads escalate to people after five minutes or twelve messages.
+Agents run `check_with_team` before finishing. It combines their work with teammates' current snapshots in an isolated worktree and runs TypeScript and Vitest. If work conflicts, the affected agents receive a shared thread, agree on who changes what, and validate the result. Stale checks and one-sided agreements cannot resolve a conflict. Unresolved threads escalate to people after 90 seconds with no progress (every message resets the timer) or twelve messages, and a fix that edits existing tests goes to a person immediately.
 
 ### Maintains a runnable full stack
 
@@ -33,6 +33,23 @@ The orchestrator rebuilds `cowork/full-stack` whenever an agent publishes work. 
 ### Keeps humans in control
 
 Major cross-owner changes wait for approval. Humans can approve or send plans back with a note, decide escalated conflicts, and retain control over final integration. Orkio never automatically publishes work to `main`.
+
+### Who is behind which agent
+
+Each person picks a name the first time they run `./run.sh`; Orkio turns it into a **handle** (`Ana María` becomes `ana-maria`) and writes it to `.env` as `COWORK_NAME`, with the name as shown on the dashboard in `COWORK_DISPLAY_NAME`. Nobody enrolls themselves: `./run.sh` prints the person's public identity and a ready-made command for the database owner:
+
+```sh
+npm run access --prefix module -- grant <db> <public-identity> editor --name <handle> --display "<Name>"
+```
+
+The module stores identity → handle in `member_profile`. From then on the server, not the client, decides who an agent is: `register_agent`, `post_snapshot`, `post_intent`, `submit_request`, `complete_task`, `post_message`, `report_usage`, `report_check`, `report_conflict` and `mark_delivered` reject any other agent with `You are <handle>, not <agent>`. `send_note` is deliberately unbound because agents send each other heads-up notes. The dashboard asks with `submit_request_as_me`, so the Ask form cannot submit as someone else. In Claude Code, the `whoami` MCP tool shows your handle, display name, role and teammates, and `npm run doctor` says exactly what to fix when your handle and profile disagree. See [module/ACCESS.md](module/ACCESS.md).
+
+### Observability and evals
+
+- **Token usage:** the `Stop` hook reads the Claude Code transcript and reports new token usage (input, output, cache) to the `usage` table through `report_usage`. It reports cost as 0; the dashboard estimates dollars from a `PRICES` table in `ui/src/metrics.ts`, which is empty until you fill in your provider's prices.
+- **Dashboard:** besides the live plan, review and conflict views it has a **Team** drawer (display names, handles, online status, current task), a **Metrics** drawer (tokens and cost per agent, request and phase; conflict, check and build stats; human load) and an **Ask** drawer for sending a request to the orchestrator.
+- **Benchmarks:** `bench/` holds offline evals (a labeled planner set, eight seeded integration bugs, a condition-matrix runner and report). Its conditions are verification-layer proxies, not live agents, and it has no recorded live runs, so it supports regression checks rather than performance claims. See [bench/README.md](bench/README.md).
+- **Kickoff mode (goal-only teams):** when a team has a goal but no assigned responsibilities, the flow is dashboard kickoff → orchestrator proposes owners, contracts and first tasks → a human approves and commits `cowork.owners.json`. Orkio never writes to `main` itself.
 
 ## How we meet the judging criteria
 
@@ -49,7 +66,7 @@ Orkio coordinates several distributed systems at once: local coding-agent hooks,
 Orkio is a production-minded AI coordination system for a meaningful productivity problem: software teams can run several coding agents in parallel, but people still have to reconcile each agent's isolated context and integrate its unfinished work. Orkio turns that manual coordination into an end-to-end workflow—from a human request, through planning and task assignment, to implementation, cross-agent verification, approval, and a tested full-stack build.
 
 - **Customer understanding:** Orkio is designed around the real workflow of development teams already using local coding agents, Git, code review, automated tests, and shared repositories. It adds coordination without requiring teams to abandon those tools.
-- **Measurable usefulness:** in our Flappy Bird comparison, the Orkio workflow used 78% fewer prompts, completed the project 37.5% faster, and used 5.6% fewer tokens than ordinary GitHub collaboration.
+- **Measurable usefulness:** in our Flappy Bird comparison (single informal run; no recorded data in `bench/recorded/`), the Orkio workflow used 78% fewer prompts, completed the project 37.5% faster, and used 5.6% fewer tokens than ordinary GitHub collaboration.
 - **Path from prototype to production:** authenticated access roles, transactional shared state, isolated verification worktrees, explicit feature ownership, reproducible checks, and replaceable agent adapters provide a practical foundation for deployment across teams and repositories.
 - **Responsible design:** humans approve major cross-owner changes and decide escalated conflicts, agents operate with scoped permissions, and deterministic type checks and tests—not model confidence—determine whether combined code is green.
 - **End-to-end functionality:** Orkio connects request intake, orchestration, live shared context, agent messaging, conflict resolution, human review, integration testing, dashboard visibility, and delivery of a runnable combined branch.
@@ -70,7 +87,7 @@ The downstream impact reaches the business's own customers: engineering teams ca
 4. **Review.** A major change waits on the dashboard until the affected humans click Approve (or Send back, with a note).
 5. **Work.** Each agent is woken with its task by a background hook, even when idle. Before finishing, it runs `check_with_team`: its uncommitted work merged with each teammate's work in progress, then the type checker and the tests.
 6. **Agents settle conflicts themselves.** When the orchestrator flags an overlap, or an agent's check finds a clash, the two agents get a conflict thread. They message each other (each message wakes the other), change their own files, and both call `agree`. Agreement plus a green check resolves it, and the agreed fact goes into shared memory for every later agent.
-7. **Escalation.** If they can't agree, or after 12 messages or 5 minutes, the conflict goes to both humans, who decide on the dashboard. The decision wakes both agents.
+7. **Escalation.** If they can't agree, after 12 messages, or after 90 seconds with no progress (each message resets the timer), the conflict goes to both humans, who decide on the dashboard. The decision wakes both agents.
 8. **Full stack.** The orchestrator keeps everyone's latest work merged on `cowork/full-stack`, rebuilt whenever someone's work changes and pushed only when tsc and the tests pass on the whole thing: a main branch that always runs. When a request is done, every agent hears it, and `get_full_stack` (or `npm run full-stack`) puts the whole project next to each laptop's clone, ready to demo. Droid plans on top of it, so it sees everyone's files.
 
 Git, the type checker and the tests decide red or green. Droid plans and the agents talk, but no model ever declares a change green.
@@ -107,7 +124,7 @@ Implemented in [module/src/index.ts](module/src/index.ts) for SpacetimeDB 2.13.0
 - Twelve authenticated views over private backing tables hold team state: `agent`, `snapshot`, `intent`, `check_run`, `conflict`, `inbox`, `diagnosis_step`, plus the orchestrator's `request`, `task`, `review`, `message` and `plan_step`. Owner-only grant/revoke reducers manage Reader/Editor membership; signing in alone grants no access. See [access setup](module/ACCESS.md).
 - `publish_plan` writes a whole plan in one transaction: its reviews, its tasks (held while a review is pending) and its flagged conflicts, plus every inbox row that wakes an agent.
 - `post_message` is the agents' conversation. It resolves a conflict only when both agents' latest messages are agreements and a current green check covers both of them, so a stale or one-sided agreement can't close it.
-- A schedule table escalates a conflict to both humans after 5 minutes.
+- A schedule table escalates a conflict to both humans after 90 seconds with no progress; every `post_message` resets it. A fix that changes tests (`needs_human`) goes to a person immediately.
 - Lifecycle reducers track which agents are online. The dashboard subscribes directly, so all screens update at the same moment. There is no other backend server.
 
 #### Sponsor track alignment — Best Use of SpacetimeDB

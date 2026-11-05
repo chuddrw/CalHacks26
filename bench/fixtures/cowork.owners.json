@@ -1,0 +1,10 @@
+{
+  "about": "Bench copy of the demo-app ownership split (demo-app itself has no cowork.owners.json in this checkout; same split as checks/src/fixture.ts).",
+  "shared": ["src/contracts/"],
+  "owners": [
+    { "agent": "a", "human": "A", "feature": "Users and logins", "paths": ["src/users/"] },
+    { "agent": "b", "human": "B", "feature": "Session timeout and idle time", "paths": ["src/sessions/"] },
+    { "agent": "c", "human": "C", "feature": "Login statistics", "paths": ["src/analytics/"] },
+    { "agent": "d", "human": "D", "feature": "What the frontend reads", "paths": ["src/api/"] }
+  ]
+}

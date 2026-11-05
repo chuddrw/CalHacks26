@@ -28,6 +28,18 @@ npm run access --prefix module -- revoke agent-cowork-orch <public-identity>
 
 The commands pass public identities and role names only. `SPACETIME_CLI` can select the real CLI binary if it is not on PATH. A reader/editor cannot approve themselves or anyone else. Repeating a grant changes the role. Revocation denies future requests, removes that identity's presence, and removes team rows from its existing view subscriptions. Data already read or copied by a previously authorized user cannot be recalled.
 
+## Who is behind which agent (handles)
+
+Approving an identity can also bind it to an **agent handle** (lowercase letters, digits, dashes; unique) and a display name:
+
+```sh
+npm run access --prefix module -- grant agent-cowork-orch <public-identity> editor --name catherine --display "Catherine Z"
+```
+
+This calls `grant_access` and then the owner-only reducer `set_member_profile(identity, handle, displayName)`. The binding is stored in a private table and published through the authenticated view `member_profile` (`identity`, `handle`, `displayName`, `createdAt`), readable by any role.
+
+Once an identity has a handle, every reducer that takes an `agent` argument (`register_agent`, `post_snapshot`, `post_intent`, `submit_request`, `complete_task`, `post_message`, `report_usage`) requires it to equal that handle, otherwise it fails with `You are <handle>, not <agent>`. Identities without a profile (the orchestrator, the dashboard, existing setups) behave as before. The dashboard asks with `submit_request_as_me(body)`, which uses the caller's own handle. `revoke_access` deletes the profile and frees the handle; `reset_all` keeps profiles like membership. `report_check` and `report_conflict` are bound differently because they involve several agents: the caller's handle must be one of the agents named. `mark_delivered` only accepts the caller's own inbox rows (marking a teammate's wake-ups delivered would silence them). `send_note` is deliberately unbound: it records no sender and agents legitimately send each other heads-up notes.
+
 ## Client contract for A, B, and D
 
 The query names remain `agent`, `snapshot`, `intent`, `check_run`, `conflict`, `inbox`, and `diagnosis_step`. They now refer to authenticated views over private `*_data` tables. Existing column order, primary keys, number types, and the twelve business reducer argument signatures are unchanged. Regenerated public bindings retain the same table-like client accessors.

@@ -8,6 +8,7 @@ import { teamHealth } from "./dashboard";
 import { useDashboard } from "./stdb";
 import { activity, hiveStats, needsYou, teamGraph, type Selection } from "./team";
 import { useNow } from "./useNow";
+import { useMembers } from "./useMembers";
 import { ActivityStrip } from "./components/Activity";
 import { Details } from "./components/Details";
 import { Graph } from "./components/Graph";
@@ -47,6 +48,7 @@ const phaseLabel = {
 export function App() {
   const { tables, connection } = useDashboard();
   const now = useNow();
+  useMembers(); // re-render everything when names change
   const [selection, setSelection] = useState<Selection | null>(null);
   const close = useCallback(() => setSelection(null), []);
   const flights = useFlights(tables, connection.phase);
@@ -80,6 +82,27 @@ export function App() {
           {health.title}
         </button>
         <span className="spacer" />
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setSelection({ kind: "ask" })}
+        >
+          Ask
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setSelection({ kind: "team" })}
+        >
+          Team
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setSelection({ kind: "metrics" })}
+        >
+          Metrics
+        </button>
         <button
           type="button"
           className="btn btn-ghost"

@@ -16,7 +16,7 @@ KEYS
   GitHub             pushing wip/* branches                     every laptop   each laptop's normal git login; nothing in .env
 
 NOT SECRET, BUT PER LAPTOP
-  COWORK_NAME (a, b, c or d) and, on the orchestrator's laptop, DEMO_REPO_PATH. See .env.example.
+  COWORK_NAME (your handle, e.g. ana-maria; ./run.sh asks your name and writes it, plus COWORK_DISPLAY_NAME) and, on the orchestrator's laptop, DEMO_REPO_PATH. See .env.example.
 
 IF A KEY LEAKS
   Revoke it in that service's dashboard right away, make a new one, and tell the team.

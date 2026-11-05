@@ -43,8 +43,9 @@ import type { Owners } from "../../shared/src/owners.ts";
 import type { DiagnosisStepKind, RequestRow } from "../../shared/src/schema.ts";
 import { READ_TOOLS } from "./diagnose/permissions.ts";
 import { truncateUtf8 } from "./diagnose/text.ts";
-import { buildPrompt, SERVER_NAME } from "./prompt.ts";
+import { buildKickoffPrompt, buildPrompt, SERVER_NAME } from "./prompt.ts";
 import type { DraftPlan } from "./rules.ts";
+import { type DraftProposal, type KickoffInput, type KickoffResult, parseProposal } from "./kickoff.ts";
 
 export type OnStep = (kind: DiagnosisStepKind, detail: string) => void;
 
@@ -60,7 +61,7 @@ export interface PlannerInput {
 
 export type Planner = (input: PlannerInput, onStep: OnStep) => Promise<DraftPlan>;
 
-const TOOL_NAMES = ["team_status", "assign_task", "request_review", "flag_conflict", "finish_plan"];
+const TOOL_NAMES = ["team_status", "assign_task", "request_review", "flag_conflict", "finish_plan", "propose_owner", "propose_contract", "propose_first_task", "ask_clarification", "finish_kickoff"];
 const DISABLED_UP_FRONT = ["Edit", "Create", "ApplyPatch", "Execute", "Task", "Skill"];
 
 /** The plan tools, recording into `plan`. Exported for tests. */
@@ -168,78 +169,209 @@ async function directToolTransport(cwd: string, apiKey: string): Promise<Process
   return transport;
 }
 
+/**
+ * One read-only Droid session: the same transport, permission handler, disabled tools, deadline and
+ * cleanup for the planner and the kickoff. Returns Droid's last text; `done()` ends the stream early.
+ */
+async function runSession(options: {
+  create?: typeof createSession;
+  apiKey: string;
+  timeoutMs?: number;
+  worktree: string;
+  tools: ReturnType<typeof planTools>;
+  prompt: string;
+  label: string;
+  firstStatus: string;
+  onStep: OnStep;
+  done: () => boolean;
+}): Promise<string> {
+  const step: OnStep = (kind, detail) => options.onStep(kind, truncateUtf8(detail, 2048));
+  const server = createSdkMcpServer({ name: SERVER_NAME, tools: options.tools });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new Error(`Droid ${options.label} timed out`)), options.timeoutMs ?? 150_000);
+  let session: Awaited<ReturnType<typeof createSession>> | undefined;
+  let lastText = "";
+  try {
+    // Tests inject `create` (a fake session); the real one gets the direct-tools transport.
+    const transport = options.create ? undefined : await directToolTransport(options.worktree, options.apiKey);
+    session = await (options.create ?? createSession)({
+      ...(transport ? { transport } : {}),
+      cwd: options.worktree,
+      apiKey: options.apiKey,
+      ...(config.droidModelId ? { modelId: config.droidModelId } : {}),
+      abortSignal: controller.signal,
+      autonomyLevel: AutonomyLevel.Off,
+      disableBuiltinSkills: true,
+      disabledToolIds: DISABLED_UP_FRONT,
+      mcpServers: [server],
+      permissionHandler({ toolUses, options: offered }) {
+        const yes = allowed(toolUses as Parameters<typeof allowed>[0]);
+        if (!yes) step("error", `Refused: ${toolUses.map(({ toolUse }) => toolUse.name).join(", ")}`);
+        return yes && offered.some((option) => option.value === ToolConfirmationOutcome.ProceedOnce)
+          ? ToolConfirmationOutcome.ProceedOnce
+          : ToolConfirmationOutcome.Cancel;
+      },
+    });
+    // Disable every built-in tool that isn't a read tool, before the first turn.
+    const tools = await session.listTools();
+    const disabled = tools.filter((t) => !READ_TOOLS.has(t.id) && !TOOL_NAMES.some((ours) => t.id.endsWith(ours))).map((t) => t.id);
+    if (disabled.length) await session.updateSettings({ disabledToolIds: [...new Set([...DISABLED_UP_FRONT, ...disabled])] });
+    step("status", options.firstStatus);
+    for await (const message of session.stream(options.prompt, { abortSignal: controller.signal })) {
+      switch (message.type) {
+        case "assistant":
+          lastText = message.text;
+          step("thought", message.text);
+          break;
+        case "tool_call":
+          step("tool_call", `${message.name} ${JSON.stringify(message.input)}`);
+          break;
+        case "tool_result":
+          step("tool_result", JSON.stringify(message.content).slice(0, 300));
+          break;
+        case "error":
+          step("error", message.message);
+          break;
+        case "result":
+          if (!message.success && !options.done()) throw new Error(`Droid stopped: ${message.error?.message ?? message.subtype}`);
+          if (!lastText && message.text) lastText = message.text;
+          break;
+      }
+      if (options.done()) break;
+    }
+  } catch (error) {
+    if (!options.done()) {
+      throw new Error(controller.signal.aborted ? `Droid ${options.label} timed out` : `Droid ${options.label} failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } finally {
+    clearTimeout(timer);
+    await session?.close().catch(() => undefined);
+    await server.close().catch(() => undefined);
+  }
+  return lastText;
+}
+
 /** Injectable SDK seam for tests; production uses the installed SDK and FACTORY_API_KEY. */
 export function createDroidPlanner(options: { create?: typeof createSession; apiKey?: string; timeoutMs?: number } = {}): Planner {
   return async (input, onStep) => {
     const apiKey = options.apiKey ?? config.factoryApiKey;
     if (!apiKey) throw new Error("FACTORY_API_KEY is not set on the orchestrator's laptop, so Droid can't plan.");
-    const step: OnStep = (kind, detail) => onStep(kind, truncateUtf8(detail, 2048));
     const plan: DraftPlan = { summary: "", tasks: [], reviews: [], conflicts: [] };
     const state = { finished: false };
-    const server = createSdkMcpServer({ name: SERVER_NAME, tools: planTools(input, plan, state) });
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(new Error("Droid planning timed out")), options.timeoutMs ?? 150_000);
-    let session: Awaited<ReturnType<typeof createSession>> | undefined;
-    let lastText = "";
-    try {
-      // Tests inject `create` (a fake session); the real one gets the direct-tools transport.
-      const transport = options.create ? undefined : await directToolTransport(input.worktree, apiKey);
-      session = await (options.create ?? createSession)({
-        ...(transport ? { transport } : {}),
-        cwd: input.worktree,
-        apiKey,
-        ...(config.droidModelId ? { modelId: config.droidModelId } : {}),
-        abortSignal: controller.signal,
-        autonomyLevel: AutonomyLevel.Off,
-        disableBuiltinSkills: true,
-        disabledToolIds: DISABLED_UP_FRONT,
-        mcpServers: [server],
-        permissionHandler({ toolUses, options: offered }) {
-          const yes = allowed(toolUses as Parameters<typeof allowed>[0]);
-          if (!yes) step("error", `Refused: ${toolUses.map(({ toolUse }) => toolUse.name).join(", ")}`);
-          return yes && offered.some((option) => option.value === ToolConfirmationOutcome.ProceedOnce)
-            ? ToolConfirmationOutcome.ProceedOnce
-            : ToolConfirmationOutcome.Cancel;
-        },
-      });
-      // Disable every built-in tool that isn't a read tool, before the first turn.
-      const tools = await session.listTools();
-      const disabled = tools.filter((t) => !READ_TOOLS.has(t.id) && !TOOL_NAMES.some((ours) => t.id.endsWith(ours))).map((t) => t.id);
-      if (disabled.length) await session.updateSettings({ disabledToolIds: [...new Set([...DISABLED_UP_FRONT, ...disabled])] });
-      step("status", "Droid is reading the request and the team's state");
-      for await (const message of session.stream(buildPrompt(input.request, input.requesterHuman), { abortSignal: controller.signal })) {
-        switch (message.type) {
-          case "assistant":
-            lastText = message.text;
-            step("thought", message.text);
-            break;
-          case "tool_call":
-            step("tool_call", `${message.name} ${JSON.stringify(message.input)}`);
-            break;
-          case "tool_result":
-            step("tool_result", JSON.stringify(message.content).slice(0, 300));
-            break;
-          case "error":
-            step("error", message.message);
-            break;
-          case "result":
-            if (!message.success && !state.finished) throw new Error(`Droid stopped: ${message.error?.message ?? message.subtype}`);
-            if (!lastText && message.text) lastText = message.text;
-            break;
-        }
-        if (state.finished) break;
-      }
-    } catch (error) {
-      if (!state.finished) {
-        throw new Error(controller.signal.aborted ? "Droid planning timed out" : `Droid planning failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    } finally {
-      clearTimeout(timer);
-      await session?.close().catch(() => undefined);
-      await server.close().catch(() => undefined);
-    }
+    const lastText = await runSession({
+      create: options.create, apiKey, timeoutMs: options.timeoutMs, worktree: input.worktree,
+      tools: planTools(input, plan, state), prompt: buildPrompt(input.request, input.requesterHuman),
+      label: "planning", firstStatus: "Droid is reading the request and the team's state", onStep, done: () => state.finished,
+    });
     if (!state.finished && plan.tasks.length === 0) throw new Error("Droid ended without a plan.");
     if (!plan.summary) plan.summary = lastText.slice(0, 1000) || `${plan.tasks.length} task(s) for ${[...new Set(plan.tasks.map((task) => task.agent))].join(", ")}.`;
     return plan;
+  };
+}
+
+/**
+ * The kickoff tools: record into a draft proposal in memory, like planTools. Nothing is stored or
+ * written anywhere; the caller validates the draft with parseProposal.
+ */
+export function kickoffTools(input: KickoffInput, draft: DraftProposal, state: { finished: boolean; asked: boolean }) {
+  const readOnly = { annotations: { readOnlyHint: true } };
+  const member = (agent: string) => input.members.find((m) => m.agent === agent);
+  const unknown = (agent: string) => (member(agent) ? "" : `${agent} isn't on the team. Members: ${input.members.map((m) => m.agent).join(", ")}.`);
+  return [
+    tool(
+      "propose_owner",
+      "Propose what one team member owns: a feature and its paths (a folder ends in /). One call per member; a second call replaces the first.",
+      { agent: z.string(), feature: z.string(), paths: z.array(z.string()).describe("Folders (ending /) or files this agent owns; may be planned paths") },
+      async ({ agent, feature, paths }) => {
+        const problem = unknown(agent);
+        if (problem) return problem;
+        if (!feature.trim()) return "Name the feature.";
+        const normalized = paths.map((p) => p.replace(/\\/g, "/").replace(/^\.\//, ""));
+        const clash = draft.owners.find((o) => o.agent !== agent && o.paths.some((a) => normalized.some((b) => a === b)));
+        if (clash) return `${clash.agent} already owns one of those paths. Keep ownership disjoint.`;
+        draft.owners = draft.owners.filter((o) => o.agent !== agent);
+        draft.owners.push({ agent, human: member(agent)!.human, feature: feature.trim(), paths: normalized });
+        return `Recorded ${agent} as owner of "${feature.trim()}".`;
+      },
+      readOnly,
+    ),
+    tool(
+      "propose_contract",
+      "Propose a shared contract: a path (types file, API shape) several owners depend on, with what it defines.",
+      { path: z.string(), description: z.string() },
+      async ({ path, description }) => {
+        if (!path.trim()) return "Give the contract a path.";
+        const clean = path.replace(/\\/g, "/").replace(/^\.\//, "");
+        if (!draft.contracts.some((c) => c.path === clean)) draft.contracts.push({ path: clean, description: description.trim() });
+        return `Recorded shared contract ${clean}.`;
+      },
+      readOnly,
+    ),
+    tool(
+      "propose_first_task",
+      "A first concrete task for one member, on files they own or a shared contract.",
+      { agent: z.string(), title: z.string(), details: z.string(), files: z.array(z.string()) },
+      async ({ agent, title, details, files }) => {
+        const problem = unknown(agent);
+        if (problem) return problem;
+        if (!title.trim()) return "Give the task a title.";
+        draft.firstTasks.push({ agent, title: title.trim(), details: details.trim(), files });
+        return `Recorded a first task for ${agent}.`;
+      },
+      readOnly,
+    ),
+    tool(
+      "ask_clarification",
+      "Only if the goal is too unclear to split: up to 5 short questions for the humans. You get ONE round; after this the session ends and you run again with their answers.",
+      { questions: z.array(z.string()).min(1).max(5) },
+      async ({ questions }) => {
+        if (input.answers) return "You already asked once. Make reasonable assumptions instead.";
+        if (state.asked) return "Only one round of questions.";
+        state.asked = true;
+        state.finished = true;
+        draft.questions = questions.map((q) => q.trim()).filter(Boolean);
+        return "Questions recorded for the humans. Stop now.";
+      },
+      readOnly,
+    ),
+    tool(
+      "finish_kickoff",
+      "The proposal is complete. Architecture notes (3 to 6 sentences) and a one-line summary. Stop after this.",
+      { architecture: z.string(), summary: z.string() },
+      async ({ architecture, summary }) => {
+        draft.architecture = architecture.trim();
+        draft.summary = summary.trim();
+        state.finished = true;
+        return "Proposal recorded. You're done: stop now.";
+      },
+      readOnly,
+    ),
+  ];
+}
+
+/**
+ * Kickoff for the goal-only case: Droid proposes owners, shared contracts and first tasks (or, once,
+ * asks questions). Returns a validated proposal for humans to edit and approve; writes nothing.
+ * See kickoff.ts for the hook point.
+ */
+export function createDroidKickoff(options: { create?: typeof createSession; apiKey?: string; timeoutMs?: number } = {}) {
+  return async (input: KickoffInput, onStep: OnStep): Promise<KickoffResult> => {
+    const apiKey = options.apiKey ?? config.factoryApiKey;
+    if (!apiKey) throw new Error("FACTORY_API_KEY is not set on the orchestrator's laptop, so Droid can't plan.");
+    if (input.members.length === 0) throw new Error("A kickoff needs at least one team member.");
+    const draft: DraftProposal = { summary: "", architecture: "", owners: [], contracts: [], firstTasks: [], questions: [] };
+    const state = { finished: false, asked: false };
+    await runSession({
+      create: options.create, apiKey, timeoutMs: options.timeoutMs, worktree: input.worktree,
+      tools: kickoffTools(input, draft, state), prompt: buildKickoffPrompt(input),
+      label: "kickoff", firstStatus: "Droid is reading the repository and the goal", onStep, done: () => state.finished,
+    });
+    if (draft.questions.length > 0) return { kind: "questions", questions: draft.questions };
+    if (draft.owners.length === 0) throw new Error("Droid ended the kickoff without proposing any owner.");
+    const proposal = parseProposal(
+      { architecture: draft.architecture, owners: draft.owners, contracts: draft.contracts, firstTasks: draft.firstTasks },
+      input.members.map((m) => m.agent),
+    );
+    return { kind: "proposal", proposal: { ...proposal, summary: draft.summary } };
   };
 }

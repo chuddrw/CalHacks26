@@ -178,9 +178,23 @@ try {
     reviews: [],
     conflicts: [{ agentA: "a", agentB: "b", topic: "lastLogin unit", details: "b's in-progress idle.ts assumes seconds", suggested: "b" }],
   }));
+  // The kickoff (goal-only team) is scripted too: one round of questions, then a proposal.
+  const kickoffFile = path.join(tmp, "kickoff.json");
+  writeFileSync(kickoffFile, JSON.stringify({
+    questions: ["Which stack should the app use?"],
+    proposal: {
+      architecture: "A React client and a Node API that share one contracts file.", summary: "a owns the web client, b the API.",
+      owners: [
+        { agent: "a", human: "Ana", feature: "Web client", paths: ["src/web/"] },
+        { agent: "b", human: "Ben", feature: "API", paths: ["src/server/"] },
+      ],
+      contracts: [{ path: "src/contracts/snack.ts", description: "The Snack type both sides use" }],
+      firstTasks: [{ agent: "a", title: "Snack list page", details: "Render the snacks", files: ["src/web/list.tsx"] }],
+    },
+  }));
   // `node --import tsx` keeps it in one process, so kill() reaches it on Windows.
   const orchestrator = startProcess(["--import", "tsx", "orchestrator/src/index.ts"], {
-    ...base, STDB_TOKEN: orchestratorId.token, DEMO_REPO_PATH: path.join(fixture, "watcher"), COWORK_PLAN_FILE: planFile, COWORK_NAME: "",
+    ...base, STDB_TOKEN: orchestratorId.token, DEMO_REPO_PATH: path.join(fixture, "watcher"), COWORK_PLAN_FILE: planFile, COWORK_KICKOFF_FILE: kickoffFile, COWORK_NAME: "",
   });
   await waitFor("the orchestrator to start", () => orchestrator.output().includes("planning for"), 30_000);
   check("the orchestrator starts as its own approved identity", true);
@@ -333,6 +347,25 @@ try {
   check("it has b's sessions change and a's users change", stackSession.includes("elapsedMs") && stackUsers.includes("at.getTime()"));
   const runAll = spawnSync(process.execPath, [path.join(stackFolder, "node_modules", "vitest", "vitest.mjs"), "run"], { cwd: stackFolder, encoding: "utf8", timeout: 120_000, windowsHide: true });
   check("the whole project's tests pass in the full stack on a's laptop", runAll.status === 0, (runAll.stdout + runAll.stderr).split("\n").filter((l) => /Tests|passed|failed/.test(l)).slice(-2).join(" | ").slice(0, 160));
+
+  // ---- 12. Kickoff: a goal with no responsibilities yet ------------------------------------------------------
+  const mainBefore = spawnSync("git", ["ls-remote", path.join(fixture, "remote.git"), "refs/heads/main"], { encoding: "utf8" }).stdout.split(/\s+/)[0];
+  const teamJson = JSON.stringify([{ handle: "a", displayName: "Ana", strengths: "frontend" }, { handle: "b", displayName: "Ben" }]);
+  const noProfile = await call(agentB.token, "submit_kickoff", ["a snack rating app", "", teamJson]).then(() => "accepted", (e: Error) => e.message);
+  check("submit_kickoff needs a member profile (b has none)", noProfile.includes("no agent handle"), noProfile.slice(0, 120));
+  await call(owner.token, "set_member_profile", [agentA.identity, "a", "Ana"]);
+  await call(agentA.token, "submit_kickoff", ["a snack rating app", "React, demo Sunday", teamJson]);
+  const kickoffAsked = await waitFor("the kickoff's questions", async () => (await rows("kickoff")).find((k) => k.status === "needs_answers"), 60_000).catch(() => undefined);
+  check("the kickoff is stored as a's and the orchestrator asks its one round of questions", kickoffAsked?.requester === "a" && JSON.parse(kickoffAsked.questions)[0] === "Which stack should the app use?", kickoffAsked ? kickoffAsked.questions : orchestrator.output().slice(-300));
+  await call(agentA.token, "answer_kickoff", [kickoffAsked?.id ?? 1, "React and Node"]);
+  const proposed = await waitFor("the kickoff's proposal", async () => (await rows("kickoff")).find((k) => k.status === "proposed"), 60_000).catch(() => undefined);
+  const proposedOwners = proposed ? (JSON.parse(proposed.ownersJson) as { owners: Array<{ agent: string }>; shared: string[] }) : undefined;
+  check("after the answers it proposes owners, with the cowork.owners.json text", !!proposedOwners && proposedOwners.owners.map((o) => o.agent).join() === "a,b" && proposedOwners.shared[0] === "src/contracts/snack.ts", proposed ? proposed.ownersJson.slice(0, 80) : orchestrator.output().slice(-300));
+  await call(agentB.token, "decide_kickoff", [proposed?.id ?? 1, true, "looks right"]);
+  const decided = (await rows("kickoff")).find((k) => k.id === (proposed?.id ?? 1));
+  check("a human approves it (changes only the row)", decided?.status === "approved" && decided.note === "looks right", decided?.status);
+  const mainAfter = spawnSync("git", ["ls-remote", path.join(fixture, "remote.git"), "refs/heads/main"], { encoding: "utf8" }).stdout.split(/\s+/)[0];
+  check("the kickoff never wrote to main", mainBefore.length > 0 && mainBefore === mainAfter, `${mainBefore.slice(0, 8)} -> ${mainAfter.slice(0, 8)}`);
 
   for (const client of clients.splice(0)) await client.close();
   const offline = await waitFor("a and b offline", async () => (await rows("agent")).every((x) => !x.online), 20_000).catch(() => false);

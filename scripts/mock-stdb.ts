@@ -42,6 +42,7 @@ import {
   type PlanInput,
   type ReducerArgs,
   type ReducerName,
+  type KickoffRow,
   type RequestRow,
   type TableName,
   type TableRows,
@@ -102,6 +103,16 @@ const ARITY: Record<ReducerName, number> = {
   post_message: 4,
   decide_conflict: 2,
   publish_build: 7,
+  report_usage: 11,
+  set_member_profile: 3,
+  submit_request_as_me: 1,
+  submit_kickoff: 3,
+  answer_kickoff: 2,
+  start_kickoff: 1,
+  ask_kickoff_questions: 2,
+  publish_proposal: 3,
+  fail_kickoff: 2,
+  decide_kickoff: 3,
 };
 
 /** Messages in one thread, since the last human decision, before it goes to both humans. */
@@ -110,7 +121,7 @@ const MAX_MESSAGES = 12;
 function emptyTables(): Tables {
   return {
     agent: [], snapshot: [], intent: [], check_run: [], conflict: [], inbox: [], diagnosis_step: [],
-    request: [], task: [], review: [], message: [], plan_step: [], build: [],
+    request: [], task: [], review: [], message: [], plan_step: [], build: [], usage: [], member_profile: [], kickoff: [],
   };
 }
 
@@ -239,6 +250,11 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
   const getRequest = (id: number): RequestRow => {
     const row = db.request.find((r) => r.id === id);
     if (!row) throw new SenderError(`Unknown request #${id}`);
+    return row;
+  };
+  const getKickoff = (id: number): KickoffRow => {
+    const row = db.kickoff.find((k) => k.id === id);
+    if (!row) throw new SenderError(`Unknown kickoff #${id}`);
     return row;
   };
   const touch = (row: RequestRow, changes: Partial<RequestRow>) => Object.assign(row, changes, { updatedAt: now() });
@@ -639,6 +655,67 @@ export async function startMockStdb(options: { port?: number; escalateMs?: numbe
       for (const agent of new Set([...db.agent.map((row) => row.name), ...agents])) {
         note(agent, "info", 0, `[cowork] ${request ? `Request #${request.id} is done. ` : ""}The full stack (work from ${who}) is on ${branch} @ ${sha.slice(0, 8)} and its checks pass. Call get_full_stack to run the whole project on this laptop.`);
       }
+    },
+    set_member_profile: ([identity, handle, displayName]) => {
+      if (!/^[a-z0-9][a-z0-9-]*$/.test(handle)) throw new SenderError("A handle is lowercase letters, digits and dashes");
+      if (db.member_profile.some((p) => p.handle === handle && p.identity !== identity)) throw new SenderError(`The handle ${handle} is already taken`);
+      const row = { identity, handle, displayName: cut(displayName.trim(), 80) || handle, createdAt: now() };
+      const at = db.member_profile.findIndex((p) => p.identity === identity);
+      if (at >= 0) db.member_profile[at] = row; else db.member_profile.push(row);
+    },
+    // The mock has one anonymous caller, so it never has a handle.
+    submit_request_as_me: () => {
+      throw new SenderError("You have no agent handle yet; ask the owner to approve you with a name");
+    },
+    // The mock has one anonymous caller, so it never has a handle (submit_kickoff needs one).
+    submit_kickoff: () => {
+      throw new SenderError("You have no agent handle yet; ask the owner to approve you with a name");
+    },
+    answer_kickoff: ([kickoffId, answers]) => {
+      const row = getKickoff(kickoffId);
+      if (row.status !== "needs_answers") throw new SenderError(`Kickoff #${row.id} is ${row.status}; it isn't waiting for answers`);
+      const text = cut(answers.trim(), 4 * 1024);
+      if (!text) throw new SenderError("Write the answers first");
+      Object.assign(row, { status: "new", answers: text, updatedAt: now() });
+    },
+    start_kickoff: ([kickoffId]) => {
+      const row = getKickoff(kickoffId);
+      if (row.status !== "new" && row.status !== "planning") throw new SenderError(`Kickoff #${row.id} is already ${row.status}`);
+      Object.assign(row, { status: "planning", updatedAt: now() });
+    },
+    ask_kickoff_questions: ([kickoffId, questions]) => {
+      const row = getKickoff(kickoffId);
+      if (row.status !== "planning") throw new SenderError(`Kickoff #${row.id} is ${row.status}, not planning`);
+      if (row.answers) throw new SenderError(`Kickoff #${row.id} already had its one round of questions`);
+      const list = questions.map((q) => cut(q.trim(), 500)).filter(Boolean).slice(0, 5);
+      if (list.length === 0) throw new SenderError("Ask at least one question");
+      Object.assign(row, { status: "needs_answers", questions: JSON.stringify(list), updatedAt: now() });
+    },
+    publish_proposal: ([kickoffId, proposalJson, ownersJson]) => {
+      const row = getKickoff(kickoffId);
+      if (row.status !== "planning") throw new SenderError(`Kickoff #${row.id} is ${row.status}, not planning`);
+      for (const [text, what] of [[proposalJson, "The proposal"], [ownersJson, "The owners file"]] as const) {
+        try { JSON.parse(text); } catch { throw new SenderError(`${what} isn't valid JSON`); }
+      }
+      Object.assign(row, { status: "proposed", proposal: cut(proposalJson, 32 * 1024), ownersJson: cut(ownersJson, 32 * 1024), updatedAt: now() });
+    },
+    fail_kickoff: ([kickoffId, reason]) => {
+      const row = getKickoff(kickoffId);
+      if (row.status !== "new" && row.status !== "planning") return;
+      Object.assign(row, { status: "failed", note: cut(reason.trim() || "No proposal came out.", 1024), updatedAt: now() });
+    },
+    decide_kickoff: ([kickoffId, approve, said]) => {
+      const row = getKickoff(kickoffId);
+      if (row.status !== "proposed") throw new SenderError(`Kickoff #${row.id} is ${row.status}; only a proposed kickoff takes a decision`);
+      Object.assign(row, { status: approve ? "approved" : "rejected", note: cut(said.trim(), 1024), updatedAt: now() });
+    },
+    report_usage: ([agent, requestId, taskId, conflictId, phase, model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, costUsd]) => {
+      name(agent);
+      oneOf(phase, ["planning", "implementing", "checking", "negotiating", "idle-wake", "orchestrator"]);
+      for (const value of [inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, costUsd]) {
+        if (!Number.isFinite(value) || value < 0) throw new SenderError("Usage numbers must be zero or more");
+      }
+      db.usage.push({ id: nextId++, agent, requestId, taskId, conflictId, phase, model: cut(model, 100), inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, costUsd, createdAt: now() });
     },
     decide_conflict: ([conflictId, decision]) => {
       const row = getConflict(conflictId);

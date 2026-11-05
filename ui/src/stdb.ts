@@ -109,3 +109,35 @@ export async function decideConflict(conflictId: number, decision: string): Prom
   if (!call) throw new Error("The dashboard isn't connected to the team database.");
   await call({ conflictId, decision });
 }
+
+/**
+ * A person's request to the orchestrator, typed on the dashboard. The module's submit_request_as_me(body)
+ * works out the agent from the signed-in identity (member_profile), so nobody can ask as someone else.
+ * It needs the Editor role and a name given when the owner approved the identity.
+ */
+export async function submitRequestAsMe(body: string): Promise<void> {
+  const call = liveConnection()?.reducers?.submitRequestAsMe;
+  if (!call) throw new Error("The dashboard isn't connected with an account that can send requests.");
+  await call({ body });
+}
+
+/** Starts a kickoff: the goal, constraints and team (JSON from membersJson). Needs the Editor role and a profile. */
+export async function submitKickoff(goal: string, constraints: string, members: string): Promise<void> {
+  const call = liveConnection()?.reducers?.submitKickoff;
+  if (!call) throw new Error("The dashboard isn't connected with an account that can start a kickoff.");
+  await call({ goal, constraints, members });
+}
+
+/** The answers to the orchestrator's kickoff questions (JSON from answersJson). */
+export async function answerKickoff(kickoffId: number, answers: string): Promise<void> {
+  const call = liveConnection()?.reducers?.answerKickoff;
+  if (!call) throw new Error("The dashboard isn't connected with an account that can answer a kickoff.");
+  await call({ kickoffId, answers });
+}
+
+/** Approve or send back a proposed kickoff. Approving never writes main: a person commits the owners file. */
+export async function decideKickoff(kickoffId: number, approve: boolean, note: string): Promise<void> {
+  const call = liveConnection()?.reducers?.decideKickoff;
+  if (!call) throw new Error("The dashboard isn't connected with an account that can decide a kickoff.");
+  await call({ kickoffId, approve, note });
+}

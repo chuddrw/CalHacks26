@@ -25,7 +25,7 @@ function harness() {
   return h;
 }
 const backing = { agent: 'agentData', snapshot: 'snapshotData', intent: 'intentData', check_run: 'checkRunData', conflict: 'conflictData', inbox: 'inboxData', diagnosis_step: 'diagnosisStepData',
-  request: 'requestData', task: 'taskData', review: 'reviewData', message: 'messageData', plan_step: 'planStepData', build: 'buildData' } as const;
+  request: 'requestData', task: 'taskData', review: 'reviewData', message: 'messageData', plan_step: 'planStepData', build: 'buildData', usage: 'usageData', member_profile: 'memberProfileData', kickoff: 'kickoffData' } as const;
 const args = {
   kind: 'pair', agentA: 'a', agentB: 'b', locA: 'src/user.ts:1', locB: 'src/idle.ts:2',
   error: 'seconds versus milliseconds', fixer: 'b', runKey: 'a1+b1',
@@ -59,6 +59,11 @@ it('preserves all public column and reducer parameter orders', () => {
     decide_review: ['reviewId', 'approve', 'answer'], complete_task: ['taskId', 'agent', 'summary'],
     post_message: ['conflictId', 'agent', 'kind', 'body'], decide_conflict: ['conflictId', 'decision'],
     publish_build: ['branch', 'sha', 'mainSha', 'agents', 'result', 'log', 'requestId'],
+    set_member_profile: ['identity', 'handle', 'displayName'], submit_request_as_me: ['body'],
+    submit_kickoff: ['goal', 'constraints', 'members'], answer_kickoff: ['kickoffId', 'answers'], start_kickoff: ['kickoffId'],
+    ask_kickoff_questions: ['kickoffId', 'questions'], publish_proposal: ['kickoffId', 'proposalJson', 'ownersJson'],
+    fail_kickoff: ['kickoffId', 'reason'], decide_kickoff: ['kickoffId', 'approve', 'note'],
+    report_usage: ['agent', 'requestId', 'taskId', 'conflictId', 'phase', 'model', 'inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'costUsd'],
   };
   for (const [name, parameters] of Object.entries(expected)) {
     const reducer = db.moduleDef.reducers.find(r => r.sourceName === name);
@@ -172,14 +177,14 @@ it('tracks multiple connections with one identity and handles reassignment/disco
   expect(h.db.agent_connection.count()).toBe(0n);
 });
 
-it('schedules escalation for five minutes and rejects external scheduled calls', () => {
+it('schedules escalation after 90 idle seconds and rejects external scheduled calls', () => {
   const h = harness();
   h.withReducerTx(auth(), ctx => seedRedConflict(ctx, args));
   const timer = [...h.db.escalation_timer.iter()][0]!;
-  expect(timer.scheduledAt).toEqual(ScheduleAt.time(1_700_000_300_123_000n));
+  expect(timer.scheduledAt).toEqual(ScheduleAt.time(1_700_000_090_123_000n));
   expect(() => h.withReducerTx(auth(), ctx => reducers.escalate(ctx, { arg: timer }))).toThrow('Scheduled calls only');
   expect(h.db.conflictData.id.find(timer.conflictId)?.status).toBe('open');
-  h.clock.set(new Timestamp(1_700_000_300_123_000n));
+  h.clock.set(new Timestamp(1_700_000_090_123_000n));
   h.withReducerTx(TestAuth.internal(), ctx => reducers.escalate(ctx, { arg: timer }));
   expect(h.db.conflictData.id.find(timer.conflictId)?.status).toBe('escalated');
 });

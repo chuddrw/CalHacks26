@@ -10,6 +10,7 @@ import {
 } from "../../shared/src/schema.ts";
 import { emptyTables } from "./dashboard";
 import { replaceTables, setConnection } from "./store";
+import { normalizeMembers, setIdentity, setMembers } from "./members";
 
 export const tableNames = Object.keys(Columns) as TableName[];
 const numbers = new Set([
@@ -44,6 +45,7 @@ const enums: Partial<Record<TableName, Record<string, string[]>>> = {
   message: { kind: ["message", "agree", "escalate", "decision"] },
   plan_step: { kind: ["status", "tool_call", "tool_result", "thought", "final", "error"] },
   build: { result: ["green", "red"] },
+  kickoff: { status: ["new", "planning", "needs_answers", "proposed", "approved", "rejected", "failed"] },
 };
 const camelCase = (value: string) =>
   value.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
@@ -89,6 +91,41 @@ export function normalizeRow<T extends TableName>(
   return output as unknown as TableRows[T];
 }
 
+/**
+ * Names and the signed-in identity. member_profile lives outside the schema-driven tables because an
+ * older database may not have it: a missing table or a failed query simply leaves everyone unnamed.
+ */
+function watchMembers(conn: Connection, who: unknown, cleanup: Array<() => void>): void {
+  const id = typeof who === "string" ? who : (who as { toHexString?: () => string } | undefined)?.toHexString?.();
+  if (id) setIdentity(id);
+  const table = conn.db.memberProfile ?? conn.db.member_profile;
+  if (!table) return;
+  const read = () => {
+    try {
+      setMembers(normalizeMembers(table.iter()));
+    } catch {
+      // Unreadable names are not worth breaking the dashboard.
+    }
+  };
+  try {
+    table.onInsert(read);
+    table.onUpdate(read);
+    table.onDelete(read);
+    cleanup.push(() => {
+      table.removeOnInsert(read);
+      table.removeOnUpdate(read);
+      table.removeOnDelete(read);
+    });
+    conn
+      .subscriptionBuilder()
+      .onApplied(read)
+      .onError(() => {})
+      .subscribe(["SELECT * FROM member_profile"]);
+  } catch {
+    // No member_profile on this database yet.
+  }
+}
+
 // Structural boundary: absent generated source is never replaced with fabricated bindings.
 type Listener = (...args: unknown[]) => void;
 interface ClientTable {
@@ -125,7 +162,7 @@ export interface ConnectionBuilder {
   withUri(host: string): ConnectionBuilder;
   withDatabaseName(database: string): ConnectionBuilder;
   withToken(token: string): ConnectionBuilder;
-  onConnect(callback: (connection: Connection) => void): ConnectionBuilder;
+  onConnect(callback: (connection: Connection, identity?: unknown) => void): ConnectionBuilder;
   onConnectError(callback: Listener): ConnectionBuilder;
   onDisconnect(callback: Listener): ConnectionBuilder;
   build(): Connection;
@@ -244,12 +281,13 @@ export function startLive(
         builder.withToken(token);
       }
       connection = builder
-        .onConnect((conn) => {
+        .onConnect((conn, who) => {
           if (!alive()) {
             conn.disconnect();
             return;
           }
           connection = conn;
+          watchMembers(conn, who, cleanup);
           setConnection({
             phase: "syncing",
             detail: "Connected. Waiting for all team tables to synchronize…",

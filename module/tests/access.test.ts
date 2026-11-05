@@ -61,11 +61,19 @@ const mutations: Array<[string, (ctx: Ctx) => void]> = [
   ['complete_task', ctx => module.complete_task(ctx, { taskId: 1, agent: 'a', summary: 'done' })],
   ['post_message', ctx => module.post_message(ctx, { conflictId: 1, agent: 'a', kind: 'message', body: 'hi' })],
   ['decide_conflict', ctx => module.decide_conflict(ctx, { conflictId: 1, decision: 'use milliseconds' })],
+  ['report_usage', ctx => module.report_usage(ctx, { agent: 'a', requestId: 1, taskId: 0, conflictId: 0, phase: 'implementing', model: 'm', inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0.01 })],
   ['publish_build', ctx => module.publish_build(ctx, { branch: 'cowork/full-stack', sha: 'abc1234', mainSha: 'base', agents: ['a', 'b'], result: 'green', log: 'ok', requestId: 1 })],
+  ['submit_kickoff', ctx => module.submit_kickoff(ctx, { goal: 'build a todo app', constraints: '', members: JSON.stringify([{ handle: 'a', displayName: 'Ana' }, { handle: 'b', displayName: 'Ben' }]) })],
+  ['answer_kickoff', ctx => module.answer_kickoff(ctx, { kickoffId: 2, answers: 'react' })],
+  ['start_kickoff', ctx => module.start_kickoff(ctx, { kickoffId: 1 })],
+  ['ask_kickoff_questions', ctx => module.ask_kickoff_questions(ctx, { kickoffId: 1, questions: ['which stack?'] })],
+  ['publish_proposal', ctx => module.publish_proposal(ctx, { kickoffId: 1, proposalJson: '{}', ownersJson: '{}' })],
+  ['fail_kickoff', ctx => module.fail_kickoff(ctx, { kickoffId: 1, reason: 'no' })],
+  ['decide_kickoff', ctx => module.decide_kickoff(ctx, { kickoffId: 1, approve: true, note: '' })],
 ];
 function state(h: ReturnType<typeof setup>['h']) {
   const names = ['agentData', 'snapshotData', 'intentData', 'checkRunData', 'conflictData', 'inboxData', 'diagnosisStepData', 'agent_connection', 'escalation_timer', 'accessMember', 'testReview',
-    'requestData', 'taskData', 'reviewData', 'messageData', 'planStepData', 'buildData'] as const;
+    'requestData', 'taskData', 'reviewData', 'messageData', 'planStepData', 'buildData', 'usageData', 'memberProfileData', 'kickoffData'] as const;
   return Object.fromEntries(names.map(name => [name, [...h.db[name].iter()]]));
 }
 function seed(s: ReturnType<typeof setup>) {
@@ -83,6 +91,17 @@ function seed(s: ReturnType<typeof setup>) {
     module.publish_plan(ctx, { requestId: 1, summary: 'plan', plan: orchestratorPlan });
     module.post_message(ctx, { conflictId: 1, agent: 'a', kind: 'message', body: 'I changed the unit' });
     module.publish_build(ctx, { branch: 'cowork/full-stack', sha: 'abc1234', mainSha: 'base', agents: ['a', 'b'], result: 'green', log: 'ok', requestId: 0 });
+    module.set_member_profile(ctx, { identity: 'ab'.repeat(32), handle: 'zed', displayName: 'Zed' });
+
+    module.report_usage(ctx, { agent: 'a', requestId: 1, taskId: 0, conflictId: 0, phase: 'implementing', model: 'm', inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0 });
+    // Last, because a bound owner can only act as its own handle after this.
+    module.set_member_profile(ctx, { identity: s.identity(s.owner).toHexString(), handle: 'owner', displayName: 'Owner' });
+    // kickoff #1 is planning (ready to be proposed or fail), #2 is waiting for answers.
+    module.submit_kickoff(ctx, { goal: 'build a todo app', constraints: '', members: JSON.stringify([{ handle: 'a', displayName: 'Ana' }, { handle: 'b', displayName: 'Ben' }]) });
+    module.start_kickoff(ctx, { kickoffId: 1 });
+    module.submit_kickoff(ctx, { goal: 'build a game', constraints: '', members: JSON.stringify([{ handle: 'a', displayName: 'Ana' }, { handle: 'b', displayName: 'Ben' }]) });
+    module.start_kickoff(ctx, { kickoffId: 2 });
+    module.ask_kickoff_questions(ctx, { kickoffId: 2, questions: ['which stack?'] });
   });
 }
 const views = {
@@ -99,6 +118,9 @@ const views = {
   message: { fn: module.message, backing: 'messageData' },
   plan_step: { fn: module.plan_step, backing: 'planStepData' },
   build: { fn: module.build, backing: 'buildData' },
+  usage: { fn: module.usage, backing: 'usageData' },
+  kickoff: { fn: module.kickoff, backing: 'kickoffData' },
+  member_profile: { fn: module.member_profile, backing: 'memberProfileData' },
 } as const;
 
 it.each(mutations)('%s denies unsigned, nonmember and reader mutations without changing any rows', (_name, mutation) => {
@@ -144,7 +166,8 @@ it('editors can execute the existing coordination flow but cannot administer mem
   s.tx(s.editor, ctx => module.post_snapshot(ctx, { agent: 'b', sha: 'b1', baseSha: 'base', files: ['b.ts'], diff: 'evidence' }));
   for (const [name, mutate] of mutations) {
     // complete_task needs a current green check; orchestrator.component.test.ts covers it with real state.
-    if (name === 'resolve_conflict' || name === 'flag_needs_human' || name === 'review_test_change' || name === 'complete_task') continue;
+    // The kickoff reducers need a profile and a kickoff in the right state; kickoff.component.test.ts covers editors.
+    if (name === 'resolve_conflict' || name === 'flag_needs_human' || name === 'review_test_change' || name === 'complete_task' || name.endsWith('_kickoff') || name === 'publish_proposal' || name === 'ask_kickoff_questions') continue;
     expect(() => s.tx(s.editor, ctx => {
       if (name === 'report_conflict') seedRedConflict(ctx, conflict);
       else mutate(ctx);
@@ -169,6 +192,7 @@ it('owner alone administers membership, validates roles, and resets data while p
     expect(() => s.tx(who, ctx => module.grant_access(ctx, { identity: s.identity(s.stranger).toHexString(), role: 'reader' }))).toThrow();
     expect(() => s.tx(who, ctx => module.revoke_access(ctx, { identity: s.identity(s.reader).toHexString() }))).toThrow();
     expect(() => s.tx(who, ctx => module.reset_all(ctx, {}))).toThrow();
+    expect(() => s.tx(who, ctx => module.set_member_profile(ctx, { identity: s.identity(s.stranger).toHexString(), handle: 'x', displayName: 'X' }))).toThrow();
   }
   expect(() => s.tx(s.owner, ctx => module.grant_access(ctx, { identity: s.identity(s.stranger).toHexString(), role: 'owner' }))).toThrow();
   expect(() => s.tx(s.owner, ctx => module.grant_access(ctx, { identity: Identity.zero().toHexString(), role: 'editor' }))).toThrow();
@@ -177,7 +201,8 @@ it('owner alone administers membership, validates roles, and resets data while p
   const members = [...s.h.db.accessMember.iter()];
   s.tx(s.owner, ctx => module.reset_all(ctx, {}));
   expect([...s.h.db.accessMember.iter()]).toEqual(members);
-  for (const view of Object.values(views)) expect(s.h.db[view.backing].count()).toBe(0n);
+  for (const view of Object.values(views)) if (view.backing !== 'memberProfileData') expect(s.h.db[view.backing].count()).toBe(0n);
+  expect(s.h.db.memberProfileData.count()).toBe(2n); // profiles survive reset like membership
   expect(s.h.db.agent_connection.count()).toBe(0n);
   expect(s.h.db.escalation_timer.count()).toBe(0n);
 });

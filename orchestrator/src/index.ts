@@ -26,6 +26,8 @@
  *   5. publish_plan(request, summary, plan JSON). The module writes it all in one transaction.
  *   6. Remove the worktree. Anything that fails on the way: fail_request(reason), and the
  *      requester's agent is told why.
+ *      Kickoffs (goal-only teams) run the same way in between: kickoff-run.ts. COWORK_KICKOFF_FILE=<file>
+ *      replaces Droid with a scripted answer, like COWORK_PLAN_FILE.
  *   7. Between requests, the full stack (full-stack.ts): whenever main or any agent's latest
  *      snapshot changed (checked every 5 s), rebuild it and push it if green. When a request is
  *      done, rebuild (or re-announce an unchanged green build) and tell every agent it's ready.
@@ -40,7 +42,8 @@ import { callReducer, selectRows } from "../../shared/src/stdb-http.ts";
 import * as git from "../../checks/src/git.ts";
 import { announce, buildFullStack, currentInputs, fullStackHead, type BuildResult } from "./full-stack.ts";
 import { importIndex } from "./imports.ts";
-import { createDroidPlanner, type Planner } from "./planner.ts";
+import { runKickoff, scriptedKickoff, type Kickoff } from "./kickoff-run.ts";
+import { createDroidKickoff, createDroidPlanner, type Planner } from "./planner.ts";
 import { applyContractRule, applyOnlineRule, type DraftPlan } from "./rules.ts";
 import { describeTeam, latestSnapshots, readTeam } from "./team.ts";
 
@@ -191,6 +194,8 @@ async function main(): Promise<void> {
   }
   const planFile = process.env.COWORK_PLAN_FILE ?? "";
   const planner = planFile ? scriptedPlanner(planFile) : createDroidPlanner();
+  const kickoffFile = process.env.COWORK_KICKOFF_FILE ?? "";
+  const kickoff: Kickoff = kickoffFile ? scriptedKickoff(kickoffFile) : createDroidKickoff();
   if (!planFile && !config.factoryApiKey) log("FACTORY_API_KEY is empty: every request will fail until it's set.");
   process.on("SIGINT", () => void shutdown("Ctrl+C", 0));
   process.on("SIGTERM", () => void shutdown("SIGTERM", 0));
@@ -202,15 +207,26 @@ async function main(): Promise<void> {
   log(`planning for ${config.stdbDb} with ${planFile ? `the scripted plan ${planFile}` : "Droid"}; clone ${config.demoRepoPath}`);
 
   let resume = true;
+  let resumeKickoffs = true;
   while (!exiting) {
     try {
       const requests = await selectRows("request");
       const next = requests
         .filter((row) => row.status === "new" || (resume && row.status === "planning"))
         .sort((a, b) => a.id - b.id)[0];
+      // A database published before kickoffs existed has no such table; requests must still run.
+      const kickoffs = await selectRows("kickoff").catch(() => []);
+      const nextKickoff = kickoffs
+        .filter((row) => row.status === "new" || (resumeKickoffs && row.status === "planning"))
+        .sort((a, b) => a.id - b.id)[0];
       resume = false;
+      resumeKickoffs = false;
       if (next) {
         await planRequest(next, planner);
+        continue;
+      }
+      if (nextKickoff) {
+        await runKickoff(nextKickoff, { kickoff, log });
         continue;
       }
       if (process.env.COWORK_FULL_STACK !== "0") {

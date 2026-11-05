@@ -133,6 +133,37 @@ export const IntentData = __t.object("IntentData", {
 });
 export type IntentData = __Infer<typeof IntentData>;
 
+export const Kickoff = __t.object("Kickoff", {});
+export type Kickoff = __Infer<typeof Kickoff>;
+
+export const KickoffData = __t.object("KickoffData", {
+  id: __t.u32(),
+  requester: __t.string(),
+  goal: __t.string(),
+  constraints: __t.string(),
+  members: __t.string(),
+  status: __t.string(),
+  questions: __t.string(),
+  answers: __t.string(),
+  proposal: __t.string(),
+  ownersJson: __t.string(),
+  note: __t.string(),
+  createdAt: __t.f64(),
+  updatedAt: __t.f64(),
+});
+export type KickoffData = __Infer<typeof KickoffData>;
+
+export const MemberProfile = __t.object("MemberProfile", {});
+export type MemberProfile = __Infer<typeof MemberProfile>;
+
+export const MemberProfileData = __t.object("MemberProfileData", {
+  identity: __t.string(),
+  handle: __t.string(),
+  displayName: __t.string(),
+  createdAt: __t.f64(),
+});
+export type MemberProfileData = __Infer<typeof MemberProfileData>;
+
 export const Message = __t.object("Message", {});
 export type Message = __Infer<typeof Message>;
 
@@ -226,4 +257,24 @@ export const TestReview = __t.object("TestReview", {
   createdAt: __t.f64(),
 });
 export type TestReview = __Infer<typeof TestReview>;
+
+export const Usage = __t.object("Usage", {});
+export type Usage = __Infer<typeof Usage>;
+
+export const UsageData = __t.object("UsageData", {
+  id: __t.u32(),
+  agent: __t.string(),
+  requestId: __t.u32(),
+  taskId: __t.u32(),
+  conflictId: __t.u32(),
+  phase: __t.string(),
+  model: __t.string(),
+  inputTokens: __t.f64(),
+  outputTokens: __t.f64(),
+  cacheReadTokens: __t.f64(),
+  cacheWriteTokens: __t.f64(),
+  costUsd: __t.f64(),
+  createdAt: __t.f64(),
+});
+export type UsageData = __Infer<typeof UsageData>;
 

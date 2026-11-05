@@ -58,6 +58,7 @@ import { getFullStack } from "../../shared/src/full-stack.ts";
 import { git } from "../../shared/src/git.ts";
 import { pairKey, pulledNote, wipBranch, type ConflictRow, type SnapshotRow } from "../../shared/src/schema.ts";
 import { callReducer, selectRows, sqlString } from "../../shared/src/stdb-http.ts";
+import { memberProfiles, publicIdentity } from "../../shared/src/members.ts";
 import { sessionToken } from "../../shared/src/session-token.ts";
 import { DbConnection } from "../../shared/module_bindings/index.ts";
 import { teamStatus } from "../../hooks/src/lib/format.ts";
@@ -77,7 +78,13 @@ function reply(text: string, isError = false) {
 function errorMessage(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error);
   // The HTTP client reports "call failed: 400 <reason>"; the reason is what the agent needs.
-  return text.replace(/^[a-z_]+ failed: \d{3}\s*/i, "");
+  const reason = text.replace(/^[a-z_]+ failed: \d{3}\s*/i, "");
+  // The module binds your identity to one handle: "You are X, not Y" means .env says Y but you were approved as X.
+  const wrong = /you are ["']?([a-z0-9][a-z0-9_-]*)["']?,? not ["']?([a-z0-9][a-z0-9_-]*)["']?/i.exec(reason);
+  if (wrong) {
+    return `${reason} -- The database owner approved this laptop as "${wrong[1]}", but COWORK_NAME here is "${wrong[2]}". Set COWORK_NAME=${wrong[1]} in repo 1's .env, rerun install-hooks with --name ${wrong[1]}, and restart Claude Code. Call whoami to check.`;
+  }
+  return reason;
 }
 
 /** Brings `agent`'s latest snapshot into the working tree at `cwd`. Returns a sentence for the agent. */
@@ -257,6 +264,37 @@ server.registerTool(
     if (!configured) return reply(NOT_CONFIGURED, true);
     await callReducer("post_intent", [me, summary, files, symbols]);
     return reply("Sent to your teammates. Go ahead with the change.");
+  },
+);
+
+server.registerTool(
+  "whoami",
+  {
+    description:
+      "Who you are in this team: your agent handle, your human's display name, your database role if readable, and your teammates (handle and display name, online or not). Call it when you're unsure whose agent you are, or when a call says 'You are X, not Y'.",
+  },
+  async () => {
+    if (!configured) return reply(NOT_CONFIGURED, true);
+    const [agents, profiles] = await Promise.all([selectRows("agent").catch(() => null), memberProfiles()]);
+    const identity = publicIdentity();
+    const mine = profiles?.find((profile) => profile.identity === identity.toLowerCase());
+    const shown = (handle: string) => {
+      const name = profiles?.find((profile) => profile.handle === handle)?.displayName;
+      return name && name !== handle ? `${handle} (${name})` : handle;
+    };
+    const lines = [`You are ${shown(me)}${mine ? "" : config.displayName ? ` (${config.displayName})` : ""}.`];
+    if (!profiles) lines.push("Member profiles aren't readable (not approved yet, or the deployed module has no member_profile view), so names come from .env only.");
+    else if (!mine) lines.push(`Your identity has no member profile, so the owner hasn't bound it to a handle. Ask them to run: grant <your identity> editor --name ${me} (npm run doctor prints the full command).`);
+    else if (mine.handle !== me) lines.push(`WARNING: the owner approved you as "${mine.handle}" but COWORK_NAME is "${me}". Set COWORK_NAME=${mine.handle} in repo 1's .env and restart Claude Code.`);
+    else lines.push("Your handle matches the owner's record.");
+    if (identity) lines.push(`Your public identity: ${identity}`);
+    const handles = new Set([...(agents ?? []).map((row) => row.name), ...(profiles ?? []).map((profile) => profile.handle)]);
+    handles.delete(me);
+    if (handles.size) {
+      const online = new Map((agents ?? []).map((row) => [row.name, row.online]));
+      lines.push("Teammates: " + [...handles].sort().map((handle) => `${shown(handle)}${online.get(handle) ? " [online]" : online.has(handle) ? " [offline]" : ""}`).join(", "));
+    } else lines.push("No teammates are registered yet.");
+    return reply(lines.join("\n"));
   },
 );
 
@@ -453,8 +491,15 @@ if (configured) {
 }
 
 // Remove this session's check worktrees before exiting (they live under the OS temp folder).
-process.stdin.on("end", () => {
+let exiting = false;
+const shutDown = () => {
+  if (exiting) return;
+  exiting = true;
   const done = repoReady ? cleanup().catch(() => undefined) : Promise.resolve();
   void done.then(() => process.exit(0));
-});
+};
+process.stdin.on("end", shutDown);
+// A killed session (SIGTERM from the editor or a harness, Ctrl+C, a closed terminal) must clean up too,
+// or its check worktrees stay in the OS temp folder.
+for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(signal, shutDown);
 await server.connect(new StdioServerTransport());

@@ -18,6 +18,7 @@
  *      identity (never the token) is what you send the database owner to be approved.
  *   4. Read access: SELECT * FROM agent. 401/403 means not signed in or not approved yet.
  *   5. Write access: mark_delivered([]), which changes nothing but needs the Editor role.
+ *   5b. member_profile: the handle the owner bound to your identity matches COWORK_NAME (or says what to fix).
  *   6. The deployed module has every reducer this code calls (names from the generated bindings).
  *      A missing one means the owner hasn't published module/ from this branch yet.
  *   7. Droid (warning only; only the orchestrator's laptop needs it): the droid CLI and FACTORY_API_KEY.
@@ -32,6 +33,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { config } from "../shared/src/config.ts";
 import { git } from "../shared/src/git.ts";
+import { grantCommand, memberProfiles, normalizeIdentity, publicIdentity } from "../shared/src/members.ts";
 import { wipBranch } from "../shared/src/schema.ts";
 import { spacetimeCli, tokenSource } from "../shared/src/session-token.ts";
 import { callReducer, selectRows } from "../shared/src/stdb-http.ts";
@@ -113,6 +115,34 @@ if (config.stdbDb) {
       fail(`the database refused you (${status})`, "Sign in with `spacetime login`, then send your public identity to the owner for approval (module/ACCESS.md).");
     } else {
       fail("can't reach the database", `${error instanceof Error ? error.message : String(error)}. Check STDB_HOST and your network.`);
+    }
+  }
+}
+
+// 5b. Who am I: the handle the owner bound to your identity must be the COWORK_NAME you run with.
+if (config.stdbDb && version.ok) {
+  const identity = publicIdentity();
+  const profiles = await memberProfiles();
+  if (!identity) {
+    // already reported above
+  } else if (profiles === null) {
+    warn("couldn't read member profiles (not approved yet, or the deployed module has no member_profile view)", "Fix the access FAIL above first; if you're approved, the owner needs to publish the newest module/ (npm run publish:cloud --prefix module).");
+  } else {
+    const mine = profiles.find((profile) => profile.identity === normalizeIdentity(identity));
+    const taken = profiles.find((profile) => profile.handle === config.agent && profile.identity !== normalizeIdentity(identity));
+    const label = config.displayName || config.agent || "<your name>";
+    if (!mine) {
+      fail(
+        `no member profile is bound to your identity${taken ? ` (and "${config.agent}" already belongs to ${taken.displayName || taken.handle})` : ""}`,
+        `Not approved yet. Send the owner: ${grantCommand(identity, taken ? "<pick another handle>" : config.agent || "<handle>", label)}`,
+      );
+    } else if (mine.handle !== config.agent) {
+      fail(
+        `handle mismatch: the owner approved you as "${mine.handle}" but COWORK_NAME is "${config.agent}"`,
+        `Set COWORK_NAME=${mine.handle} in .env, then rerun npm run install-hooks -- --demo <workspace> --name ${mine.handle} and restart Claude Code. (Or ask the owner to rebind you.)`,
+      );
+    } else {
+      pass("who you are", `${mine.displayName || mine.handle} -> agent "${mine.handle}"${config.displayName && config.displayName !== mine.displayName ? ` (.env says "${config.displayName}", the owner's record says "${mine.displayName}")` : ""}`);
     }
   }
 }

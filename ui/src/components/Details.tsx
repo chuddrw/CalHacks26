@@ -28,6 +28,12 @@ import {
 } from "../team";
 import { absoluteTime, relativeTime } from "../time";
 import { useNow } from "../useNow";
+import { AskView } from "./Ask";
+import { KickoffSection } from "./Kickoff";
+import { MetricsView } from "./Metrics";
+import { TeamView } from "./Team";
+import { agentChip } from "../members";
+import { useMembers } from "../useMembers";
 import { ActivityList } from "./Activity";
 import { DecisionBox, ReviewActions, TestChangeActions } from "./Actions";
 
@@ -38,6 +44,9 @@ const titles: Record<Selection["kind"], string> = {
   checks: "Checks",
   memory: "Shared memory",
   activity: "Activity",
+  metrics: "Metrics",
+  ask: "Ask the orchestrator",
+  team: "Team",
   connection: "Connection",
 };
 
@@ -74,7 +83,7 @@ export function Details({
   }, [close]);
   const title =
     selection.kind === "agent"
-      ? `Agent ${upper(selection.name)}`
+      ? agentChip(selection.name)
       : titles[selection.kind];
   return (
     <aside className="details" aria-labelledby="details-title">
@@ -118,7 +127,7 @@ function Body({
     case "agent":
       return <AgentView name={selection.name} t={tables} select={select} />;
     case "request":
-      return <RequestView id={selection.id} t={tables} select={select} />;
+      return <RequestView id={selection.id} t={tables} select={select} connection={connection} />;
     case "conflict":
       return <ConflictView id={selection.id} t={tables} select={select} />;
     case "checks":
@@ -127,6 +136,12 @@ function Body({
       return <MemoryView t={tables} />;
     case "activity":
       return <ActivityList events={activity(tables)} select={select} />;
+    case "metrics":
+      return <MetricsView tables={tables} />;
+    case "ask":
+      return <AskView tables={tables} connection={connection} />;
+    case "team":
+      return <TeamView tables={tables} />;
     case "connection":
       return <ConnectionView connection={connection} />;
   }
@@ -295,16 +310,19 @@ function RequestView({
   id,
   t,
   select,
+  connection,
 }: {
   id?: number;
   t: Tables;
   select: (s: Selection) => void;
+  connection: ConnectionState;
 }) {
   const requests = [...t.request].sort((a, b) => b.id - a.id);
   const selected = requests.find((r) => r.id === id) ?? requests[0];
   if (!selected)
     return (
       <>
+        <KickoffSection tables={t} connection={connection} />
         <FullStack t={t} />
         <p className="muted">
           No requests yet. A human tells their own agent what they want; the
@@ -321,6 +339,7 @@ function RequestView({
     .sort((a, b) => a.id - b.id);
   return (
     <>
+      <KickoffSection tables={t} connection={connection} />
       <Picker
         rows={requests}
         selected={selected}

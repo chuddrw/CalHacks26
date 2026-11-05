@@ -49,5 +49,7 @@ IF IT FAILS
     repo 1's .env.
   - "presence WebSocket failed" or "register_agent failed": not signed in, or not approved yet.
     npm run doctor says which.
+  - "You are X, not Y": the database approved your identity as handle X, but COWORK_NAME says Y.
+    Set COWORK_NAME to X. The whoami tool shows your handle, display name and teammates.
   - Anything our server prints to stdout breaks the protocol. Log with console.error only.
   - Start over: delete <demo clone>/.mcp.json and run install again.

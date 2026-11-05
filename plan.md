@@ -24,7 +24,7 @@ Each agent only sees its own laptop. A changes `lastLogin` from seconds to milli
 4. **Review.** With a review, the tasks wait. The reviewer's human clicks Approve or Send back on the dashboard.
 5. **Work.** Each agent's listener hook wakes it with its task, even when idle (the listener also starts at session start and on every prompt). Snapshots still go to `wip/<name>` after every edit. Before finishing, an agent runs `check_with_team`: tsc + vitest on its work alone and merged with each teammate's work in progress. `complete_task` needs a green check.
 6. **Settle.** A flagged overlap, or a red pair from a check, opens a conflict thread between the two agents. They talk (`message_teammate` wakes the other), change their own files, and both `agree`. Both agreeing plus a current green check covering both resolves it, and the agreed sentence becomes a verified fact.
-7. **Escalate.** `escalate`, 12 messages without agreement, or 5 minutes open: the conflict goes to both humans, who decide on the dashboard. The decision wakes both agents.
+7. **Escalate.** `escalate`, 12 messages without agreement, or 90 seconds with no progress (every message resets the timer): the conflict goes to both humans; a fix that edits tests goes to a person immediately., who decide on the dashboard. The decision wakes both agents.
 8. **Full stack.** The orchestrator merges main and every agent's latest snapshot in a disposable worktree whenever one changes, runs tsc + vitest, and pushes the result to `cowork/full-stack` only when it's green (the team's working main; real `main` is never written). A finished request triggers a build and a note to every agent; `get_full_stack` / `npm run full-stack` puts it in `<clone>-full-stack` on any laptop. Droid's planning worktree starts from it.
 
 Git, tsc and the tests decide red or green. Droid plans and the agents negotiate; no model declares green.
@@ -70,7 +70,7 @@ Anything that isn't a file (accounts, keys, the hosted database, the MCP registr
 
 - [shared/src/schema.ts](shared/src/schema.ts): tables, row shapes, reducer names and argument order.
 - SpacetimeDB version (picked: 2.x, CLI and SDK 2.13) and database name ([external/spacetimedb-maincloud.txt](external/spacetimedb-maincloud.txt)).
-- Formats: branch `wip/<name>`, env var `COWORK_NAME`, location `path:line`, timestamps in milliseconds.
+- Formats: branch `wip/<name>`, env var `COWORK_NAME` (your handle, e.g. `ana-maria`; `COWORK_DISPLAY_NAME` is the name shown on the dashboard; the server binds each approved identity to one handle), location `path:line`, timestamps in milliseconds.
 - Repos: this folder is repo 1 (the tool, our submission). `demo-app/` is repo 2 with its own git, and repo 1 ignores it.
 
 ## Schedule
@@ -143,7 +143,7 @@ To set up a laptop and join, run `./run.sh` (see the README).
 |---|---|
 | Droid is slow (about 50 s per plan) | Its steps stream to the big screen, so the wait is part of the show. Try a faster DROID_MODEL_ID before the demo. |
 | Droid is down or out of credits | The request shows "Planning failed" with the reason; ask again. `COWORK_PLAN_FILE` runs a scripted plan, labeled as scripted on the dashboard: rehearsals only, never presented as Droid. |
-| Two agents argue in circles | 12 messages, or 5 minutes, and it goes to both humans. |
+| Two agents argue in circles | 12 messages, or 90 seconds with no progress, and it goes to both humans. |
 | An agent "fixes" things by weakening a test | Rule in `demo-app/CLAUDE.md`; `agree` runs the test guard, and a fix that edited an existing test goes to a person. |
 | An idle agent isn't woken by its first task | The listener starts at session start and on every prompt as well as after edits. If it still doesn't wake, type `continue`: inject-context delivers it. |
 | The fixer can't see the teammate's uncommitted change | `pull_teammate` brings it into the agent's working tree. Tested with real git. |

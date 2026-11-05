@@ -36,9 +36,13 @@ import {
 // Import all reducer arg schemas
 import AddDiagnosisStepReducer from "./add_diagnosis_step_reducer";
 import AddPlanStepReducer from "./add_plan_step_reducer";
+import AnswerKickoffReducer from "./answer_kickoff_reducer";
+import AskKickoffQuestionsReducer from "./ask_kickoff_questions_reducer";
 import CompleteTaskReducer from "./complete_task_reducer";
 import DecideConflictReducer from "./decide_conflict_reducer";
+import DecideKickoffReducer from "./decide_kickoff_reducer";
 import DecideReviewReducer from "./decide_review_reducer";
+import FailKickoffReducer from "./fail_kickoff_reducer";
 import FailRequestReducer from "./fail_request_reducer";
 import FlagNeedsHumanReducer from "./flag_needs_human_reducer";
 import GrantAccessReducer from "./grant_access_reducer";
@@ -48,9 +52,11 @@ import PostMessageReducer from "./post_message_reducer";
 import PostSnapshotReducer from "./post_snapshot_reducer";
 import PublishBuildReducer from "./publish_build_reducer";
 import PublishPlanReducer from "./publish_plan_reducer";
+import PublishProposalReducer from "./publish_proposal_reducer";
 import RegisterAgentReducer from "./register_agent_reducer";
 import ReportCheckReducer from "./report_check_reducer";
 import ReportConflictReducer from "./report_conflict_reducer";
+import ReportUsageReducer from "./report_usage_reducer";
 import ResetAllReducer from "./reset_all_reducer";
 import ResolveConflictReducer from "./resolve_conflict_reducer";
 import ResolveConflictIfCurrentReducer from "./resolve_conflict_if_current_reducer";
@@ -59,8 +65,12 @@ import RevokeAccessReducer from "./revoke_access_reducer";
 import SendNoteReducer from "./send_note_reducer";
 import SetExplanationReducer from "./set_explanation_reducer";
 import SetExplanationIfCurrentReducer from "./set_explanation_if_current_reducer";
+import SetMemberProfileReducer from "./set_member_profile_reducer";
+import StartKickoffReducer from "./start_kickoff_reducer";
 import StartRequestReducer from "./start_request_reducer";
+import SubmitKickoffReducer from "./submit_kickoff_reducer";
 import SubmitRequestReducer from "./submit_request_reducer";
+import SubmitRequestAsMeReducer from "./submit_request_as_me_reducer";
 
 // Import all procedure arg schemas
 
@@ -72,12 +82,15 @@ import ConflictRow from "./conflict_table";
 import DiagnosisStepRow from "./diagnosis_step_table";
 import InboxRow from "./inbox_table";
 import IntentRow from "./intent_table";
+import KickoffRow from "./kickoff_table";
+import MemberProfileRow from "./member_profile_table";
 import MessageRow from "./message_table";
 import PlanStepRow from "./plan_step_table";
 import RequestRow from "./request_table";
 import ReviewRow from "./review_table";
 import SnapshotRow from "./snapshot_table";
 import TaskRow from "./task_table";
+import UsageRow from "./usage_table";
 
 /** Type-only namespace exports for generated type groups. */
 
@@ -132,6 +145,20 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, IntentRow),
+  kickoff: __table({
+    name: 'kickoff',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, KickoffRow),
+  memberProfile: __table({
+    name: 'member_profile',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MemberProfileRow),
   message: __table({
     name: 'message',
     indexes: [
@@ -174,15 +201,26 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, TaskRow),
+  usage: __table({
+    name: 'usage',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, UsageRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("add_diagnosis_step", AddDiagnosisStepReducer),
   __reducerSchema("add_plan_step", AddPlanStepReducer),
+  __reducerSchema("answer_kickoff", AnswerKickoffReducer),
+  __reducerSchema("ask_kickoff_questions", AskKickoffQuestionsReducer),
   __reducerSchema("complete_task", CompleteTaskReducer),
   __reducerSchema("decide_conflict", DecideConflictReducer),
+  __reducerSchema("decide_kickoff", DecideKickoffReducer),
   __reducerSchema("decide_review", DecideReviewReducer),
+  __reducerSchema("fail_kickoff", FailKickoffReducer),
   __reducerSchema("fail_request", FailRequestReducer),
   __reducerSchema("flag_needs_human", FlagNeedsHumanReducer),
   __reducerSchema("grant_access", GrantAccessReducer),
@@ -192,9 +230,11 @@ const reducersSchema = __reducers(
   __reducerSchema("post_snapshot", PostSnapshotReducer),
   __reducerSchema("publish_build", PublishBuildReducer),
   __reducerSchema("publish_plan", PublishPlanReducer),
+  __reducerSchema("publish_proposal", PublishProposalReducer),
   __reducerSchema("register_agent", RegisterAgentReducer),
   __reducerSchema("report_check", ReportCheckReducer),
   __reducerSchema("report_conflict", ReportConflictReducer),
+  __reducerSchema("report_usage", ReportUsageReducer),
   __reducerSchema("reset_all", ResetAllReducer),
   __reducerSchema("resolve_conflict", ResolveConflictReducer),
   __reducerSchema("resolve_conflict_if_current", ResolveConflictIfCurrentReducer),
@@ -203,8 +243,12 @@ const reducersSchema = __reducers(
   __reducerSchema("send_note", SendNoteReducer),
   __reducerSchema("set_explanation", SetExplanationReducer),
   __reducerSchema("set_explanation_if_current", SetExplanationIfCurrentReducer),
+  __reducerSchema("set_member_profile", SetMemberProfileReducer),
+  __reducerSchema("start_kickoff", StartKickoffReducer),
   __reducerSchema("start_request", StartRequestReducer),
+  __reducerSchema("submit_kickoff", SubmitKickoffReducer),
   __reducerSchema("submit_request", SubmitRequestReducer),
+  __reducerSchema("submit_request_as_me", SubmitRequestAsMeReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
@@ -217,6 +261,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "check_run": Omit<typeof tablesSchema.schemaType.tables["checkRun"], "accessorName"> & { readonly accessorName: "check_run" };
     /** @deprecated Use `diagnosisStep` instead. This alias will be removed in the next major version. */
     readonly "diagnosis_step": Omit<typeof tablesSchema.schemaType.tables["diagnosisStep"], "accessorName"> & { readonly accessorName: "diagnosis_step" };
+    /** @deprecated Use `memberProfile` instead. This alias will be removed in the next major version. */
+    readonly "member_profile": Omit<typeof tablesSchema.schemaType.tables["memberProfile"], "accessorName"> & { readonly accessorName: "member_profile" };
     /** @deprecated Use `planStep` instead. This alias will be removed in the next major version. */
     readonly "plan_step": Omit<typeof tablesSchema.schemaType.tables["planStep"], "accessorName"> & { readonly accessorName: "plan_step" };
   };
@@ -239,6 +285,7 @@ const REMOTE_MODULE = {
 const tableAccessorAliases = {
   "check_run": "checkRun",
   "diagnosis_step": "diagnosisStep",
+  "member_profile": "memberProfile",
   "plan_step": "planStep",
 } as const;
 
@@ -264,6 +311,8 @@ export type DbView = __DbViewBase & {
   readonly "check_run": __DbViewBase["checkRun"];
   /** @deprecated Use `diagnosisStep` instead. This alias will be removed in the next major version. */
   readonly "diagnosis_step": __DbViewBase["diagnosisStep"];
+  /** @deprecated Use `memberProfile` instead. This alias will be removed in the next major version. */
+  readonly "member_profile": __DbViewBase["memberProfile"];
   /** @deprecated Use `planStep` instead. This alias will be removed in the next major version. */
   readonly "plan_step": __DbViewBase["planStep"];
 };
@@ -274,6 +323,8 @@ export type Tables = __TablesBase & {
   readonly "check_run": __TablesBase["checkRun"];
   /** @deprecated Use `diagnosisStep` instead. This alias will be removed in the next major version. */
   readonly "diagnosis_step": __TablesBase["diagnosisStep"];
+  /** @deprecated Use `memberProfile` instead. This alias will be removed in the next major version. */
+  readonly "member_profile": __TablesBase["memberProfile"];
   /** @deprecated Use `planStep` instead. This alias will be removed in the next major version. */
   readonly "plan_step": __TablesBase["planStep"];
 };

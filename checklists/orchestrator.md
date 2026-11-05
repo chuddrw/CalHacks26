@@ -18,7 +18,7 @@ Defaults I picked (say if you want them different):
 - A plan lands in the database in one transaction (`publish_plan`): its reviews, tasks and flagged conflicts together.
 - A conflict is a thread between the two agents. A conflict Droid flagged wakes both agents. A conflict a check found wakes the suggested agent (C's `report_conflict`, unchanged), and its first message wakes the other.
 - It resolves when both agents' latest messages are `agree` and a current green check covers both of them.
-- It escalates to both humans when either agent calls `escalate`, after 12 messages without agreement, or after 5 minutes open (C's existing timer).
+- It escalates to both humans when either agent calls `escalate`, after 12 messages without agreement, or after 90 seconds with no progress (every message resets the timer; was a fixed 5 minutes), and a fix that edits tests goes to a person immediately.
 - A change that fails alone but passes together with a teammate's counts as green (a coordinated change: A changes the contract, B adapts sessions). Found by the live test: without it neither agent could ever agree.
 - Droid's old diagnosis role is dropped from the run time (the agents explain to each other). C's diagnosis code moved to `orchestrator/src/diagnose/` so C's tests keep passing.
 

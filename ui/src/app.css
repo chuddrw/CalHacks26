@@ -529,13 +529,6 @@ p {
     box-shadow: 0 0 0 0.35em color-mix(in srgb, var(--tone) 22%, transparent);
   }
 }
-.graph-empty {
-  position: absolute;
-  top: 55%;
-  width: 100%;
-  text-align: center;
-  color: var(--muted);
-}
 .legend {
   position: absolute;
   left: 1.1em;
@@ -1195,4 +1188,84 @@ p {
   .hub-pulse {
     opacity: 0;
   }
+}
+
+/* ---- Metrics and Ask drawers ---------------------------------------------------------------- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5em, 1fr));
+  gap: 0.6em;
+}
+.stat {
+  background: var(--panel-2);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 0.7em 0.9em;
+}
+.stat-value {
+  font-family: var(--serif);
+  font-size: 1.5em;
+}
+.stat-label,
+.stat-note {
+  font-size: 0.8em;
+  color: var(--muted);
+}
+.metric-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+.metric-table th,
+.metric-table td {
+  text-align: left;
+  padding: 0.35em 0.4em;
+  border-bottom: 1px solid var(--hairline);
+  font-weight: 400;
+}
+.metric-table thead th {
+  color: var(--faint);
+  font-size: 0.8em;
+}
+.metric-table td:nth-child(n + 2) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ask fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0.9em 0 0.3em;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+.ask input:not([type="radio"]),
+.ask textarea,
+.ask select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 9px;
+  padding: 0.5em 0.7em;
+  font: inherit;
+}
+.ask-role {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1.4fr;
+  gap: 0.4em;
+  margin-bottom: 0.4em;
+}
+.ask-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+.ask-error {
+  color: var(--red);
+}
+
+.now-name {
+  font-weight: 600;
+  margin-right: 0.4rem;
 }

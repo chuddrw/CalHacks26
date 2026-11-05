@@ -250,6 +250,42 @@ export interface RequestRow {
   updatedAt: Millis;
 }
 
+/**
+ * new = a human asked for a kickoff (or answered the questions); planning = the orchestrator is working on it;
+ * needs_answers = it asked its one round of questions; proposed = owners are proposed, humans decide;
+ * approved / rejected = the humans' decision; failed = no proposal came out.
+ */
+export type KickoffStatus = "new" | "planning" | "needs_answers" | "proposed" | "approved" | "rejected" | "failed";
+
+/**
+ * Authenticated view `kickoff`. A team with a goal but no responsibilities yet asks the orchestrator to
+ * propose who owns what. Approval changes nothing in the repo: a human commits `ownersJson`.
+ * Primary key: id (auto-increment).
+ */
+export interface KickoffRow {
+  id: number;
+  /** The handle of the person who started it (their member profile). */
+  requester: string;
+  goal: string;
+  /** Stack, deadline, demo; anything the team is bound by. "" if none. */
+  constraints: string;
+  /** JSON array of {handle, displayName, strengths?}. */
+  members: string;
+  status: KickoffStatus;
+  /** JSON array of up to 5 questions, "" if none. */
+  questions: string;
+  /** The humans' answers, "" if none. With answers the orchestrator may not ask again. */
+  answers: string;
+  /** The proposal (OwnersProposal as JSON), "" until proposed. */
+  proposal: string;
+  /** The cowork.owners.json text a human commits, "" until proposed. */
+  ownersJson: string;
+  /** The decision's note, or why it failed. */
+  note: string;
+  createdAt: Millis;
+  updatedAt: Millis;
+}
+
 /** waiting_review = held until every review of its request is approved. */
 export type TaskStatus = "waiting_review" | "assigned" | "done" | "cancelled";
 
@@ -320,6 +356,42 @@ export interface PlanStepRow {
   createdAt: Millis;
 }
 
+export type UsagePhase = "planning" | "implementing" | "checking" | "negotiating" | "idle-wake" | "orchestrator";
+
+/**
+ * Authenticated view `member_profile`. Who is behind which agent handle, set by the database owner
+ * when approving access (grant --name). A caller with a profile can only act as its own handle.
+ * Primary key: identity (public identity, lowercase hex without 0x).
+ */
+export interface MemberProfileRow {
+  identity: string;
+  /** The agent name: lowercase letters, digits, dashes. Unique. */
+  handle: string;
+  displayName: string;
+  createdAt: Millis;
+}
+
+/**
+ * Authenticated view `usage`. Tokens and cost an agent or the orchestrator used since its last report.
+ * requestId is the trace id: all rows of one request carry it (0 when not tied to a request).
+ * Primary key: id (auto-increment).
+ */
+export interface UsageRow {
+  id: number;
+  agent: AgentName;
+  requestId: number;
+  taskId: number;
+  conflictId: number;
+  phase: UsagePhase;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  costUsd: number;
+  createdAt: Millis;
+}
+
 /**
  * The branch where the orchestrator keeps the team's full stack: main plus every agent's latest
  * work, merged and checked. It works like the team's main: only green builds are pushed to it, and
@@ -359,7 +431,9 @@ export interface PlanInput {
   /** One per human whose feature a major task affects. Any review holds every task of the request. */
   reviews: Array<{ reviewer: AgentName; summary: string }>;
   /** Overlaps Droid expects between two agents' work. They open as "potential" conflicts. */
-  conflicts: Array<{ agentA: AgentName; agentB: AgentName; topic: string; details: string; suggested: AgentName }>;
+  conflicts: Array<{ agentA: AgentName; agentB: AgentName; topic: string; details: string; suggested: AgentName;
+    /** Set by the contract rule when either agent's task touches a shared contract: people decide at once. */
+    contract?: boolean }>;
 }
 
 // The module also has a private schedule table `escalation_timer` (scheduled id, scheduled time,
@@ -384,6 +458,9 @@ export const Columns = {
   message: ["id", "conflictId", "author", "kind", "body", "createdAt"],
   plan_step: ["id", "requestId", "kind", "detail", "createdAt"],
   build: ["id", "branch", "sha", "mainSha", "agents", "result", "log", "requestId", "createdAt"],
+  member_profile: ["identity", "handle", "displayName", "createdAt"],
+  kickoff: ["id", "requester", "goal", "constraints", "members", "status", "questions", "answers", "proposal", "ownersJson", "note", "createdAt", "updatedAt"],
+  usage: ["id", "agent", "requestId", "taskId", "conflictId", "phase", "model", "inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "costUsd", "createdAt"],
 } as const;
 
 export interface TableRows {
@@ -400,6 +477,9 @@ export interface TableRows {
   message: MessageRow;
   plan_step: PlanStepRow;
   build: BuildRow;
+  member_profile: MemberProfileRow;
+  kickoff: KickoffRow;
+  usage: UsageRow;
 }
 export type TableName = keyof TableRows;
 
@@ -505,5 +585,26 @@ export interface ReducerArgs {
    * sends every agent an info note: the full stack is ready, call get_full_stack.
    */
   publish_build: [branch: string, sha: string, mainSha: string, agents: AgentName[], result: RunResult, log: string, requestId: number];
+  /** Tokens and cost used since the last report. requestId is the trace id (0 if none). */
+  /** Owner only: bind a public identity to an agent handle and display name (unique handle). */
+  set_member_profile: [identity: string, handle: string, displayName: string];
+  /** The dashboard asks the orchestrator as the caller's own handle (error when the caller has none). */
+  submit_request_as_me: [body: string];
+  /** The dashboard starts a kickoff as the caller's own handle (error when the caller has none). members: JSON [{handle, displayName, strengths?}]. */
+  submit_kickoff: [goal: string, constraints: string, members: string];
+  /** Answers to the orchestrator's one round of questions; the kickoff goes back to "new". */
+  answer_kickoff: [kickoffId: number, answers: string];
+  /** Orchestrator: new -> planning. */
+  start_kickoff: [kickoffId: number];
+  /** Orchestrator: planning -> needs_answers (one round only). */
+  ask_kickoff_questions: [kickoffId: number, questions: string[]];
+  /** Orchestrator: planning -> proposed, with the proposal and the owners file text a human commits. */
+  publish_proposal: [kickoffId: number, proposalJson: string, ownersJson: string];
+  /** Orchestrator: new or planning -> failed. */
+  fail_kickoff: [kickoffId: number, reason: string];
+  /** Dashboard: proposed -> approved | rejected. Changes nothing in the repo. */
+  decide_kickoff: [kickoffId: number, approve: boolean, note: string];
+  report_usage: [agent: AgentName, requestId: number, taskId: number, conflictId: number, phase: UsagePhase, model: string,
+    inputTokens: number, outputTokens: number, cacheReadTokens: number, cacheWriteTokens: number, costUsd: number];
 }
 export type ReducerName = keyof ReducerArgs;

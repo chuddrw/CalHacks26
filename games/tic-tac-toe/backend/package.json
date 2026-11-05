@@ -1,0 +1,11 @@
+{
+  "name": "tic-tac-toe-backend",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "check": "node --check game.js && node --check service.js && node --check server.js"
+  }
+}

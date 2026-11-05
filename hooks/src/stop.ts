@@ -25,10 +25,27 @@
  *   3. Neither: exit 0.
  */
 import { config, missingSettings } from "../../shared/src/config.ts";
-import { selectRows, sqlString } from "../../shared/src/stdb-http.ts";
+import { callReducer, selectRows, sqlString } from "../../shared/src/stdb-http.ts";
+import { readCursor, usageSince, writeCursor } from "./lib/usage.ts";
 import { stopReasonReply, stopReasonTask } from "./lib/format.ts";
 import { blockStop, runHook, type HookInput } from "./lib/hook-io.ts";
 import { unanswered } from "./lib/wake-message.ts";
+
+/** Sends this turn's token usage to the team database. Never throws and never holds the hook for long. */
+async function reportUsage(input: HookInput, me: string, conflictId: number, task: { id: number; requestId: number } | undefined): Promise<void> {
+  try {
+    if (!input.transcript_path || !input.session_id) return;
+    const offset = readCursor(input.session_id);
+    const delta = usageSince(input.transcript_path, offset);
+    if (!delta) return;
+    const phase = conflictId ? "negotiating" : "implementing";
+    await callReducer("report_usage", [me, task?.requestId ?? 0, task?.id ?? 0, conflictId, phase, delta.model, delta.inputTokens,
+      delta.outputTokens, delta.cacheReadTokens, delta.cacheWriteTokens, 0], 1200);
+    writeCursor(input.session_id, delta.nextOffset);
+  } catch {
+    // Usage is nice to have; a failed report must not stop the agent.
+  }
+}
 
 async function main(input: HookInput): Promise<void> {
   if (input.stop_hook_active) return;
@@ -40,15 +57,20 @@ async function main(input: HookInput): Promise<void> {
     selectRows("task", `agent = ${sqlString(me)} AND status = 'assigned'`),
   ]);
   const mine = conflicts.filter((c) => c.agentB !== "" && (c.agentA === me || c.agentB === me)).sort((a, b) => a.createdAt - b.createdAt);
-  for (const conflict of mine) {
-    const thread = messages.filter((m) => m.conflictId === conflict.id).sort((a, b) => a.id - b.id);
-    if (thread.length === 0 || unanswered(thread, me).length > 0) {
-      blockStop(stopReasonReply(conflict, me));
-      return;
-    }
-  }
   const task = tasks.sort((a, b) => a.id - b.id)[0];
-  if (task) blockStop(stopReasonTask(task));
+  try {
+    for (const conflict of mine) {
+      const thread = messages.filter((m) => m.conflictId === conflict.id).sort((a, b) => a.id - b.id);
+      if (thread.length === 0 || unanswered(thread, me).length > 0) {
+        blockStop(stopReasonReply(conflict, me));
+        return;
+      }
+    }
+    if (task) blockStop(stopReasonTask(task));
+  } finally {
+    // After the decision is written, so a slow report can't cost the nudge.
+    await reportUsage(input, me, mine[0]?.id ?? 0, task);
+  }
 }
 
 await runHook(main, 2500);

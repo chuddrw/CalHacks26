@@ -48,6 +48,10 @@ const escalation_timer = table({ name: 'escalation_timer' }, {
 const testReview = table({ name: 'test_review' }, {
   conflictId: t.u32().name("conflictId").primaryKey(), snapshotId: t.u32().name("snapshotId"), createdAt: t.f64().name("createdAt"),
 });
+/** Who is behind which agent handle: set by the owner when approving access. identity is the normalized hex. */
+const memberProfileData = table({ name: 'member_profile_data' }, {
+  identity: t.string().primaryKey(), handle: t.string(), displayName: t.string().name("displayName"), createdAt: t.f64().name("createdAt"),
+});
 const accessMember = table({ name: 'access_member' }, {
   identity: t.identity().primaryKey(), role: t.string(),
 });
@@ -56,6 +60,12 @@ const accessMember = table({ name: 'access_member' }, {
 const requestData = table({ name: 'request_data' }, {
   id: t.u32().primaryKey().autoInc(), agent: t.string(), body: t.string(), status: t.string(),
   summary: t.string(), plan: t.string(), createdAt: t.f64().name("createdAt"), updatedAt: t.f64().name("updatedAt"),
+});
+/** Goal-only kickoff: a team with a goal but no responsibilities yet. The orchestrator proposes owners. */
+const kickoffData = table({ name: 'kickoff_data' }, {
+  id: t.u32().primaryKey().autoInc(), requester: t.string(), goal: t.string(), constraints: t.string(), members: t.string(),
+  status: t.string(), questions: t.string(), answers: t.string(), proposal: t.string(), ownersJson: t.string().name("ownersJson"),
+  note: t.string(), createdAt: t.f64().name("createdAt"), updatedAt: t.f64().name("updatedAt"),
 });
 const taskData = table({ name: 'task_data' }, {
   id: t.u32().primaryKey().autoInc(), requestId: t.u32().name("requestId").index('btree'), agent: t.string(),
@@ -81,9 +91,19 @@ const buildData = table({ name: 'build_data' }, {
   agents: t.array(t.string()), result: t.string(), log: t.string(), requestId: t.u32().name("requestId"),
   createdAt: t.f64().name("createdAt"),
 });
+/**
+ * Token and cost usage reported by agents and the orchestrator. The trace id is the request id:
+ * every row of one request (plan, tasks, conflicts) carries it, 0 when not tied to a request.
+ */
+const usageData = table({ name: 'usage_data' }, {
+  id: t.u32().primaryKey().autoInc(), agent: t.string(), requestId: t.u32().name("requestId"), taskId: t.u32().name("taskId"),
+  conflictId: t.u32().name("conflictId"), phase: t.string(), model: t.string(), inputTokens: t.f64().name("inputTokens"),
+  outputTokens: t.f64().name("outputTokens"), cacheReadTokens: t.f64().name("cacheReadTokens"),
+  cacheWriteTokens: t.f64().name("cacheWriteTokens"), costUsd: t.f64().name("costUsd"), createdAt: t.f64().name("createdAt"),
+});
 const spacetimedb = schema({ agentData, snapshotData, intentData, checkRunData, conflictData, inboxData,
-  diagnosisStepData, accessMember, agent_connection, escalation_timer, testReview,
-  requestData, taskData, reviewData, messageData, planStepData, buildData }, {
+  diagnosisStepData, accessMember, memberProfileData, agent_connection, escalation_timer, testReview,
+  requestData, kickoffData, taskData, reviewData, messageData, planStepData, buildData, usageData }, {
   // SQL callers already use the frozen camelCase column names; don't normalize them.
   CASE_CONVERSION_POLICY: CaseConversionPolicy.None,
   env: { ACCESS_OWNER_IDENTITY: t.string() },
@@ -129,6 +149,25 @@ function requireOwner(ctx: Ctx): void {
   if (role(ctx) !== 'owner') throw new SenderError('Owner access required');
 }
 
+function identityKey(identity: Identity): string {
+  return identity.toHexString().toLowerCase().replace(/^0x/, '');
+}
+/** The caller's bound handle, or null for callers without a profile (orchestrator, dashboard, tests). */
+function handleOf(ctx: Ctx): string | null {
+  return ctx.db.memberProfileData.identity.find(identityKey(ctx.sender))?.handle ?? null;
+}
+/** A caller with a profile can only act as its own handle. */
+function bindAgent(ctx: Ctx, agent: string): void {
+  const handle = handleOf(ctx);
+  if (handle !== null && handle !== agent) throw new SenderError(`You are ${handle}, not ${agent}`);
+}
+
+/** A bound caller can only report work it took part in (a check or conflict that includes its own handle). */
+function bindParticipant(ctx: Ctx, agents: readonly string[]): void {
+  const handle = handleOf(ctx);
+  if (handle !== null && !agents.includes(handle)) throw new SenderError(`You are ${handle}; this involves ${agents.join(', ') || 'no one'}, not you`);
+}
+
 export const client_connected = spacetimedb.clientConnected(ctx => {
   signedIn(ctx);
   if (!role(ctx)) throw new SenderError('Database membership required');
@@ -159,6 +198,12 @@ export const message = spacetimedb.view({ name: 'message', public: true }, t.arr
   ctx => ctx.from.messageData.where(() => role(ctx) !== null).build());
 export const build = spacetimedb.view({ name: 'build', public: true }, t.array(buildData.rowType),
   ctx => ctx.from.buildData.where(() => role(ctx) !== null).build());
+export const kickoff = spacetimedb.view({ name: 'kickoff', public: true }, t.array(kickoffData.rowType),
+  ctx => ctx.from.kickoffData.where(() => role(ctx) !== null).build());
+export const usage = spacetimedb.view({ name: 'usage', public: true }, t.array(usageData.rowType),
+  ctx => ctx.from.usageData.where(() => role(ctx) !== null).build());
+export const member_profile = spacetimedb.view({ name: 'member_profile', public: true }, t.array(memberProfileData.rowType),
+  ctx => ctx.from.memberProfileData.where(() => role(ctx) !== null).build());
 export const plan_step = spacetimedb.view({ name: 'plan_step', public: true }, t.array(planStepData.rowType),
   ctx => ctx.from.planStepData.where(() => role(ctx) !== null).build());
 
@@ -172,11 +217,25 @@ export const grant_access = spacetimedb.reducer({ identity: t.string(), role: t.
   if (previous) ctx.db.accessMember.identity.update(row);
   else ctx.db.accessMember.insert(row);
 });
+export const set_member_profile = spacetimedb.reducer({ identity: t.string(), handle: t.string(),
+  displayName: t.string().name("displayName") }, (ctx, args) => {
+  requireOwner(ctx);
+  const identity = parseIdentity(args.identity);
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(args.handle)) throw new SenderError('A handle is lowercase letters, digits and dashes');
+  const key = identityKey(identity);
+  for (const other of ctx.db.memberProfileData.iter()) if (other.handle === args.handle && other.identity !== key) {
+    throw new SenderError(`The handle ${args.handle} is already taken`);
+  }
+  const row = { identity: key, handle: args.handle, displayName: cut(args.displayName.trim(), 80) || args.handle, createdAt: now(ctx) };
+  if (ctx.db.memberProfileData.identity.find(key)) ctx.db.memberProfileData.identity.update(row);
+  else ctx.db.memberProfileData.insert(row);
+});
 export const revoke_access = spacetimedb.reducer({ identity: t.string() }, (ctx, args) => {
   requireOwner(ctx);
   const identity = parseIdentity(args.identity);
   if (identity.isEqual(ownerIdentity(ctx))) throw new SenderError('Owner access is configured by ACCESS_OWNER_IDENTITY');
   ctx.db.accessMember.identity.delete(identity);
+  ctx.db.memberProfileData.identity.delete(identityKey(identity));
   // A revoked socket cannot write or read views again; retire its presence immediately as well.
   const affected = new Set<string>();
   for (const connection of ctx.db.agent_connection.iter()) if (connection.identity.isEqual(identity)) {
@@ -271,9 +330,11 @@ function sentBack(ctx: Ctx, row: ConflictRecord): boolean {
   const review = ctx.db.testReview.conflictId.find(row.id);
   return !!review && latestSnapshotId(ctx, row.fixer) <= review.snapshotId;
 }
+/** A conflict escalates to humans after this long with no progress (a message resets it). */
+const IDLE_ESCALATION_SECONDS = 90n;
 function scheduleEscalation(ctx: Ctx, conflictId: number): void {
   ctx.db.escalation_timer.insert({ scheduledId: 0n, scheduledAt:
-    ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + 5n * 60n * 1_000_000n), conflictId });
+    ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch + IDLE_ESCALATION_SECONDS * 1_000_000n), conflictId });
 }
 function retireWakeups(ctx: Ctx, id: number): void {
   for (const message of ctx.db.inboxData.iter()) if (message.conflictId === id &&
@@ -282,6 +343,7 @@ function retireWakeups(ctx: Ctx, id: number): void {
 
 export const register_agent = spacetimedb.reducer({ agent: t.string() }, (ctx, args) => {
   requireEditor(ctx);
+  bindAgent(ctx, args.agent);
   if (!ctx.connectionId) throw new SenderError('register_agent requires a live connection');
   const row = ensureAgent(ctx, args.agent);
   const old = ctx.db.agent_connection.connectionId.find(ctx.connectionId);
@@ -306,6 +368,7 @@ export const client_disconnected = spacetimedb.clientDisconnected(ctx => {
 export const post_snapshot = spacetimedb.reducer({ agent: t.string(), sha: t.string(),
   baseSha: t.string().name("baseSha"), files: t.array(t.string()), diff: t.string() }, (ctx, args) => {
   requireEditor(ctx);
+  bindAgent(ctx, args.agent);
   const row = ensureAgent(ctx, args.agent);
   const createdAt = now(ctx);
   ctx.db.snapshotData.insert({ id: 0, ...args, diff: cut(args.diff, 50 * 1024), createdAt });
@@ -317,6 +380,7 @@ export const post_snapshot = spacetimedb.reducer({ agent: t.string(), sha: t.str
 export const post_intent = spacetimedb.reducer({ agent: t.string(), summary: t.string(),
   files: t.array(t.string()), symbols: t.array(t.string()) }, (ctx, args) => {
   requireEditor(ctx);
+  bindAgent(ctx, args.agent);
   const row = ensureAgent(ctx, args.agent);
   ctx.db.intentData.insert({ id: 0, ...args, verified: false, createdAt: now(ctx) });
   ctx.db.agentData.name.update({ ...row, intent: args.summary });
@@ -329,6 +393,7 @@ export const report_check = spacetimedb.reducer({ runKey: t.string().name("runKe
   requireEditor(ctx);
   oneOf(args.result, ['green', 'red']);
   args.agents.forEach(name);
+  bindParticipant(ctx, args.agents);
   const row = { ...args, log: cut(args.log, 20 * 1024), createdAt: now(ctx) };
   if (ctx.db.checkRunData.runKey.find(args.runKey)) ctx.db.checkRunData.runKey.update(row);
   else ctx.db.checkRunData.insert(row);
@@ -341,6 +406,7 @@ export const report_conflict = spacetimedb.reducer({ kind: t.string(), agentA: t
   requireEditor(ctx);
   oneOf(args.kind, ['self', 'merge', 'pair']);
   name(args.agentA);
+  bindParticipant(ctx, [args.agentA, args.agentB].filter(Boolean));
   if (args.kind === 'self' ? args.agentB !== '' : !args.agentB || args.agentA === args.agentB) {
     throw new SenderError('self requires one agent; merge/pair require two distinct agents');
   }
@@ -486,19 +552,24 @@ export const send_note = spacetimedb.reducer({ agent: t.string(), kind: t.string
 });
 export const mark_delivered = spacetimedb.reducer({ inboxIds: t.array(t.u32()) }, (ctx, args) => {
   requireEditor(ctx);
+  const handle = handleOf(ctx);
   for (const id of args.inboxIds) {
     const row = ctx.db.inboxData.id.find(id);
+    // A bound caller can only mark its own inbox; marking a teammate's wake-ups delivered would silence them.
+    if (row && handle !== null && row.agent !== handle) throw new SenderError(`Inbox row ${id} is ${row.agent}'s, not yours (${handle})`);
     if (row) ctx.db.inboxData.id.update({ ...row, delivered: true });
   }
 });
 export const reset_all = spacetimedb.reducer({}, ctx => {
   requireOwner(ctx);
   for (const row of ctx.db.buildData.iter()) ctx.db.buildData.id.delete(row.id);
+  for (const row of ctx.db.usageData.iter()) ctx.db.usageData.id.delete(row.id);
   for (const row of ctx.db.planStepData.iter()) ctx.db.planStepData.id.delete(row.id);
   for (const row of ctx.db.messageData.iter()) ctx.db.messageData.id.delete(row.id);
   for (const row of ctx.db.reviewData.iter()) ctx.db.reviewData.id.delete(row.id);
   for (const row of ctx.db.taskData.iter()) ctx.db.taskData.id.delete(row.id);
   for (const row of ctx.db.requestData.iter()) ctx.db.requestData.id.delete(row.id);
+  for (const row of ctx.db.kickoffData.iter()) ctx.db.kickoffData.id.delete(row.id);
   for (const row of ctx.db.escalation_timer.iter()) ctx.db.escalation_timer.scheduledId.delete(row.scheduledId);
   for (const row of ctx.db.testReview.iter()) ctx.db.testReview.conflictId.delete(row.conflictId);
   for (const row of ctx.db.agent_connection.iter()) ctx.db.agent_connection.connectionId.delete(row.connectionId);
@@ -514,7 +585,7 @@ export const escalate = spacetimedb.reducer({ onSchedule: escalation_timer },
   { arg: escalation_timer.rowType }, (ctx, { arg }) => {
     if (!ctx.senderAuth.isInternal || !ctx.sender.isEqual(ctx.databaseIdentity)) throw new SenderError('Scheduled calls only');
     const row = ctx.db.conflictData.id.find(arg.conflictId);
-    if (row?.status === 'open') escalateToHumans(ctx, row, ORCHESTRATOR, 'Still open after 5 minutes.');
+    if (row?.status === 'open') escalateToHumans(ctx, row, ORCHESTRATOR, `No progress for ${IDLE_ESCALATION_SECONDS} seconds.`);
   });
 
 // ---- Orchestrator (branch feat/orchestrator; design in checklists/orchestrator.md) ------------
@@ -580,7 +651,7 @@ function escalateToHumans(ctx: Ctx, row: ConflictRecord, by: string, reason: str
 
 interface PlanTask { agent: string; title: string; details: string; files: string[]; major: boolean }
 interface PlanReview { reviewer: string; summary: string }
-interface PlanConflict { agentA: string; agentB: string; topic: string; details: string; suggested: string }
+interface PlanConflict { agentA: string; agentB: string; topic: string; details: string; suggested: string; contract: boolean }
 interface Plan { tasks: PlanTask[]; reviews: PlanReview[]; conflicts: PlanConflict[] }
 
 /** Validates the orchestrator's plan (shared PlanInput) before any row is written. */
@@ -627,7 +698,9 @@ function parsePlan(json: string): Plan {
     if (agentA === agentB) throw new SenderError(`plan.conflicts[${index}] needs two different agents`);
     const suggested = typeof conflict.suggested === 'string' && [agentA, agentB].includes(conflict.suggested) ? conflict.suggested : agentB;
     return { agentA, agentB, topic: text(conflict.topic, `plan.conflicts[${index}].topic`, 200),
-      details: text(conflict.details ?? '', `plan.conflicts[${index}].details`, 2 * 1024, false), suggested };
+      details: text(conflict.details ?? '', `plan.conflicts[${index}].details`, 2 * 1024, false), suggested,
+      /** A clash over a shared contract goes to both humans at once instead of waiting for the agents. */
+      contract: conflict.contract === true };
   });
   return { tasks, reviews, conflicts };
 }
@@ -651,7 +724,8 @@ function openPotential(ctx: Ctx, requestId: number, c: PlanConflict): void {
   for (const agent of [c.agentA, c.agentB]) {
     note(ctx, agent, 'conflict', row.id, `[cowork] Conflict #${row.id} with ${agent === c.agentA ? c.agentB : c.agentA}: ${c.topic}`);
   }
-  scheduleEscalation(ctx, row.id);
+  if (c.contract) escalateToHumans(ctx, ctx.db.conflictData.id.find(row.id)!, ORCHESTRATOR, 'A shared contract is involved, so people decide.');
+  else scheduleEscalation(ctx, row.id);
 }
 
 /** Every review approved: the held tasks go out (each wakes its agent) and the plan's conflicts open. */
@@ -669,10 +743,22 @@ function releasePlan(ctx: Ctx, request: RequestRecord): void {
 
 export const submit_request = spacetimedb.reducer({ agent: t.string(), body: t.string() }, (ctx, args) => {
   requireEditor(ctx);
+  bindAgent(ctx, args.agent);
   ensureAgent(ctx, args.agent);
   const body = cut(args.body.trim(), 4 * 1024);
   if (!body) throw new SenderError('Say what you want the orchestrator to do');
   ctx.db.requestData.insert({ id: 0, agent: args.agent, body, status: 'new', summary: '', plan: '',
+    createdAt: now(ctx), updatedAt: now(ctx) });
+});
+/** The dashboard's way to ask: the agent is the caller's own handle, never an argument. */
+export const submit_request_as_me = spacetimedb.reducer({ body: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const handle = handleOf(ctx);
+  if (handle === null) throw new SenderError('You have no agent handle yet; ask the owner to approve you with a name');
+  ensureAgent(ctx, handle);
+  const body = cut(args.body.trim(), 4 * 1024);
+  if (!body) throw new SenderError('Say what you want the orchestrator to do');
+  ctx.db.requestData.insert({ id: 0, agent: handle, body, status: 'new', summary: '', plan: '',
     createdAt: now(ctx), updatedAt: now(ctx) });
 });
 /** new -> planning. Also accepts "planning", so a restarted orchestrator can pick its request up again. */
@@ -720,6 +806,98 @@ export const fail_request = spacetimedb.reducer({ requestId: t.u32().name("reque
   updateRequest(ctx, row, { status: 'failed', summary: reason });
   note(ctx, row.agent, 'info', 0, `[cowork] The orchestrator couldn't plan your request #${row.id}: ${reason}`);
 });
+// ---- Kickoff: a goal with no responsibilities yet. The orchestrator proposes; humans approve. ----------
+// Nothing here writes to main: ownersJson is text a human commits.
+function getKickoff(ctx: Ctx, id: number) {
+  const row = ctx.db.kickoffData.id.find(id);
+  if (!row) throw new SenderError(`Unknown kickoff #${id}`);
+  return row;
+}
+type KickoffRecord = ReturnType<typeof getKickoff>;
+function updateKickoff(ctx: Ctx, row: KickoffRecord, changes: Partial<KickoffRecord>): void {
+  ctx.db.kickoffData.id.update({ ...row, ...changes, updatedAt: now(ctx) });
+}
+function jsonOf(value: string, what: string): unknown {
+  try { return JSON.parse(value); } catch { throw new SenderError(`${what} isn't valid JSON`); }
+}
+/** The dashboard's way to start a kickoff: the requester is the caller's own handle. */
+export const submit_kickoff = spacetimedb.reducer({ goal: t.string(), constraints: t.string(), members: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const handle = handleOf(ctx);
+  if (handle === null) throw new SenderError('You have no agent handle yet; ask the owner to approve you with a name');
+  const goal = cut(args.goal.trim(), 4 * 1024);
+  if (!goal) throw new SenderError('Say what the team wants to build');
+  const parsed = jsonOf(args.members, 'members');
+  if (!Array.isArray(parsed) || parsed.length === 0) throw new SenderError('A kickoff needs at least one team member');
+  const members = parsed.map(member => {
+    const m = member as { handle?: unknown; displayName?: unknown; strengths?: unknown };
+    if (typeof m?.handle !== 'string' || typeof m?.displayName !== 'string' || !m.displayName.trim()) {
+      throw new SenderError('Each member needs a handle and a displayName');
+    }
+    name(m.handle);
+    return { handle: m.handle, displayName: cut(m.displayName.trim(), 100),
+      ...(typeof m.strengths === 'string' && m.strengths.trim() ? { strengths: cut(m.strengths.trim(), 300) } : {}) };
+  });
+  ensureAgent(ctx, handle);
+  ctx.db.kickoffData.insert({ id: 0, requester: handle, goal, constraints: cut(args.constraints.trim(), 2 * 1024),
+    members: JSON.stringify(members), status: 'new', questions: '', answers: '', proposal: '', ownersJson: '', note: '',
+    createdAt: now(ctx), updatedAt: now(ctx) });
+});
+/** needs_answers -> new: the orchestrator runs again with the answers (it may not ask a second time). */
+export const answer_kickoff = spacetimedb.reducer({ kickoffId: t.u32().name("kickoffId"), answers: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getKickoff(ctx, args.kickoffId);
+  if (row.status !== 'needs_answers') throw new SenderError(`Kickoff #${row.id} is ${row.status}; it isn't waiting for answers`);
+  const answers = cut(args.answers.trim(), 4 * 1024);
+  if (!answers) throw new SenderError('Write the answers first');
+  updateKickoff(ctx, row, { status: 'new', answers });
+});
+/** new -> planning. Also accepts "planning", so a restarted orchestrator can pick the kickoff up again. */
+export const start_kickoff = spacetimedb.reducer({ kickoffId: t.u32().name("kickoffId") }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getKickoff(ctx, args.kickoffId);
+  if (row.status !== 'new' && row.status !== 'planning') throw new SenderError(`Kickoff #${row.id} is already ${row.status}`);
+  updateKickoff(ctx, row, { status: 'planning' });
+});
+/** planning -> needs_answers. One round only: a kickoff that already has answers can't ask again. */
+export const ask_kickoff_questions = spacetimedb.reducer({ kickoffId: t.u32().name("kickoffId"), questions: t.array(t.string()) }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getKickoff(ctx, args.kickoffId);
+  if (row.status !== 'planning') throw new SenderError(`Kickoff #${row.id} is ${row.status}, not planning`);
+  if (row.answers) throw new SenderError(`Kickoff #${row.id} already had its one round of questions`);
+  const questions = args.questions.map(q => cut(q.trim(), 500)).filter(Boolean).slice(0, 5);
+  if (questions.length === 0) throw new SenderError('Ask at least one question');
+  updateKickoff(ctx, row, { status: 'needs_answers', questions: JSON.stringify(questions) });
+  note(ctx, row.requester, 'info', 0, `[cowork] The orchestrator has ${questions.length} question(s) about kickoff #${row.id}; answer them on the dashboard.`);
+});
+/** planning -> proposed. ownersJson is the cowork.owners.json text a human commits; nothing writes to main. */
+export const publish_proposal = spacetimedb.reducer({ kickoffId: t.u32().name("kickoffId"), proposalJson: t.string().name("proposalJson"),
+  ownersJson: t.string().name("ownersJson") }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getKickoff(ctx, args.kickoffId);
+  if (row.status !== 'planning') throw new SenderError(`Kickoff #${row.id} is ${row.status}, not planning`);
+  jsonOf(args.proposalJson, 'The proposal');
+  jsonOf(args.ownersJson, 'The owners file');
+  updateKickoff(ctx, row, { status: 'proposed', proposal: cut(args.proposalJson, 32 * 1024), ownersJson: cut(args.ownersJson, 32 * 1024) });
+  note(ctx, row.requester, 'info', 0, `[cowork] The orchestrator proposed who owns what for kickoff #${row.id}; review it on the dashboard.`);
+});
+export const fail_kickoff = spacetimedb.reducer({ kickoffId: t.u32().name("kickoffId"), reason: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getKickoff(ctx, args.kickoffId);
+  if (row.status !== 'new' && row.status !== 'planning') return;
+  const reason = cut(args.reason.trim() || 'No proposal came out.', 1024);
+  updateKickoff(ctx, row, { status: 'failed', note: reason });
+  note(ctx, row.requester, 'info', 0, `[cowork] The orchestrator couldn't propose owners for kickoff #${row.id}: ${reason}`);
+});
+/** proposed -> approved | rejected. Approval changes nothing in the repo: a human commits ownersJson. */
+export const decide_kickoff = spacetimedb.reducer({ kickoffId: t.u32().name("kickoffId"), approve: t.bool(), note: t.string() }, (ctx, args) => {
+  requireEditor(ctx);
+  const row = getKickoff(ctx, args.kickoffId);
+  if (row.status !== 'proposed') throw new SenderError(`Kickoff #${row.id} is ${row.status}; only a proposed kickoff takes a decision`);
+  const said = cut(args.note.trim(), 1024);
+  updateKickoff(ctx, row, { status: args.approve ? 'approved' : 'rejected', note: said });
+  note(ctx, row.requester, 'info', 0, `[cowork] Kickoff #${row.id} was ${args.approve ? 'approved. Commit the proposed cowork.owners.json to main' : 'rejected'}${said ? `: ${said}` : '.'}`);
+});
 export const decide_review = spacetimedb.reducer({ reviewId: t.u32().name("reviewId"), approve: t.bool(), answer: t.string() }, (ctx, args) => {
   requireEditor(ctx);
   const review = ctx.db.reviewData.id.find(args.reviewId);
@@ -746,6 +924,7 @@ export const decide_review = spacetimedb.reducer({ reviewId: t.u32().name("revie
 });
 export const complete_task = spacetimedb.reducer({ taskId: t.u32().name("taskId"), agent: t.string(), summary: t.string() }, (ctx, args) => {
   requireEditor(ctx);
+  bindAgent(ctx, args.agent);
   name(args.agent);
   const row = ctx.db.taskData.id.find(args.taskId);
   if (!row) throw new SenderError(`Unknown task #${args.taskId}`);
@@ -770,6 +949,7 @@ export const complete_task = spacetimedb.reducer({ taskId: t.u32().name("taskId"
 export const post_message = spacetimedb.reducer({ conflictId: t.u32().name("conflictId"), agent: t.string(), kind: t.string(),
   body: t.string() }, (ctx, args) => {
   requireEditor(ctx);
+  bindAgent(ctx, args.agent);
   name(args.agent);
   oneOf(args.kind, ['message', 'agree', 'escalate']);
   const row = getConflict(ctx, args.conflictId);
@@ -782,6 +962,7 @@ export const post_message = spacetimedb.reducer({ conflictId: t.u32().name("conf
   const body = args.body.trim();
   if (!body) throw new SenderError('The message is empty');
   post(ctx, row.id, args.agent, args.kind, body);
+  if (args.kind !== 'escalate') { clearTimers(ctx, row.id); scheduleEscalation(ctx, row.id); }
   if (args.kind === 'escalate') {
     escalateToHumans(ctx, row, args.agent, `${args.agent} asked for a decision: ${cut(body, 300)}`);
     return;
@@ -821,6 +1002,21 @@ export const decide_conflict = spacetimedb.reducer({ conflictId: t.u32().name("c
  * like a main only the orchestrator writes). A green build for a finished request tells every agent
  * that the whole project is ready to run on their laptop.
  */
+const USAGE_PHASES = ['planning', 'implementing', 'checking', 'negotiating', 'idle-wake', 'orchestrator'] as const;
+/** Tokens and cost one agent (or the orchestrator) used since its last report. requestId is the trace id; 0 if none. */
+export const report_usage = spacetimedb.reducer({ agent: t.string(), requestId: t.u32().name("requestId"), taskId: t.u32().name("taskId"),
+  conflictId: t.u32().name("conflictId"), phase: t.string(), model: t.string(), inputTokens: t.f64().name("inputTokens"),
+  outputTokens: t.f64().name("outputTokens"), cacheReadTokens: t.f64().name("cacheReadTokens"),
+  cacheWriteTokens: t.f64().name("cacheWriteTokens"), costUsd: t.f64().name("costUsd") }, (ctx, args) => {
+  requireEditor(ctx);
+  bindAgent(ctx, args.agent);
+  name(args.agent);
+  oneOf(args.phase, USAGE_PHASES);
+  for (const value of [args.inputTokens, args.outputTokens, args.cacheReadTokens, args.cacheWriteTokens, args.costUsd]) {
+    if (!Number.isFinite(value) || value < 0) throw new SenderError('Usage numbers must be zero or more');
+  }
+  ctx.db.usageData.insert({ id: 0, ...args, model: cut(args.model, 100), createdAt: now(ctx) });
+});
 export const publish_build = spacetimedb.reducer({ branch: t.string(), sha: t.string(), mainSha: t.string().name("mainSha"),
   agents: t.array(t.string()), result: t.string(), log: t.string(), requestId: t.u32().name("requestId") }, (ctx, args) => {
   requireEditor(ctx);

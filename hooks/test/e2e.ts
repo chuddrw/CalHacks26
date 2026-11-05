@@ -351,8 +351,8 @@ try {
   client = new Client({ name: "cowork-e2e", version: "0.0.0" });
   await client.connect(transport);
   const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-  const expectedTools = ["agree", "ask_orchestrator", "check_with_team", "complete_task", "escalate", "get_full_stack", "message_teammate", "post_intent", "pull_teammate", "team_status"];
-  check("MCP server lists its 10 tools", JSON.stringify(tools) === JSON.stringify(expectedTools), tools.join(", "));
+  const expectedTools = ["agree", "ask_orchestrator", "check_with_team", "complete_task", "escalate", "get_full_stack", "message_teammate", "post_intent", "pull_teammate", "team_status", "whoami"];
+  check("MCP server lists its 11 tools", JSON.stringify(tools) === JSON.stringify(expectedTools), tools.join(", "));
   await waitFor("register_agent from the MCP server", () => mock!.calls.some((c) => c.reducer === "register_agent" && c.args[0] === "b"), 5000);
   check("MCP server marks b online", db.agent.find((x) => x.name === "b")?.online === true);
 

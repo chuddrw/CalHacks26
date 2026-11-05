@@ -512,7 +512,6 @@ export function Graph({
     return () => observer.disconnect();
   }, []);
   const l = layout(graph, size.width, size.height, size.fontPx);
-  const agents = graph.nodes.filter((n) => n.kind === "agent").length;
   const register = (id: string, el: HTMLElement | null) => {
     if (el) nodeEls.current.set(id, el);
     else nodeEls.current.delete(id);
@@ -639,12 +638,6 @@ export function Graph({
             obstacles={obstacles}
             fontPx={size.fontPx}
           />
-          {agents === 0 && (
-            <p className="graph-empty">
-              No agents yet. Each teammate's agent appears here once its MCP
-              server connects.
-            </p>
-          )}
         </>
       )}
       <div className="legend" aria-hidden="true">

@@ -115,8 +115,9 @@ export function applyContractRule(input: RuleInput): RuleResult {
     return { ...task, major };
   });
 
+  const conflicts = input.plan.conflicts;
   return {
-    plan: { ...input.plan, tasks, reviews: [...reviews].map(([reviewer, summary]) => ({ reviewer, summary })) },
+    plan: { ...input.plan, tasks, conflicts, reviews: [...reviews].map(([reviewer, summary]) => ({ reviewer, summary })) },
     notes,
   };
 }

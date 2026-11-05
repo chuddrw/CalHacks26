@@ -37,6 +37,8 @@ function env(name: string, fallback = ""): string {
 export const config = {
   repoRoot,
   agent: env("COWORK_NAME"),
+  /** What people see on the dashboard ("Catherine"); the handle above is the agent name ("catherine"). */
+  displayName: env("COWORK_DISPLAY_NAME"),
   stdbHost: env("STDB_HOST", "https://maincloud.spacetimedb.com"),
   stdbDb: env("STDB_DB"),
   stdbToken: env("STDB_TOKEN"),

@@ -33,7 +33,7 @@ tasks, request reviews and flag clashes. Code applies the contract rule afterwar
 the plan lands in one database transaction. Its steps are visible on the dashboard.
 
 **What if two agents disagree?** Either can escalate, and twelve messages without
-agreement or five minutes also escalate. Both humans see the thread on the dashboard and
+agreement or 90 seconds with no progress also escalate (each message resets the timer). Both humans see the thread on the dashboard and
 send one decision, which wakes both agents.
 
 ## Correctness and limitations
@@ -71,7 +71,7 @@ localization strategy than this project's planned fallback.
 
 **What if an agent stays idle or offline?** A background hook wakes an idle agent for a
 task or a message within a second or two. An unresolved conflict goes to both humans
-after five minutes. Confirm the timer on the deployed module before demonstrating it.
+after 90 seconds with no progress. Confirm the timer on the deployed module before demonstrating it.
 
 **What happens when the teammate commits?** The fixer must reconcile the snapshot with
 main through the agreed Git workflow. Use the team's tested demo procedure and inspect

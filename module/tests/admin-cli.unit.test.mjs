@@ -32,6 +32,17 @@ for (const role of ['reader','editor']) test(`grant ${role} forwards only the re
     assert.deepEqual(JSON.parse(readFileSync(f.capture,'utf8')),['call','agent-cowork-orch','grant_access',JSON.stringify(identity),JSON.stringify(role),'--server','http://127.0.0.1:1']);
   } finally {rmSync(f.directory,{recursive:true,force:true});}
 });
+test('grant with --name also binds the handle and display name, and stops if the grant fails',() => {
+  const f=fixture();
+  try {
+    const result=f.run(['grant','agent-cowork-orch',identity,'editor','--name','catherine','--display','Catherine Z']);
+    assert.equal(result.status,0,result.stderr);
+    assert.deepEqual(JSON.parse(readFileSync(f.capture,'utf8')),['call','agent-cowork-orch','set_member_profile',JSON.stringify(identity),JSON.stringify('catherine'),JSON.stringify('Catherine Z'),'--server','http://127.0.0.1:1']);
+    rmSync(f.capture);
+    assert.equal(f.run(['grant','agent-cowork-orch',identity,'editor','--name','catherine'],'5').status,5);
+    assert.deepEqual(JSON.parse(readFileSync(f.capture,'utf8')).slice(0,3),['call','agent-cowork-orch','grant_access']);
+  } finally {rmSync(f.directory,{recursive:true,force:true});}
+});
 test('revoke forwards one public identity and propagates CLI failure without inventing success',() => {
   const f=fixture();
   try {
@@ -49,6 +60,8 @@ for (const [label,args] of [
   ['owner escalation',['grant','agent-cowork-orch',identity,'owner']],
   ['extra revoke role',['revoke','agent-cowork-orch',identity,'editor']],
   ['unexpected arguments',['grant','agent-cowork-orch',identity,'reader','--anonymous']],
+  ['a bad handle',['grant','agent-cowork-orch',identity,'editor','--name','Not Valid']],
+  ['display without name',['grant','agent-cowork-orch',identity,'editor','--display','X']],
 ]) test(`approval CLI rejects ${label} before launching a subprocess`,() => {
   const f=fixture();
   try {const result=f.run(args);assert.equal(result.status,1);assert.match(result.stderr,/Usage:/);assert.equal(existsSync(f.capture),false);}

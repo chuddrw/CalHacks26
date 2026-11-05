@@ -55,6 +55,27 @@ function setup() {
 }
 
 describe('requests and plans', () => {
+  it('a conflict the plan marks as a shared contract goes to both humans at once, with no timer', () => {
+    const s = setup();
+    s.ask({ tasks: [lastLoginTask, sessionsTask], reviews: [], conflicts: [{ ...overlap, contract: true }] });
+    const [conflict] = s.conflicts();
+    expect(conflict).toMatchObject({ kind: 'potential', status: 'escalated' });
+    expect(s.thread(conflict!.id).at(-1)).toEqual(['orchestrator', 'escalate']);
+    expect(s.h.db.escalation_timer.count()).toBe(0n);
+  });
+
+  it('report_usage stores tokens by trace and phase, and rejects bad numbers or phases', () => {
+    const s = setup();
+    const row = { agent: 'a', requestId: 3, taskId: 0, conflictId: 0, phase: 'implementing', model: 'm', inputTokens: 10, outputTokens: 5,
+      cacheReadTokens: 2, cacheWriteTokens: 1, costUsd: 0 };
+    s.as(ctx => module.report_usage(ctx, row));
+    expect([...s.h.db.usageData.iter()]).toMatchObject([{ agent: 'a', requestId: 3, phase: 'implementing', inputTokens: 10, outputTokens: 5 }]);
+    expect(() => s.as(ctx => module.report_usage(ctx, { ...row, phase: 'napping' }))).toThrow();
+    expect(() => s.as(ctx => module.report_usage(ctx, { ...row, inputTokens: -1 }))).toThrow();
+    expect(() => s.as(ctx => module.report_usage(ctx, { ...row, costUsd: Number.NaN }))).toThrow();
+    expect(s.h.db.usageData.count()).toBe(1n);
+  });
+
   it('a plan without reviews assigns every task, wakes each assignee and opens the flagged conflict for both agents', () => {
     const s = setup();
     const id = s.ask({ tasks: [lastLoginTask, sessionsTask], reviews: [], conflicts: [overlap] });
@@ -247,7 +268,7 @@ describe('conflict threads', () => {
     const timer = [...t.h.db.escalation_timer.iter()][0]!;
     t.tx(TestAuth.internal(), ctx => module.escalate(ctx, { arg: timer }));
     expect(t.h.db.conflictData.id.find(other)?.status).toBe('escalated');
-    expect(t.inbox('b').at(-1)!.message).toContain('Still open after 5 minutes');
+    expect(t.inbox('b').at(-1)!.message).toContain('No progress for 90 seconds');
   });
 
   it('a red check on a flagged pair turns the potential conflict into a real one', () => {

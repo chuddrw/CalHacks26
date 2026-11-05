@@ -3,6 +3,8 @@ import { sortAgents, type Tables } from "../dashboard";
 import { agentNow, upper, type Selection } from "../team";
 import { absoluteTime, relativeTime } from "../time";
 import { useNow } from "../useNow";
+import { useMembers } from "../useMembers";
+import { displayNameOf } from "../members";
 import { sameSelection } from "./select";
 
 const MAX_FILES = 3;
@@ -17,6 +19,7 @@ export function NowList({
   select: (s: Selection) => void;
 }) {
   const now = useNow();
+  const members = useMembers();
   const agents = sortAgents(tables.agent);
   return (
     <section className="panel now" aria-labelledby="now-title">
@@ -38,8 +41,11 @@ export function NowList({
                 >
                   <span className="now-top">
                     <span className={`avatar tone-${n.stateTone}`}>
-                      {upper(agent.name)}
+                      {displayNameOf(agent.name, members).charAt(0).toUpperCase() || upper(agent.name)}
                     </span>
+                    {displayNameOf(agent.name, members) && (
+                      <span className="now-name">{displayNameOf(agent.name, members)}</span>
+                    )}
                     {/* Passing needs no word: the green dot says it. */}
                     {n.stateTone === "green" ? (
                       <span className="dot tone-green" title="Green" />

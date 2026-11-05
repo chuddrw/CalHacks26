@@ -1,0 +1,613 @@
+[
+ {
+  "id": "lastlogin-ms",
+  "request": "The frontend needs User.lastLogin in milliseconds",
+  "requester": "a",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/contracts/user.ts",
+     "src/users/user.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "b",
+    "c",
+    "d"
+   ],
+   "owners": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "conflicts": [
+    [
+     "a",
+     "b"
+    ]
+   ]
+  }
+ },
+ {
+  "id": "lastlogin-ms-by-api",
+  "request": "Store lastLogin in ms and drop the *1000 in the API",
+  "requester": "d",
+  "draft": [
+   {
+    "agent": "d",
+    "files": [
+     "src/api/routes.ts",
+     "src/contracts/user.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "a",
+    "b",
+    "c"
+   ],
+   "owners": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "conflicts": [
+    [
+     "a",
+     "b"
+    ]
+   ]
+  }
+ },
+ {
+  "id": "add-email-field",
+  "request": "Add an email field to User",
+  "requester": "a",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/contracts/user.ts",
+     "src/users/user.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "b",
+    "c",
+    "d"
+   ],
+   "owners": [
+    "a"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "rename-id",
+  "request": "Rename User.id to User.userId everywhere",
+  "requester": "a",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/contracts/user.ts",
+     "src/users/user.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "b",
+    "c",
+    "d"
+   ],
+   "owners": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "session-timeout-45",
+  "request": "Make the default session timeout 45 minutes",
+  "requester": "b",
+  "draft": [
+   {
+    "agent": "b",
+    "files": [
+     "src/sessions/session.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": false,
+   "reviewers": [],
+   "owners": [
+    "b"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "analytics-test",
+  "request": "Add a test for countRecentLogins edge cases",
+  "requester": "c",
+  "draft": [
+   {
+    "agent": "c",
+    "files": [
+     "src/analytics/activity.test.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": false,
+   "reviewers": [],
+   "owners": [
+    "c"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "health-route",
+  "request": "Add a /health route to the API adapter",
+  "requester": "d",
+  "draft": [
+   {
+    "agent": "d",
+    "files": [
+     "src/api/routes.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": false,
+   "reviewers": [],
+   "owners": [
+    "d"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "record-ip",
+  "request": "recordLogin should also record the IP address",
+  "requester": "a",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/users/user.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": false,
+   "reviewers": [],
+   "owners": [
+    "a"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "sessions-needs-export",
+  "request": "Sessions needs a helper exported from analytics",
+  "requester": "b",
+  "draft": [
+   {
+    "agent": "b",
+    "files": [
+     "src/sessions/session.ts",
+     "src/analytics/activity.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "c"
+   ],
+   "owners": [
+    "b",
+    "c"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "a-fixes-analytics",
+  "request": "Fix the off-by-one in countRecentLogins",
+  "requester": "a",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/analytics/activity.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "c"
+   ],
+   "owners": [
+    "c"
+   ],
+   "conflicts": []
+  },
+  "note": "requester's agent is not the owner"
+ },
+ {
+  "id": "api-iso",
+  "request": "Return lastLogin as an ISO string from the API",
+  "requester": "d",
+  "draft": [
+   {
+    "agent": "d",
+    "files": [
+     "src/api/routes.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": false,
+   "reviewers": [],
+   "owners": [
+    "d"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "api-wants-ms-assigned-to-a",
+  "request": "The API should get lastLogin in ms (planner assigned the contract to a)",
+  "requester": "d",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/contracts/user.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "b",
+    "c"
+   ],
+   "owners": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "conflicts": [
+    [
+     "a",
+     "b"
+    ]
+   ]
+  }
+ },
+ {
+  "id": "add-timezone",
+  "request": "Add User.timezone and use it in session expiry",
+  "requester": "b",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/contracts/user.ts",
+     "src/users/user.ts"
+    ],
+    "major": false
+   },
+   {
+    "agent": "b",
+    "files": [
+     "src/sessions/session.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "c",
+    "d"
+   ],
+   "owners": [
+    "a",
+    "b"
+   ],
+   "conflicts": [
+    [
+     "a",
+     "b"
+    ]
+   ]
+  }
+ },
+ {
+  "id": "new-unowned-module",
+  "request": "Add src/billing/invoice.ts",
+  "requester": "a",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/billing/invoice.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": false,
+   "reviewers": [],
+   "owners": [
+    "a"
+   ],
+   "conflicts": []
+  },
+  "note": "no owner and not shared"
+ },
+ {
+  "id": "readme-update",
+  "request": "Update the README",
+  "requester": "c",
+  "draft": [
+   {
+    "agent": "c",
+    "files": [
+     "README.md"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": false,
+   "reviewers": [],
+   "owners": [
+    "c"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "b-edits-users",
+  "request": "Sessions needs users/user.ts to export a constant",
+  "requester": "b",
+  "draft": [
+   {
+    "agent": "b",
+    "files": [
+     "src/users/user.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "a"
+   ],
+   "owners": [
+    "a"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "log-users-and-sessions",
+  "request": "Add logging to users and sessions",
+  "requester": "a",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/users/user.ts"
+    ],
+    "major": false
+   },
+   {
+    "agent": "b",
+    "files": [
+     "src/sessions/session.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": false,
+   "reviewers": [],
+   "owners": [
+    "a",
+    "b"
+   ],
+   "conflicts": []
+  },
+  "note": "two own-area tasks; no overlap"
+ },
+ {
+  "id": "contract-doc-comment",
+  "request": "Fix a typo in the User contract comment",
+  "requester": "a",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/contracts/user.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "b",
+    "c",
+    "d"
+   ],
+   "owners": [
+    "a"
+   ],
+   "conflicts": []
+  },
+  "note": "rule is deliberately conservative: any contract edit is major"
+ },
+ {
+  "id": "c-edits-contract",
+  "request": "Add User.score to the contract for statistics",
+  "requester": "c",
+  "draft": [
+   {
+    "agent": "c",
+    "files": [
+     "src/contracts/user.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "a",
+    "b",
+    "d"
+   ],
+   "owners": [
+    "c"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "api-test-only",
+  "request": "Add an API route test",
+  "requester": "d",
+  "draft": [
+   {
+    "agent": "d",
+    "files": [
+     "src/api/routes.test.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": false,
+   "reviewers": [],
+   "owners": [
+    "d"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "b-touches-api",
+  "request": "Sessions timeout should show in API output",
+  "requester": "b",
+  "draft": [
+   {
+    "agent": "b",
+    "files": [
+     "src/sessions/session.ts",
+     "src/api/routes.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "d"
+   ],
+   "owners": [
+    "b",
+    "d"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "a-touches-sessions-and-analytics",
+  "request": "Make recentLogins use the session timeout",
+  "requester": "a",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/sessions/session.ts",
+     "src/analytics/activity.ts"
+    ],
+    "major": false
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [
+    "b",
+    "c"
+   ],
+   "owners": [
+    "b",
+    "c"
+   ],
+   "conflicts": []
+  }
+ },
+ {
+  "id": "model-marked-major",
+  "request": "Rework login flow (model marks it major)",
+  "requester": "a",
+  "draft": [
+   {
+    "agent": "a",
+    "files": [
+     "src/users/user.ts"
+    ],
+    "major": true
+   }
+  ],
+  "expect": {
+   "major": true,
+   "reviewers": [],
+   "owners": [
+    "a"
+   ],
+   "conflicts": []
+  },
+  "note": "the rule keeps the model's major flag"
+ }
+]

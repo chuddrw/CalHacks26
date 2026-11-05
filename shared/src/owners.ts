@@ -104,3 +104,37 @@ export function isShared(owners: Owners, file: string): boolean {
 export function humanOf(owners: Owners | null, agent: AgentName): string {
   return owners?.owners.find((owner) => owner.agent === agent)?.human ?? agent;
 }
+
+/**
+ * cowork.owners.json text for an Owners value (feature-only owners keep "paths": []). Pure: it never
+ * touches a file. A human commits the text; Orkio never writes to main.
+ */
+export function toOwnersJson(owners: Owners, about = ""): string {
+  const body = {
+    ...(about ? { about } : {}),
+    shared: owners.shared.map(normalize),
+    owners: owners.owners.map((owner) => ({ agent: owner.agent, human: owner.human, feature: owner.feature, paths: owner.paths.map(normalize) })),
+  };
+  return `${JSON.stringify(body, null, 2)}\n`;
+}
+
+/**
+ * A kickoff proposal as the file a human would commit: the new text and a line diff against the file
+ * on main (`current`, or null when main has none). Throws if the result doesn't parse back as a valid owners file.
+ */
+export function writeOwnersProposal(
+  proposal: { owners: Owner[]; shared: string[]; about?: string },
+  current: string | null = null,
+): { text: string; diff: string; changed: boolean } {
+  const text = toOwnersJson({ owners: proposal.owners, shared: proposal.shared }, proposal.about);
+  parseOwners(text);
+  const before = current === null ? [] : current.replace(/\n$/, "").split("\n");
+  const after = text.replace(/\n$/, "").split("\n");
+  const seen = new Set(before);
+  const kept = new Set(after);
+  const diff = [
+    ...before.filter((line) => !kept.has(line)).map((line) => `- ${line}`),
+    ...after.filter((line) => !seen.has(line)).map((line) => `+ ${line}`),
+  ].join("\n");
+  return { text, diff, changed: current === null || current.trim() !== text.trim() };
+}

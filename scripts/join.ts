@@ -12,7 +12,7 @@
  *   ./run.sh                     join as an agent: workspace ../workspace, opened in VS Code
  *   ./run.sh --orchestrator      also run the orchestrator (needs FACTORY_API_KEY) and the dashboard
  *   ./run.sh --screen            only the dashboard, no agent (the big screen)
- *   ./run.sh --name b            your name the first time without being asked (a, b, c, d...)
+ *   ./run.sh --name ana         your handle the first time without being asked (lowercase, e.g. ana)
  *   ./run.sh --no-open           don't open VS Code / the browser (the window is already open)
  *   ./run.sh clean               shows what it would delete; add --yes to delete it:
  *                                  ../workspace, the orchestrator's clone (.orchestrator/) and your
@@ -32,11 +32,12 @@ import { existsSync, readFileSync, rmSync, writeFileSync, copyFileSync } from "n
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
+import { freeHandle, grantCommand, memberProfiles, publicIdentity, slugHandle } from "../shared/src/members.ts";
 import { spacetimeCli } from "../shared/src/session-token.ts";
 
 const REPO = path.resolve(import.meta.dirname, "..");
 const ENV_FILE = path.join(REPO, ".env");
-const TEAM_DB = "agent-cowork-orch";
+const TEAM_DB = process.env.ORKIO_TEAM_DB ?? "orkio-catherine";
 const WORKSPACE_REPO_DEFAULT = "https://github.com/chuddrw/CalHacks26-Demo.git";
 const MARKER = "cowork-run-sh";
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
@@ -158,16 +159,24 @@ function installPackages(): void {
   ok("installed");
 }
 
-async function fillEnv(nameArg: string | undefined, needName: boolean): Promise<string> {
+async function fillEnv(nameArg: string | undefined, needName: boolean): Promise<{ name: string; display: string }> {
   step(".env");
   let name = nameArg ?? envValue("COWORK_NAME");
+  let display = envValue("COWORK_DISPLAY_NAME");
   if (needName && !name) {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
-    name = (await rl.question("  Your agent name (lowercase, like a, b, c or d): ")).trim().toLowerCase();
+    const typed = (await rl.question("  What's your name? (like Catherine): ")).trim();
     rl.close();
+    display = typed.replace(/[#\r\n"]/g, "");
+    name = slugHandle(display);
+    if (!name) stop("Type a name with at least one letter or digit.");
+    note(`your agent will be called "${name}"`);
   }
-  if (needName && !NAME.test(name)) stop(`"${name}" isn't a valid name: lowercase letters, digits or dashes.`);
+  if (needName && !NAME.test(name)) stop(`"${name}" isn't a valid handle: lowercase letters, digits or dashes.`);
+  // --name alone (or an old .env with only COWORK_NAME) still works: the display name is the handle, capitalised.
+  if (needName && !display) display = name.charAt(0).toUpperCase() + name.slice(1);
   if (name) setEnv("COWORK_NAME", name);
+  if (display) setEnv("COWORK_DISPLAY_NAME", display);
   for (const key of ["STDB_DB", "VITE_STDB_DB"]) {
     if (envValue(key) !== TEAM_DB) {
       setEnv(key, TEAM_DB);
@@ -176,23 +185,47 @@ async function fillEnv(nameArg: string | undefined, needName: boolean): Promise<
   }
   if (!envValue("VITE_STDB_HOST")) setEnv("VITE_STDB_HOST", envValue("STDB_HOST") || "https://maincloud.spacetimedb.com");
   if (!envValue("MAIN_BRANCH")) setEnv("MAIN_BRANCH", "orchestrator");
-  ok(`${name ? `name ${name}, ` : ""}database ${TEAM_DB}, base branch ${envValue("MAIN_BRANCH")}`);
-  return name;
+  ok(`${name ? `${display ? `${display} as ` : ""}${name}, ` : ""}database ${TEAM_DB}, base branch ${envValue("MAIN_BRANCH")}`);
+  return { name, display };
 }
 
-function signIn(): void {
+/** Signs in, then says who the owner must approve and under which handle. Returns the handle to use. */
+async function signIn(name: string, display: string): Promise<string> {
   step("SpacetimeDB sign-in");
   const cli = spacetimeCli();
-  const shown = spawnSync(cli, ["login", "show"], { encoding: "utf8" });
-  let identity = /\b[0-9a-f]{64}\b/i.exec(`${shown.stdout}${shown.stderr}`)?.[0];
+  let identity = publicIdentity();
   if (!identity) {
     note("not signed in yet: a browser opens for `spacetime login`");
     if (spawnSync(cli, ["login"], { stdio: "inherit" }).status !== 0) stop("spacetime login didn't finish.");
-    const again = spawnSync(cli, ["login", "show"], { encoding: "utf8" });
-    identity = /\b[0-9a-f]{64}\b/i.exec(`${again.stdout}${again.stderr}`)?.[0];
+    identity = publicIdentity();
   }
   if (!identity) stop("Still not signed in. Run `spacetime login` yourself, then run this again.");
   ok(`signed in as ${identity}`);
+  if (!name) return name;
+
+  // Who is already bound? (Readable only once the owner has approved you and the module has the view.)
+  const profiles = await memberProfiles();
+  const mine = profiles?.find((profile) => profile.identity === identity);
+  if (mine) {
+    if (mine.handle !== name) {
+      note(`the owner approved you as "${mine.handle}", so that's your agent name; updating .env (was "${name}")`);
+      setEnv("COWORK_NAME", mine.handle);
+      if (mine.displayName) setEnv("COWORK_DISPLAY_NAME", mine.displayName);
+    }
+    ok(`approved as ${mine.displayName || mine.handle} (agent "${mine.handle}")`);
+    return mine.handle;
+  }
+  let handle = name;
+  if (profiles) {
+    const free = freeHandle(name, profiles.map((profile) => profile.handle));
+    if (free !== name) {
+      note(`"${name}" is already taken by someone else, so you'd be "${free}"`);
+      handle = free;
+      setEnv("COWORK_NAME", handle);
+    }
+  }
+  console.log(`\n  Not approved yet. Send the database owner this one line (it holds only your public identity, no token):\n\n    ${grantCommand(identity, handle, display || handle)}\n`);
+  return handle;
 }
 
 function doctor(workspace?: string): boolean {
@@ -252,8 +285,8 @@ async function join(values: { name?: string; orchestrator?: boolean; screen?: bo
   const agent = !values.screen;
   checkTools();
   installPackages();
-  const name = await fillEnv(values.name, agent);
-  signIn();
+  const filled = await fillEnv(values.name, agent);
+  const name = await signIn(filled.name, filled.display);
 
   let workspace: string | undefined;
   if (agent) {
