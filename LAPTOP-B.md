@@ -35,7 +35,7 @@ Catherine runs one command on her side. When she says "approved":
 ```
 That installs packages, clones the project `catou88/OrkioDemo` into `../workspace`, installs the hooks and MCP server,
 and runs the doctor. It must end with the doctor saying **ready**. The doctor also tells you if you cannot push:
-you need **write access to `catou88/OrkioDemo`** (Catherine adds you under Settings → Collaborators) and a signed-in
+you need **write access to `catou88/OrkioDemo`** (Catherine adds `mizuamiii` under Settings → Collaborators; accept the invite email or https://github.com/catou88/OrkioDemo/invitations) and a signed-in
 git (`git push` must work without a password prompt: use the macOS keychain, `gh auth login`, or a token).
 
 ## 4. Smoke test (5 minutes, do this first)

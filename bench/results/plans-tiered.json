@@ -1,0 +1,433 @@
+{
+  "add-email-field": {
+    "tasks": [
+      {
+        "agent": "a",
+        "files": [
+          "src/contracts/user.ts",
+          "src/users/user.ts",
+          "src/users/user.test.ts"
+        ],
+        "major": true
+      }
+    ],
+    "reviews": [
+      {
+        "reviewer": "d"
+      }
+    ],
+    "conflicts": []
+  },
+  "lastlogin-ms-by-api": {
+    "tasks": [
+      {
+        "agent": "a",
+        "files": [
+          "src/users/user.ts",
+          "src/users/user.test.ts",
+          "src/contracts/user.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "b",
+        "files": [
+          "src/sessions/session.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "c",
+        "files": [
+          "src/analytics/activity.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "d",
+        "files": [
+          "src/api/routes.ts"
+        ],
+        "major": false
+      }
+    ],
+    "reviews": [
+      {
+        "reviewer": "a"
+      },
+      {
+        "reviewer": "b"
+      },
+      {
+        "reviewer": "c"
+      }
+    ],
+    "conflicts": []
+  },
+  "lastlogin-ms": {
+    "tasks": [
+      {
+        "agent": "a",
+        "files": [
+          "src/users/user.ts",
+          "src/users/user.test.ts",
+          "src/contracts/user.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "b",
+        "files": [
+          "src/sessions/session.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "c",
+        "files": [
+          "src/analytics/activity.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "d",
+        "files": [
+          "src/api/routes.ts"
+        ],
+        "major": true
+      }
+    ],
+    "reviews": [
+      {
+        "reviewer": "b"
+      },
+      {
+        "reviewer": "c"
+      },
+      {
+        "reviewer": "d"
+      }
+    ],
+    "conflicts": []
+  },
+  "analytics-test": {
+    "tasks": [
+      {
+        "agent": "c",
+        "files": [
+          "src/analytics/activity.test.ts"
+        ],
+        "major": false
+      }
+    ],
+    "reviews": [],
+    "conflicts": []
+  },
+  "session-timeout-45": {
+    "tasks": [
+      {
+        "agent": "b",
+        "files": [
+          "src/sessions/session.ts",
+          "src/sessions/session.test.ts"
+        ],
+        "major": false
+      }
+    ],
+    "reviews": [],
+    "conflicts": []
+  },
+  "health-route": {
+    "tasks": [
+      {
+        "agent": "d",
+        "files": [
+          "src/api/routes.ts",
+          "src/api/routes.test.ts"
+        ],
+        "major": false
+      }
+    ],
+    "reviews": [],
+    "conflicts": []
+  },
+  "rename-id": {
+    "tasks": [
+      {
+        "agent": "a",
+        "files": [
+          "src/contracts/user.ts",
+          "src/users/user.ts",
+          "src/users/user.test.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "d",
+        "files": [
+          "src/api/routes.ts"
+        ],
+        "major": true
+      }
+    ],
+    "reviews": [
+      {
+        "reviewer": "d"
+      }
+    ],
+    "conflicts": []
+  },
+  "sessions-needs-export": {
+    "tasks": [],
+    "reviews": [],
+    "conflicts": []
+  },
+  "api-iso": {
+    "tasks": [
+      {
+        "agent": "d",
+        "files": [
+          "src/api/routes.ts",
+          "src/api/routes.test.ts"
+        ],
+        "major": false
+      }
+    ],
+    "reviews": [],
+    "conflicts": []
+  },
+  "record-ip": {
+    "tasks": [
+      {
+        "agent": "a",
+        "files": [
+          "src/contracts/user.ts",
+          "src/users/user.ts",
+          "src/users/user.test.ts"
+        ],
+        "major": true
+      }
+    ],
+    "reviews": [
+      {
+        "reviewer": "d"
+      }
+    ],
+    "conflicts": []
+  },
+  "a-fixes-analytics": {
+    "tasks": [],
+    "reviews": [],
+    "conflicts": []
+  },
+  "new-unowned-module": {
+    "tasks": [],
+    "reviews": [],
+    "conflicts": []
+  },
+  "readme-update": {
+    "tasks": [
+      {
+        "agent": "c",
+        "files": [
+          "README.md"
+        ],
+        "major": false
+      }
+    ],
+    "reviews": [],
+    "conflicts": []
+  },
+  "b-edits-users": {
+    "tasks": [],
+    "reviews": [],
+    "conflicts": []
+  },
+  "add-timezone": {
+    "tasks": [
+      {
+        "agent": "b",
+        "files": [
+          "src/contracts/user.ts",
+          "src/sessions/session.ts",
+          "src/sessions/session.test.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "a",
+        "files": [
+          "src/users/user.ts",
+          "src/users/user.test.ts"
+        ],
+        "major": true
+      }
+    ],
+    "reviews": [
+      {
+        "reviewer": "a"
+      }
+    ],
+    "conflicts": []
+  },
+  "contract-doc-comment": {
+    "tasks": [],
+    "reviews": [],
+    "conflicts": []
+  },
+  "api-wants-ms-assigned-to-a": {
+    "tasks": [
+      {
+        "agent": "a",
+        "files": [
+          "src/contracts/user.ts",
+          "src/users/user.ts",
+          "src/users/user.test.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "b",
+        "files": [
+          "src/sessions/session.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "c",
+        "files": [
+          "src/analytics/activity.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "d",
+        "files": [
+          "src/api/routes.ts"
+        ],
+        "major": false
+      }
+    ],
+    "reviews": [
+      {
+        "reviewer": "b"
+      },
+      {
+        "reviewer": "c"
+      }
+    ],
+    "conflicts": []
+  },
+  "log-users-and-sessions": {
+    "tasks": [
+      {
+        "agent": "a",
+        "files": [
+          "src/users/user.ts"
+        ],
+        "major": false
+      },
+      {
+        "agent": "b",
+        "files": [
+          "src/sessions/session.ts"
+        ],
+        "major": true
+      }
+    ],
+    "reviews": [
+      {
+        "reviewer": "b"
+      }
+    ],
+    "conflicts": []
+  },
+  "api-test-only": {
+    "tasks": [
+      {
+        "agent": "d",
+        "files": [
+          "src/api/routes.test.ts"
+        ],
+        "major": false
+      }
+    ],
+    "reviews": [],
+    "conflicts": []
+  },
+  "c-edits-contract": {
+    "tasks": [
+      {
+        "agent": "c",
+        "files": [
+          "src/contracts/user.ts"
+        ],
+        "major": true
+      },
+      {
+        "agent": "a",
+        "files": [
+          "src/users/user.ts",
+          "src/users/user.test.ts"
+        ],
+        "major": false
+      }
+    ],
+    "reviews": [
+      {
+        "reviewer": "a"
+      }
+    ],
+    "conflicts": [
+      {
+        "agentA": "c",
+        "agentB": "a"
+      }
+    ]
+  },
+  "a-touches-sessions-and-analytics": {
+    "tasks": [
+      {
+        "agent": "c",
+        "files": [
+          "src/analytics/activity.ts",
+          "src/analytics/activity.test.ts"
+        ],
+        "major": true
+      }
+    ],
+    "reviews": [
+      {
+        "reviewer": "c"
+      }
+    ],
+    "conflicts": []
+  },
+  "b-touches-api": {
+    "tasks": [
+      {
+        "agent": "b",
+        "files": [
+          "src/sessions/session.ts",
+          "src/sessions/session.test.ts"
+        ],
+        "major": false
+      },
+      {
+        "agent": "d",
+        "files": [
+          "src/api/routes.ts",
+          "src/api/routes.test.ts"
+        ],
+        "major": false
+      }
+    ],
+    "reviews": [],
+    "conflicts": []
+  },
+  "model-marked-major": {
+    "tasks": [],
+    "reviews": [],
+    "conflicts": []
+  }
+}

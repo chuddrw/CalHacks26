@@ -21,7 +21,7 @@ One identity can only be one handle, so B cannot reuse A's SpacetimeDB account.
 ## 0b. Before laptop B can start (you, laptop A)
 
 1. **Commit and push this branch.** Laptop B clones `catherine-branch-update-after-hackathon`; anything uncommitted on your machine does not reach it.
-2. Add laptop B's GitHub account as a collaborator on `catou88/OrkioDemo` (write access: snapshots push to `wip/<handle>` branches).
+2. Add GitHub user `mizuamiii` (laptop B) as a collaborator on `catou88/OrkioDemo`, then have them accept the emailed invite (write access: snapshots push to `wip/<handle>` branches).
 3. Put `OPENROUTER_API_KEY` in `.env` on this laptop only.
 4. `hooks/test/e2e.ts` passes again (it runs the scripted-plan flow, review, conflict thread and wake-ups on a local mock): run `node hooks/test/e2e.ts` once to confirm on your machine.
 
