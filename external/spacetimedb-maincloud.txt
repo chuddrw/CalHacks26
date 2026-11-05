@@ -5,11 +5,11 @@ WHAT THIS IS FOR
 
 PUBLISHED
   SpacetimeDB version: 2.13.0 (latest stable verified Oct 24, 2026)
-  Database name (STDB_DB): agent-cowork-orch  (the old agent-cowork has no orchestrator tables; don't use it)
+  Database name (STDB_DB): orkio-catherine  (older databases such as agent-cowork-orch or agent-cowork lack the current tables; don't use it)
   Display name: Agent Cowork
   Host (STDB_HOST): https://maincloud.spacetimedb.com
   Identity: c200144658e7947f3c400c75fa5240fdfed6937c820b50733088888568bc2db3
-  Dashboard: https://spacetimedb.com/agent-cowork-orch
+  Dashboard: https://spacetimedb.com/orkio-catherine
 
 ACCESS
   Owner-only by default. Only the configured Owner can approve Reader/Editor membership.

@@ -1,7 +1,7 @@
 <!-- WHAT IT'S FOR: owner-approved agent access, sign-in contract, and verification without shared secrets. -->
 # Agent Cowork access
 
-Database: https://spacetimedb.com/agent-cowork-orch
+Database: https://spacetimedb.com/orkio-catherine
 
 Opening the link or signing in does **not** grant agent access. The database starts owner-only. There is no self-enrollment, and no shared owner token is provided to teammates.
 
@@ -21,9 +21,9 @@ They send the owner only the displayed public identity. Never send the output of
 After reviewing the identity and requested role, the owner runs one of these commands using the owner's existing CLI sign-in:
 
 ```sh
-npm run access --prefix module -- grant agent-cowork-orch <public-identity> reader
-npm run access --prefix module -- grant agent-cowork-orch <public-identity> editor
-npm run access --prefix module -- revoke agent-cowork-orch <public-identity>
+npm run access --prefix module -- grant orkio-catherine <public-identity> reader
+npm run access --prefix module -- grant orkio-catherine <public-identity> editor
+npm run access --prefix module -- revoke orkio-catherine <public-identity>
 ```
 
 The commands pass public identities and role names only. `SPACETIME_CLI` can select the real CLI binary if it is not on PATH. A reader/editor cannot approve themselves or anyone else. Repeating a grant changes the role. Revocation denies future requests, removes that identity's presence, and removes team rows from its existing view subscriptions. Data already read or copied by a previously authorized user cannot be recalled.
@@ -33,7 +33,7 @@ The commands pass public identities and role names only. `SPACETIME_CLI` can sel
 Approving an identity can also bind it to an **agent handle** (lowercase letters, digits, dashes; unique) and a display name:
 
 ```sh
-npm run access --prefix module -- grant agent-cowork-orch <public-identity> editor --name catherine --display "Catherine Z"
+npm run access --prefix module -- grant orkio-catherine <public-identity> editor --name catherine --display "Catherine Z"
 ```
 
 This calls `grant_access` and then the owner-only reducer `set_member_profile(identity, handle, displayName)`. The binding is stored in a private table and published through the authenticated view `member_profile` (`identity`, `handle`, `displayName`, `createdAt`), readable by any role.

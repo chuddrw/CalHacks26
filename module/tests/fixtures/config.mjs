@@ -1,5 +1,6 @@
 /** WHAT IT'S FOR: inert Part C test settings; never loads a developer's .env or live credentials. */
 import { fileURLToPath } from 'node:url';
+export const TEAM_DB = 'orkio-catherine';
 export const config = Object.freeze({
   repoRoot: fileURLToPath(new URL('../../../', import.meta.url)),
   agent: '', stdbHost: 'http://127.0.0.1:1', stdbDb: '', stdbToken: '',

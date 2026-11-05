@@ -16,6 +16,6 @@
       ]
     }
   },
-  "postCreateCommand": "npm install && npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli",
+  "postCreateCommand": "sudo chown \"$(id -un)\" /workspaces && npm install && npm install -g @anthropic-ai/claude-code @openai/codex @google/gemini-cli",
   "forwardPorts": []
 }

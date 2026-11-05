@@ -21,7 +21,7 @@
  *   5b. member_profile: the handle the owner bound to your identity matches COWORK_NAME (or says what to fix).
  *   6. The deployed module has every reducer this code calls (names from the generated bindings).
  *      A missing one means the owner hasn't published module/ from this branch yet.
- *   7. Droid (warning only; only the orchestrator's laptop needs it): the droid CLI and FACTORY_API_KEY.
+ *   7. The orchestrator's model (warning only; only the orchestrator's laptop needs it): OPENROUTER_API_KEY (or the droid CLI and FACTORY_API_KEY with PLANNER=droid).
  *   8. With --demo: our hooks in .claude/settings.local.json, "cowork" in .mcp.json, and
  *      `git push --dry-run` to wip/<name>, which checks push rights without pushing anything.
  *
@@ -72,7 +72,7 @@ if (!existsSync(envFile)) fail("repo 1 has no .env", "Copy .env.example to .env 
 if (/^[a-z0-9][a-z0-9_-]*$/.test(config.agent)) pass("COWORK_NAME", config.agent);
 else fail("COWORK_NAME is missing or invalid", "Set COWORK_NAME=<lowercase name> in .env (npm run install-hooks does it for you).");
 if (config.stdbDb) pass("SpacetimeDB", `${config.stdbHost} / ${config.stdbDb}`);
-else fail("STDB_DB is missing", "Set STDB_DB in .env (the team database is agent-cowork-orch; see external/spacetimedb-maincloud.txt).");
+else fail("STDB_DB is missing", "Set STDB_DB in .env (the team database is orkio-catherine; see external/spacetimedb-maincloud.txt).");
 if (existsSync(envFile) && /^STDB_TOKEN=.+$/m.test(readFileSync(envFile, "utf8"))) {
   warn("STDB_TOKEN is set in .env", "Remove it: Part C's rules keep tokens out of .env. The tools use your `spacetime login` session.");
 }
@@ -165,17 +165,18 @@ if (config.stdbDb) {
   }
 }
 
-// 7. Droid, the orchestrator's planner. Only the laptop that runs the orchestrator needs it.
-if (config.diagnoseWith === "droid") {
+// 7. The orchestrator's model. OpenRouter by default; Droid only with PLANNER=droid. Only the orchestrator's laptop needs it.
+if (config.planner === "droid") {
   const droid = await run(process.platform === "win32" ? "where" : "which", ["droid"]);
-  if (droid.ok && config.factoryApiKey) pass("Droid", "droid CLI found and FACTORY_API_KEY set (needed on the orchestrator's laptop only)");
+  if (droid.ok && config.factoryApiKey) pass("Droid", "droid CLI found and FACTORY_API_KEY set (PLANNER=droid; needed on the orchestrator's laptop only)");
   else {
     warn(
       `Droid isn't ready here (${[droid.ok ? "" : "no droid CLI", config.factoryApiKey ? "" : "no FACTORY_API_KEY"].filter(Boolean).join(", ")})`,
-      "Only the orchestrator's laptop needs it. Install the CLI (PowerShell: irm https://app.factory.ai/cli/windows | iex; Mac: curl -fsSL https://app.factory.ai/cli | sh), then put FACTORY_API_KEY=<key> in repo 1's .env.",
+      "PLANNER=droid is set. Install the CLI (Mac: curl -fsSL https://app.factory.ai/cli | sh) and put FACTORY_API_KEY=<key> in repo 1's .env, or remove PLANNER=droid to use OpenRouter.",
     );
   }
-}
+} else if (config.openrouterApiKey) pass("OpenRouter", `OPENROUTER_API_KEY set, model ${config.openrouterModel || "default"} (needed on the orchestrator's laptop only)`);
+else warn("OPENROUTER_API_KEY isn't set here", "Only the orchestrator's laptop needs it. Put OPENROUTER_API_KEY=<key> in repo 1's .env.");
 
 // 8. Demo clone
 if (values.demo) {

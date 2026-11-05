@@ -43,6 +43,7 @@ import * as git from "../../checks/src/git.ts";
 import { announce, buildFullStack, currentInputs, fullStackHead, type BuildResult } from "./full-stack.ts";
 import { importIndex } from "./imports.ts";
 import { runKickoff, scriptedKickoff, type Kickoff } from "./kickoff-run.ts";
+import { createOpenRouterKickoff, createTieredPlanner } from "./openrouter.ts";
 import { createDroidKickoff, createDroidPlanner, type Planner } from "./planner.ts";
 import { applyContractRule, applyOnlineRule, type DraftPlan } from "./rules.ts";
 import { describeTeam, latestSnapshots, readTeam } from "./team.ts";
@@ -193,10 +194,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   const planFile = process.env.COWORK_PLAN_FILE ?? "";
-  const planner = planFile ? scriptedPlanner(planFile) : createDroidPlanner();
+  // OpenRouter by default (planning and kickoff). Droid only when PLANNER=droid.
+  const useDroid = config.planner === "droid";
+  const planner = planFile ? scriptedPlanner(planFile) : useDroid ? createDroidPlanner() : createTieredPlanner();
   const kickoffFile = process.env.COWORK_KICKOFF_FILE ?? "";
-  const kickoff: Kickoff = kickoffFile ? scriptedKickoff(kickoffFile) : createDroidKickoff();
-  if (!planFile && !config.factoryApiKey) log("FACTORY_API_KEY is empty: every request will fail until it's set.");
+  const kickoff: Kickoff = kickoffFile ? scriptedKickoff(kickoffFile) : useDroid ? createDroidKickoff() : createOpenRouterKickoff();
+  if (!planFile && !useDroid && !config.openrouterApiKey) log("OPENROUTER_API_KEY is empty: every request will fail until it's set.");
+  if (!planFile && useDroid && !config.factoryApiKey) log("PLANNER=droid but FACTORY_API_KEY is empty: every request will fail until it's set.");
   process.on("SIGINT", () => void shutdown("Ctrl+C", 0));
   process.on("SIGTERM", () => void shutdown("SIGTERM", 0));
   process.on("uncaughtException", (error) => {
@@ -204,7 +208,7 @@ async function main(): Promise<void> {
     void shutdown("crash", 1);
   });
   await git.removeStaleWorktrees();
-  log(`planning for ${config.stdbDb} with ${planFile ? `the scripted plan ${planFile}` : "Droid"}; clone ${config.demoRepoPath}`);
+  log(`planning for ${config.stdbDb} with ${planFile ? `the scripted plan ${planFile}` : useDroid ? "Droid" : `OpenRouter (${config.openrouterModel || "default model"})`}; clone ${config.demoRepoPath}`);
 
   let resume = true;
   let resumeKickoffs = true;

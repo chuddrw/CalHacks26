@@ -34,6 +34,9 @@ function env(name: string, fallback = ""): string {
   return process.env[name] ?? fallback;
 }
 
+/** The team database. The one place its name is written; ORKIO_TEAM_DB overrides it for another team. */
+export const TEAM_DB = process.env.ORKIO_TEAM_DB ?? "orkio-catherine";
+
 export const config = {
   repoRoot,
   agent: env("COWORK_NAME"),
@@ -50,6 +53,12 @@ export const config = {
   diagnoseWith: env("DIAGNOSE_WITH", "droid") === "claude" ? "claude" : "droid",
   factoryApiKey: env("FACTORY_API_KEY"),
   droidModelId: env("DROID_MODEL_ID"),
+  /** OpenRouter planner backend (orchestrator/src/openrouter.ts). Used when there is no FACTORY_API_KEY, or PLANNER=openrouter. */
+  openrouterApiKey: env("OPENROUTER_API_KEY"),
+  openrouterModel: env("OPENROUTER_MODEL"),
+  /** Cheap first-pass model for planning; empty = always use OPENROUTER_MODEL. See createTieredPlanner. */
+  openrouterModelFast: env("OPENROUTER_MODEL_FAST"),
+  planner: env("PLANNER"),
   anthropicApiKey: env("ANTHROPIC_API_KEY"),
   claudeModel: env("CLAUDE_MODEL", "claude-opus-5-5"),
 } as const;

@@ -68,7 +68,7 @@ On **each** laptop that runs the dashboard:
 
    ```dotenv
    VITE_STDB_HOST=https://maincloud.spacetimedb.com
-   VITE_STDB_DB=agent-cowork-orch
+   VITE_STDB_DB=orkio-catherine
    ```
 
    `VITE_PROJECT_LABEL` optionally names the monitored project. Never add tokens

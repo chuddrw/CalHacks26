@@ -9,7 +9,7 @@ These came up while putting a new laptop (VS Code dev container, user `node`) on
 
 ## Code bugs
 
-- [ ] **The approval line `run.sh` prints names the wrong database on first run.**
+- [x] **The approval line `run.sh` prints names the wrong database on first run.**
   `grantCommand()` in `shared/src/members.ts:86` uses `config.stdbDb || "agent-cowork-orch"`.
   `config` is read when the module is imported, before `fillEnv()` in `scripts/join.ts` writes
   `STDB_DB=orkio-catherine` to `.env`. On a fresh laptop the printed line therefore says
@@ -18,20 +18,20 @@ These came up while putting a new laptop (VS Code dev container, user `node`) on
   Fix: pass the database into `grantCommand()` (join.ts has `TEAM_DB`), or make the fallback
   `orkio-catherine`.
 
-- [ ] **The old database name is still everywhere else.** `scripts/join.ts:40` makes `orkio-catherine`
+- [x] **The old database name is still everywhere else.** `scripts/join.ts:40` makes `orkio-catherine`
   the team database, but these still say `agent-cowork-orch`: `.env.example`, `README.md`,
   `module/ACCESS.md`, `module/README.md`, `ui/README.md`, `external/spacetimedb-maincloud.txt`,
   `scripts/doctor.ts`, `shared/src/members.ts`, `module/tests/admin-cli.unit.test.mjs`.
   Pick one name and use it everywhere (or read it from one constant).
 
-- [ ] **`run.sh` can't create the workspace in a dev container.** It clones into `../workspace`, which
+- [x] **`run.sh` can't create the workspace in a dev container.** It clones into `../workspace`, which
   here is `/workspaces/workspace`. `/workspaces` is owned by root, so the clone fails with
   `Permission denied`. Making the folder by hand doesn't help either: `prepareWorkspace()`
   (`scripts/join.ts:115`) refuses any folder it didn't create. Workaround used:
   `sudo chown node:node /workspaces`. Fix: say this in the error message, or accept an empty folder,
   or add a `postCreateCommand` to the dev container that gives `/workspaces` to `node`.
 
-- [ ] **`package-lock.json` has a stray `pip` dependency.** The committed lockfile lists `"pip": "^0.0.1"`
+- [x] **`package-lock.json` has a stray `pip` dependency.** The committed lockfile lists `"pip": "^0.0.1"`
   (plus `freckle` and `minimist@0.0.10` it pulls in), but `package.json` doesn't. Every `npm install`
   deletes those 51 lines, so everyone gets a dirty lockfile. Probably someone ran `npm install pip`
   by mistake. Fix: run `npm install` and commit the cleaned lockfile.

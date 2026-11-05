@@ -113,6 +113,13 @@ try {
       return ![".git", "node_modules", ".vitest", ".claude", ".mcp.json"].includes(first);
     },
   });
+  // This checkout's demo-app has no cowork.owners.json (the orchestrator needs it on main), so seed it from the bench fixture.
+  const ownersSource = path.join(demoSource, "cowork.owners.json");
+  if (!existsSync(ownersSource)) {
+    const fixture = JSON.parse(readFileSync(path.join(repoRoot, "bench", "fixtures", "cowork.owners.json"), "utf8")) as Record<string, unknown>;
+    delete fixture.about;
+    writeFileSync(path.join(seed, "cowork.owners.json"), `${JSON.stringify(fixture, null, 2)}\n`);
+  }
   await git(seed, [...identity, "add", "-A"]);
   await git(seed, [...identity, "commit", "--quiet", "-m", "baseline"]);
   await git(seed, ["push", "--quiet", "origin", "main"]);
@@ -141,7 +148,7 @@ try {
 
   // ---- 1. snapshot: A switches lastLogin to milliseconds -----------------------------------------
   const userFile = path.join(cloneA, "src", "users", "user.ts");
-  writeFileSync(userFile, readFileSync(userFile, "utf8").replace("Math.floor(at.getTime() / 1000)", "at.getTime()"));
+  writeFileSync(userFile, readFileSync(userFile, "utf8").replaceAll("Math.floor(at.getTime() / 1000)", "at.getTime()"));
   const logBefore = await git(cloneA, ["log", "--oneline"]);
   const statusBefore = await git(cloneA, ["status", "--porcelain"]);
 
@@ -420,13 +427,17 @@ try {
   check("one task per owner, both held", tasks.map((t) => `${t.agent}:${t.status}`).join(",") === "a:waiting_review,b:waiting_review");
   check("the contract rule marks a's contract change major", tasks.find((t) => t.agent === "a")?.major === true);
   const reviews = db.review.filter((r) => r.requestId === request?.id);
-  check("the rule asks b's human to review (b's sessions import the contract)", reviews.length === 1 && reviews[0]?.reviewer === "b" && reviews[0].summary.includes("src/sessions/session.ts"), reviews.map((r) => r.reviewer).join(","));
+  // Both b (src/sessions/session.ts) and d (src/api/routes.ts) import the contract, so each gets a review.
+  const reviewerB = reviews.find((r) => r.reviewer === "b");
+  check("the rule asks b's and d's humans to review (their code imports the contract)", reviews.map((r) => r.reviewer).sort().join(",") === "b,d" && reviewerB?.summary.includes("src/sessions/session.ts") === true && reviews.find((r) => r.reviewer === "d")?.summary.includes("src/api/routes.ts") === true, reviews.map((r) => r.reviewer).join(","));
   const steps = db.plan_step.filter((step) => step.requestId === request?.id).map((step) => step.detail);
   check("the plan steps show the scripted plan and the rule's decision", steps.some((d) => d.includes("Scripted plan")) && steps.some((d) => d.startsWith("Rule: ")), String(steps.length));
   check("nobody is woken before the review", !db.inbox.some((r) => r.kind === "task" && tasks.some((t) => t.id === r.conflictId)));
 
-  // b's human approves on the dashboard (the dashboard calls decide_review).
-  await callReducer(mock, "decide_review", [reviews[0]?.id ?? 0, true, "sessions will follow"]);
+  // b's and d's humans approve on the dashboard (the dashboard calls decide_review); the tasks are held until every review is in.
+  for (const review of [reviewerB, reviews.find((r) => r.reviewer === "d")]) {
+    await callReducer(mock, "decide_review", [review?.id ?? 0, true, `${review?.reviewer} will follow`]);
+  }
   check("approval releases both tasks", db.task.filter((t) => t.requestId === request?.id).every((t) => t.status === "assigned") && request?.status === "assigned");
   const flagged = db.conflict.find((c) => c.kind === "potential" && c.pair === "a+b" && c.status === "open");
   check("approval opens the flagged conflict a x b", flagged !== undefined && flagged.fixer === "b");

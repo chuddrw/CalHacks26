@@ -59,7 +59,7 @@ Orkio introduces a new collaboration layer for a new kind of software team: mult
 
 ### Cal Hacks Most Technically Complex Hack
 
-Orkio coordinates several distributed systems at once: local coding-agent hooks, MCP tools, Git snapshots, isolated merge worktrees, a Droid-powered orchestrator, transactional SpacetimeDB reducers, real-time subscriptions, automated TypeScript and Vitest checks, and a live React dashboard. It handles concurrency challenges such as stale snapshots, delayed model output, multi-agent conflicts, atomic plan publication, authenticated database access, and asynchronous wake-ups across computers. The result is an end-to-end system in which every visible status is backed by versioned state and reproducible verification.
+Orkio coordinates several distributed systems at once: local coding-agent hooks, MCP tools, Git snapshots, isolated merge worktrees, a model-powered orchestrator (OpenRouter by default), transactional SpacetimeDB reducers, real-time subscriptions, automated TypeScript and Vitest checks, and a live React dashboard. It handles concurrency challenges such as stale snapshots, delayed model output, multi-agent conflicts, atomic plan publication, authenticated database access, and asynchronous wake-ups across computers. The result is an end-to-end system in which every visible status is backed by versioned state and reproducible verification.
 
 ### Microsoft — Grand Prize: Built for the Real World
 
@@ -82,7 +82,7 @@ The downstream impact reaches the business's own customers: engineering teams ca
 ## How it works
 
 1. **Ask.** A human tells their own Claude Code agent what they want. If it goes beyond that human's own feature, the agent forwards it to the orchestrator (`ask_orchestrator`).
-2. **Plan.** The orchestrator starts a Droid session on a read-only copy of `main`. Droid reads the code, `cowork.owners.json` (who owns which feature) and the team's live state, including every agent's uncommitted work, and builds a plan with our tools: a task for each owner's agent, a review for each human whose feature a major change affects, and the conflicts it expects between agents' work.
+2. **Plan.** The orchestrator starts a model session (OpenRouter by default; Droid is an opt-in backend) on a read-only copy of `main`. The model reads the code, `cowork.owners.json` (who owns which feature) and the team's live state, including every agent's uncommitted work, and builds a plan with our tools: a task for each owner's agent, a review for each human whose feature a major change affects, and the conflicts it expects between agents' work.
 3. **Contract rule.** Code, not the model, then applies the rule: a change to a shared contract or to another owner's files is major, and the owners whose code imports that contract review it first. The plan lands in SpacetimeDB in one transaction.
 4. **Review.** A major change waits on the dashboard until the affected humans click Approve (or Send back, with a note).
 5. **Work.** Each agent is woken with its task by a background hook, even when idle. Before finishing, it runs `check_with_team`: its uncommitted work merged with each teammate's work in progress, then the type checker and the tests.
@@ -90,12 +90,12 @@ The downstream impact reaches the business's own customers: engineering teams ca
 7. **Escalation.** If they can't agree, after 12 messages, or after 90 seconds with no progress (each message resets the timer), the conflict goes to both humans, who decide on the dashboard. The decision wakes both agents.
 8. **Full stack.** The orchestrator keeps everyone's latest work merged on `cowork/full-stack`, rebuilt whenever someone's work changes and pushed only when tsc and the tests pass on the whole thing: a main branch that always runs. When a request is done, every agent hears it, and `get_full_stack` (or `npm run full-stack`) puts the whole project next to each laptop's clone, ready to demo. Droid plans on top of it, so it sees everyone's files.
 
-Git, the type checker and the tests decide red or green. Droid plans and the agents talk, but no model ever declares a change green.
+Git, the type checker and the tests decide red or green. The planner model plans and the agents talk, but no model ever declares a change green.
 
 ## Architecture
 
 ```text
-human --> own agent (Claude Code + hooks + MCP) --ask_orchestrator--> SpacetimeDB <-- orchestrator (Droid plans)
+human --> own agent (Claude Code + hooks + MCP) --ask_orchestrator--> SpacetimeDB <-- orchestrator (a model plans)
                |   ^                                                      |   ^
     wip/<name> |   | wakes: task, conflict, message           plan, tasks |   | requests
                v   |                                                      v   |
@@ -112,7 +112,7 @@ This design decouples producers from consumers. An agent publishing a snapshot d
 
 ## Sponsor track alignment and technical implementation
 
-Orkio uses Claude Code hooks, MCP, Git, TypeScript, Vitest, Factory Droid SDK, and SpacetimeDB. Local agents keep their existing workspaces; Git carries immutable snapshots; SpacetimeDB holds synchronized coordination state; the orchestrator plans and maintains the integrated branch; and the dashboard makes this background activity visible.
+Orkio uses Claude Code hooks, MCP, Git, TypeScript, Vitest, OpenRouter (and optionally the Factory Droid SDK), and SpacetimeDB. Local agents keep their existing workspaces; Git carries immutable snapshots; SpacetimeDB holds synchronized coordination state; the orchestrator plans and maintains the integrated branch; and the dashboard makes this background activity visible.
 
 ### Meta — Bringing People Closer Together with AI
 
@@ -140,7 +140,9 @@ SpacetimeDB is Orkio's core real-time backend, not an auxiliary database added f
 
 ### Factory Droid SDK
 
-The orchestrator is Droid: [orchestrator/src/planner.ts](orchestrator/src/planner.ts), run by [orchestrator/src/index.ts](orchestrator/src/index.ts).
+**Status:** the default planner now runs on OpenRouter ([orchestrator/src/openrouter.ts](orchestrator/src/openrouter.ts)). The Droid planner below is still in the repo and runs with `PLANNER=droid` and a `FACTORY_API_KEY`; the details and the 52 s measurement describe that Droid backend, not the OpenRouter default. Decide whether this section still fits the track you are submitting to.
+
+The Droid planner: [orchestrator/src/planner.ts](orchestrator/src/planner.ts), run by [orchestrator/src/index.ts](orchestrator/src/index.ts).
 - **Trigger:** a human's request in the database (`ask_orchestrator` from any teammate's agent).
 - **Our tools:** Droid gets in-process SDK MCP tools (`team_status`, `assign_task`, `request_review`, `flag_conflict`, `finish_plan`). They only record into the plan; code applies the contract rule and publishes it.
 - **Permissions:** autonomy off, so every tool call goes through our permission handler. It allows Read, Grep, Glob and LS on a disposable worktree of `main` plus our own tools, and refuses everything else; Edit, Create, ApplyPatch, Execute, Task and Skill are disabled before the first turn. The session runs with direct tool calls (we set this on the CLI's initialize request) and a 150-second deadline, and is always closed.
@@ -217,11 +219,11 @@ You need Node 24 or newer, Git, the `spacetime` CLI, and a SpacetimeDB identity 
 | Command | What it does |
 |---|---|
 | `./run.sh` | Joins as an agent: installs packages, fills `.env`, signs in to SpacetimeDB, clones `WORKSPACE_REPO` into `../workspace`, installs hooks and the MCP server, runs the doctor, and opens the workspace in VS Code. |
-| `./run.sh --orchestrator` | Performs agent setup and also starts the orchestrator and dashboard. Requires `FACTORY_API_KEY` in `.env`. |
+| `./run.sh --orchestrator` | Performs agent setup and also starts the orchestrator and dashboard. Requires `OPENROUTER_API_KEY` in `.env` (or `PLANNER=droid` and `FACTORY_API_KEY`). |
 | `./run.sh --screen` | Starts only the dashboard at http://localhost:5173. |
 | `./run.sh clean --yes` | Deletes `../workspace`, `.orchestrator/`, and the current agent's WIP branch. Without `--yes`, it only previews the targets. The database owner can add `--db` to clear shared state and all WIP branches. |
 
-Running setup again is safe because completed steps are skipped. On PowerShell without Git Bash, use `npm run join -- <same options>`. The default team database is `agent-cowork-orch`; setup details live in [scripts/join.ts](scripts/join.ts).
+Running setup again is safe because completed steps are skipped. On PowerShell without Git Bash, use `npm run join -- <same options>`. The default team database is `orkio-catherine`; setup details live in [scripts/join.ts](scripts/join.ts).
 
 Useful verification commands:
 

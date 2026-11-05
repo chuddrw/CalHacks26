@@ -10,7 +10,7 @@
  *
  * USAGE (from repo 1)
  *   ./run.sh                     join as an agent: workspace ../workspace, opened in VS Code
- *   ./run.sh --orchestrator      also run the orchestrator (needs FACTORY_API_KEY) and the dashboard
+ *   ./run.sh --orchestrator      also run the orchestrator (needs OPENROUTER_API_KEY) and the dashboard
  *   ./run.sh --screen            only the dashboard, no agent (the big screen)
  *   ./run.sh --name ana         your handle the first time without being asked (lowercase, e.g. ana)
  *   ./run.sh --no-open           don't open VS Code / the browser (the window is already open)
@@ -32,13 +32,14 @@ import { existsSync, readFileSync, rmSync, writeFileSync, copyFileSync } from "n
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
+import { TEAM_DB } from "../shared/src/config.ts";
 import { freeHandle, grantCommand, memberProfiles, publicIdentity, slugHandle } from "../shared/src/members.ts";
 import { spacetimeCli } from "../shared/src/session-token.ts";
 
 const REPO = path.resolve(import.meta.dirname, "..");
 const ENV_FILE = path.join(REPO, ".env");
-const TEAM_DB = process.env.ORKIO_TEAM_DB ?? "orkio-catherine";
-const WORKSPACE_REPO_DEFAULT = "https://github.com/chuddrw/CalHacks26-Demo.git";
+// TEAM_DB (the team database name) lives in shared/src/config.ts.
+const WORKSPACE_REPO_DEFAULT = "https://github.com/catou88/OrkioDemo.git";
 const MARKER = "cowork-run-sh";
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
 const WIN = process.platform === "win32";
@@ -108,7 +109,7 @@ function prepareWorkspace(dir: string, label: string): void {
   const remote = envValue("WORKSPACE_REPO") || WORKSPACE_REPO_DEFAULT;
   if (!existsSync(dir)) {
     note(`cloning ${remote} (${branch}) into ${dir}`);
-    if (!runVisible("git", ["clone", "--quiet", "--branch", branch, remote, dir])) stop(`git clone failed. Check that you can open ${remote}.`);
+    if (!runVisible("git", ["clone", "--quiet", "--branch", branch, remote, dir])) stop(`git clone failed. Check that you can open ${remote}. If it says "Permission denied", you do not own the folder ${path.dirname(dir)} (a dev container's /workspaces is owned by root): run  sudo chown "$USER" ${path.dirname(dir)}  and try again.`);
     writeFileSync(markerFile(dir), `Made by repo 1's run.sh (${REPO}) for ${label}. ./run.sh clean deletes this folder.\n`);
     ok(`new workspace: ${dir}`);
   } else {
@@ -224,7 +225,7 @@ async function signIn(name: string, display: string): Promise<string> {
       setEnv("COWORK_NAME", handle);
     }
   }
-  console.log(`\n  Not approved yet. Send the database owner this one line (it holds only your public identity, no token):\n\n    ${grantCommand(identity, handle, display || handle)}\n`);
+  console.log(`\n  Not approved yet. Send the database owner this one line (it holds only your public identity, no token):\n\n    ${grantCommand(identity, handle, display || handle, TEAM_DB)}\n`);
   return handle;
 }
 
@@ -300,7 +301,7 @@ async function join(values: { name?: string; orchestrator?: boolean; screen?: bo
   }
   if (values.orchestrator) {
     step("Orchestrator's own clone");
-    if (!envValue("FACTORY_API_KEY")) stop(`The orchestrator plans with Droid: put FACTORY_API_KEY=... in ${ENV_FILE}, then run this again.`);
+    if (envValue("PLANNER") === "droid" ? !envValue("FACTORY_API_KEY") : !envValue("OPENROUTER_API_KEY")) stop(`The orchestrator needs a model: put OPENROUTER_API_KEY=... in ${ENV_FILE} (or set PLANNER=droid and FACTORY_API_KEY=...), then run this again.`);
     const own = ORCHESTRATOR_CLONE;
     prepareWorkspace(own, "the orchestrator");
     setEnv("DEMO_REPO_PATH", own.replace(/\\/g, "/"));

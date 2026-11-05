@@ -14,7 +14,7 @@
  *     are read or printed, never a token.
  */
 import { spawnSync } from "node:child_process";
-import { config } from "./config.ts";
+import { config, TEAM_DB } from "./config.ts";
 import { spacetimeCli, sessionToken } from "./session-token.ts";
 
 export interface MemberProfile {
@@ -82,7 +82,7 @@ export async function memberProfiles(timeoutMs = 3000): Promise<MemberProfile[] 
 }
 
 /** The owner's one-line approval command for this person. Public identity only. */
-export function grantCommand(identity: string, handle: string, displayName: string): string {
-  const db = config.stdbDb || "agent-cowork-orch";
+/** `db` is the database this laptop is joining; the default is the team database. (.env may still hold an older name on a first run.) */
+export function grantCommand(identity: string, handle: string, displayName: string, db: string = TEAM_DB): string {
   return `npm run access --prefix module -- grant ${db} ${identity} editor --name ${handle} --display "${displayName.replace(/"/g, "")}"`;
 }
